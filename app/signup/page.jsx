@@ -25,7 +25,13 @@ export default function SignupPage() {
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { display_name: name } },
+      options: {
+        data: { display_name: name },
+        // Send the confirmation link to /login instead of the bare landing
+        // page, so there's somewhere to actually show "email confirmed" —
+        // the landing page has its own nav with no logged-in/out state at all.
+        emailRedirectTo: `${window.location.origin}/login?verified=1`,
+      },
     });
 
     if (signUpError) {
