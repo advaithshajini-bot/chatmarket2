@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #14213D;
+  --paper: #EDEEEA;
+  --paper-card: #F7F7F4;
+  --paper-white: #FFFFFF;
+  --amber: #E2A83E;
+  --amber-deep: #C68F2A;
+  --teal: #2F6F62;
+  --rule: #D8D5C9;
+  --muted: #6B6F76;
+}
+
+html, body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+
+/* Room for the fixed mobile bottom tab bar (matches TopNav's sm breakpoint) */
+@media (max-width: 639px) {
+  body {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+}
+
+* { box-sizing: border-box; }
