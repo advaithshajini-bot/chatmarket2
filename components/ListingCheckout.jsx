@@ -7,12 +7,26 @@ import { Lock, Unlock, Smartphone, CreditCard, Landmark, Wallet, Check } from "l
 import { createClient } from "@/lib/supabase/client";
 
 const PAYMENT_METHODS = [
-  { id: "upi", label: "UPI", icon: Smartphone, hint: "Pay via any UPI app" },
-  { id: "razorpay", label: "Razorpay", icon: Wallet, hint: "Cards, wallets & more" },
-  { id: "gpay", label: "Google Pay", icon: Wallet, hint: "Fast checkout" },
-  { id: "netbanking", label: "Netbanking", icon: Landmark, hint: "All major banks" },
-  { id: "card", label: "Credit / Debit Card", icon: CreditCard, hint: "Visa, Mastercard, RuPay" },
+  { id: "upi", label: "UPI", icon: Smartphone, hint: "Pay via any UPI app", razorpayMethod: "upi" },
+  { id: "razorpay", label: "Razorpay", icon: Wallet, hint: "Cards, wallets & more", razorpayMethod: undefined },
+  { id: "gpay", label: "Google Pay", icon: Wallet, hint: "Fast checkout", razorpayMethod: "upi" },
+  { id: "netbanking", label: "Netbanking", icon: Landmark, hint: "All major banks", razorpayMethod: "netbanking" },
+  { id: "card", label: "Credit / Debit Card", icon: CreditCard, hint: "Visa, Mastercard, RuPay", razorpayMethod: "card" },
 ];
+
+function loadRazorpayScript() {
+  return new Promise((resolve, reject) => {
+    if (window.Razorpay) {
+      resolve();
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Couldn't load the payment widget — check your connection and try again."));
+    document.body.appendChild(script);
+  });
+}
 
 export default function ListingCheckout({ listing }) {
   const router = useRouter();
@@ -22,20 +36,19 @@ export default function ListingCheckout({ listing }) {
   const [error, setError] = useState("");
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userInfo, setUserInfo] = useState(null);
 
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => {
       setIsLoggedIn(!!data.user);
+      setUserInfo(data.user);
       setCheckingAuth(false);
     });
   }, []);
 
   const handlePay = async () => {
-    const supabase = createClient();
-    const { data: userData } = await supabase.auth.getUser();
-
-    if (!userData.user) {
+    if (!isLoggedIn) {
       router.push(`/login?next=/listing/${listing.id}`);
       return;
     }
@@ -43,22 +56,77 @@ export default function ListingCheckout({ listing }) {
     setLoading(true);
     setError("");
 
-    const { error: insertError } = await supabase.from("purchases").insert({
-      user_id: userData.user.id,
-      listing_id: listing.id,
-      amount: listing.price,
-      payment_method: payment,
-    });
+    try {
+      await loadRazorpayScript();
 
-    // 23505 = unique_violation — they already own this thread, which is fine.
-    if (insertError && insertError.code !== "23505") {
-      setError(insertError.message);
+      const orderRes = await fetch("/api/razorpay/create-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ listingId: listing.id }),
+      });
+      const orderData = await orderRes.json();
+      if (!orderRes.ok) {
+        // Already owning this thread isn't really an error state for the buyer.
+        if (orderRes.status === 409) {
+          setPaid(true);
+          setLoading(false);
+          return;
+        }
+        throw new Error(orderData.error || "Couldn't start checkout.");
+      }
+
+      const selected = PAYMENT_METHODS.find((m) => m.id === payment);
+
+      const razorpay = new window.Razorpay({
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        order_id: orderData.orderId,
+        name: "chatmarket",
+        description: orderData.listingTitle,
+        prefill: {
+          name: userInfo?.user_metadata?.display_name || "",
+          email: userInfo?.email || "",
+        },
+        method: selected?.razorpayMethod ? { [selected.razorpayMethod]: true } : undefined,
+        theme: { color: "#14213D" },
+        modal: {
+          ondismiss: () => setLoading(false),
+        },
+        handler: async (response) => {
+          try {
+            const verifyRes = await fetch("/api/razorpay/verify-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                listingId: listing.id,
+                paymentMethod: payment,
+              }),
+            });
+            const verifyData = await verifyRes.json();
+            if (!verifyRes.ok) throw new Error(verifyData.error || "Payment couldn't be verified.");
+            setPaid(true);
+          } catch (err) {
+            setError(err.message);
+          } finally {
+            setLoading(false);
+          }
+        },
+      });
+
+      razorpay.on("payment.failed", (response) => {
+        setError(response.error?.description || "Payment failed — you weren't charged.");
+        setLoading(false);
+      });
+
+      razorpay.open();
+    } catch (err) {
+      setError(err.message);
       setLoading(false);
-      return;
     }
-
-    setPaid(true);
-    setLoading(false);
   };
 
   return (
