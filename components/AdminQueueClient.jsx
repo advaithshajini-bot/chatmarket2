@@ -76,6 +76,19 @@ function QueueRow({ item, onApprove, onFlag, onRemove, busy }) {
             </span>
           </div>
 
+          {item.screening_findings && item.screening_findings.length > 0 && (
+            <div className="rounded-md p-2.5 mb-3" style={{ background: "#FBEAE8", border: "1px solid #F0C4BE" }}>
+              <p className="text-[11px] uppercase tracking-wide mb-1" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#B33A2E" }}>
+                Auto-redacted before saving
+              </p>
+              {item.screening_findings.map((f) => (
+                <p key={f.type} className="text-xs" style={{ color: "#8A342B" }}>
+                  {f.count}× {f.type}{f.count === 1 ? "" : "s"}
+                </p>
+              ))}
+            </div>
+          )}
+
           {item.description && (
             <p className="text-xs mb-3" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif" }}>
               {item.description}
