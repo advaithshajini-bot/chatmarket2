@@ -21,6 +21,7 @@ import TopNav from "@/components/TopNav";
 import StatusPill from "@/components/StatusPill";
 import { CATEGORIES, MODELS } from "@/lib/categories";
 import { parseThreadExport } from "@/lib/parse-thread-export";
+import { redactListing } from "@/lib/redact-pii";
 import { createClient } from "@/lib/supabase/client";
 import { PLATFORM_FEE_PCT } from "@/lib/constants";
 
@@ -517,10 +518,12 @@ function PriceSubStep({ form, setForm, onSubmit, onBack, submitting, submitError
   );
 }
 
-function ReviewStep({ onDone }) {
+function ReviewStep({ onDone, findings }) {
   const [checkedCount, setCheckedCount] = useState(0);
   const [finished, setFinished] = useState(false);
   const started = useRef(false);
+  const hasFindings = findings && findings.length > 0;
+  const totalRedacted = hasFindings ? findings.reduce((sum, f) => sum + f.count, 0) : 0;
 
   useEffect(() => {
     if (started.current) return;
@@ -545,10 +548,14 @@ function ReviewStep({ onDone }) {
         {finished ? <ShieldCheck size={24} color="#2F6F62" /> : <Loader2 size={22} color="#8A6A18" className="animate-spin" />}
       </div>
       <h2 className="text-2xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
-        {finished ? "You're live" : "Screening your thread"}
+        {finished ? "Submitted for review" : "Screening your thread"}
       </h2>
       <p className="text-sm mb-6" style={{ color: "#6B6F76" }}>
-        {finished ? "No personal details found. Your listing is now visible to buyers." : "We check every thread for personal details and credentials before it goes live."}
+        {finished
+          ? hasFindings
+            ? `We auto-redacted ${totalRedacted} personal detail${totalRedacted === 1 ? "" : "s"} before saving your listing. It's now awaiting a quick human check before it goes live.`
+            : "No personal details or credentials matched our scan. Your listing is now awaiting a quick human check before it goes live."
+          : "We check every thread for personal details and credentials before it goes live."}
       </p>
       <div className="w-full h-1.5 rounded-full mb-6" style={{ background: "#D8D5C9" }}>
         <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progress}%`, background: finished ? "#2F6F62" : "#E2A83E" }} />
@@ -564,6 +571,18 @@ function ReviewStep({ onDone }) {
           );
         })}
       </div>
+      {finished && hasFindings && (
+        <div className="text-left rounded-md p-4 mb-6" style={{ background: "#FBF1DD", border: "1px solid #F0DFAE" }}>
+          <p className="text-xs uppercase tracking-wide mb-2" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#8A6A18" }}>
+            What we redacted
+          </p>
+          {findings.map((f) => (
+            <p key={f.type} className="text-sm" style={{ color: "#14213D" }}>
+              {f.count}× {f.type}{f.count === 1 ? "" : "s"}
+            </p>
+          ))}
+        </div>
+      )}
       {finished && (
         <button
           onClick={onDone}
@@ -739,6 +758,7 @@ export default function SellPage() {
   const [submitError, setSubmitError] = useState("");
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
   const [hasExistingListings, setHasExistingListings] = useState(false);
+  const [screeningFindings, setScreeningFindings] = useState([]);
 
   useEffect(() => {
     // Generated up front (not at final submit) so screenshots can be
@@ -776,22 +796,38 @@ export default function SellPage() {
 
     const sellerName = userData.user.user_metadata?.display_name || userData.user.email;
     const category = form.category === "Other" ? form.categoryOther.trim() : form.category;
-    const messages = form.parsedMessages || [];
+
+    // Real redaction, not a simulation -- strips emails, phone numbers, card
+    // numbers, and common API-key/token shapes from everything the buyer
+    // would eventually see, before any of it reaches the database. Nothing
+    // unredacted is ever written.
+    const redacted = redactListing({
+      title: form.title,
+      description: form.description || "",
+      messages: form.parsedMessages || [],
+    });
+    setScreeningFindings(redacted.findings);
 
     const { error: insertError } = await supabase.from("listings").insert({
       id: form.listingId,
-      title: form.title,
+      title: redacted.title,
       category,
       model: form.model,
-      description: form.description || "",
+      description: redacted.description,
       messages: Number(form.messages) || 0,
       completion: form.completion,
       price: Number(form.price),
       seller_id: userData.user.id,
       seller_name: sellerName,
-      preview: messages.slice(0, 2),
-      thread: messages,
+      preview: redacted.messages.slice(0, 2),
+      thread: redacted.messages,
       screenshots: form.screenshots.map((s) => s.url),
+      screening_findings: redacted.findings,
+      // Anything the scanner actually caught gets routed into the same
+      // "flagged" bucket the admin queue already shows alongside
+      // pending_review listings -- so a real finding is consequential, not
+      // just informational text.
+      status: redacted.findings.length > 0 ? "flagged" : "pending_review",
     });
 
     setSubmitting(false);
@@ -844,7 +880,7 @@ export default function SellPage() {
             )}
           </>
         )}
-        {step === 2 && <ReviewStep onDone={handleReviewDone} />}
+        {step === 2 && <ReviewStep onDone={handleReviewDone} findings={screeningFindings} />}
         {step === 3 && <DashboardStep refreshKey={dashboardRefreshKey} />}
       </main>
     </div>
