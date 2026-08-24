@@ -245,14 +245,27 @@ function UploadSubStep({ form, setForm, onContinue }) {
 
   const handleFile = async (file) => {
     if (!file) return;
+
+    // Checked before ever reading the file: a wrong-format upload gets its
+    // own distinct message rather than being funneled into "no messages
+    // found" further down.
+    if (!/\.(json|txt)$/i.test(file.name)) {
+      setParseError("This file isn't in a supported format. Upload a .json export or a .txt transcript.");
+      setForm((f) => ({ ...f, fileAttached: false, fileName: "", model: "", messages: "", parsedMessages: null }));
+      return;
+    }
+
     setParsing(true);
     setParseError("");
     try {
       const text = await file.text();
       const result = parseThreadExport(text, file.name);
       if (!result) {
-        setParseError("Couldn't find any messages in that file — you can still enter the details manually below.");
-        setForm((f) => ({ ...f, fileAttached: true, fileName: file.name, parsedMessages: null }));
+        // No manual-entry escape hatch here on purpose: a failed parse
+        // means there's no real thread content to sell, so it shouldn't be
+        // possible to type in a fake model/count and continue anyway.
+        setParseError("Couldn't find any messages in that file. Double-check it's a real export or transcript, then try again.");
+        setForm((f) => ({ ...f, fileAttached: false, fileName: "", model: "", messages: "", parsedMessages: null }));
       } else {
         setForm((f) => ({
           ...f,
@@ -265,11 +278,15 @@ function UploadSubStep({ form, setForm, onContinue }) {
       }
     } catch {
       setParseError("Couldn't read that file — try a .json export or a .txt transcript.");
+      setForm((f) => ({ ...f, fileAttached: false, fileName: "", model: "", messages: "", parsedMessages: null }));
     }
     setParsing(false);
   };
 
-  const canContinue = form.model && Number(form.messages) > 0;
+  // Continue now requires a real successful parse (parsedMessages present),
+  // not just a model + a typed-in count — matches "don't let a bad or
+  // unparseable file continue" exactly.
+  const canContinue = form.parsedMessages && form.parsedMessages.length > 0 && form.model;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -298,14 +315,19 @@ function UploadSubStep({ form, setForm, onContinue }) {
               <>Drop your .json export from Claude, ChatGPT, or Gemini, or <span style={{ color: "#14213D", fontWeight: 500 }}>browse</span></>
             )}
           </p>
-          <p className="text-xs" style={{ color: "#6B6F76" }}>We auto-detect the source model and message count · max 20MB</p>
+          <p className="text-xs" style={{ color: "#6B6F76" }}>We auto-detect the source model and message count · .json or .txt only · max 20MB</p>
         </div>
 
-        {parseError && <p className="text-xs" style={{ color: "#B33A2E" }}>{parseError}</p>}
+        {parseError && (
+          <div className="flex items-start gap-2 p-3 rounded-md" style={{ background: "#FBEAE8", border: "1px solid #F0C4BE" }}>
+            <AlertCircle size={14} color="#B33A2E" className="mt-0.5 shrink-0" />
+            <p className="text-xs" style={{ color: "#B33A2E" }}>{parseError}</p>
+          </div>
+        )}
 
         {form.fileAttached && !parseError && (
           <div className="flex items-center gap-2 text-xs" style={{ color: "#2F6F62" }}>
-            <CheckCircle2 size={13} /> Detected {form.model || "an unknown model"} · {form.messages} messages — you can adjust either below
+            <CheckCircle2 size={13} /> Detected {form.model || "an unknown model"} · {form.messages} messages
           </div>
         )}
 
@@ -317,22 +339,26 @@ function UploadSubStep({ form, setForm, onContinue }) {
             <select
               value={form.model}
               onChange={(e) => setForm({ ...form, model: e.target.value })}
-              className="w-full px-3 py-2.5 rounded text-sm outline-none"
+              disabled={!form.fileAttached}
+              className="w-full px-3 py-2.5 rounded text-sm outline-none disabled:opacity-50"
               style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
             >
               <option value="">Select model</option>
               {MODELS.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
+            {form.fileAttached && <p className="text-[11px] mt-1" style={{ color: "#6B6F76" }}>Auto-detected — correct it here if it's wrong</p>}
           </div>
           <div>
             <label className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Message count</label>
             <input
               type="number"
               value={form.messages}
-              onChange={(e) => setForm({ ...form, messages: e.target.value })}
-              className="w-full px-3 py-2.5 rounded text-sm outline-none"
-              style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
+              readOnly
+              disabled
+              className="w-full px-3 py-2.5 rounded text-sm outline-none opacity-50"
+              style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#F7F7F4" }}
             />
+            <p className="text-[11px] mt-1" style={{ color: "#6B6F76" }}>Counted from the file — not editable</p>
           </div>
         </div>
 
