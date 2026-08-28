@@ -4,7 +4,8 @@
 -- buyer_access_and_reviews, seller_can_view_own_sales,
 -- fix_purchases_listings_rls_recursion, add_admin_user_management,
 -- fix_protect_is_admin_column_bypass, add_disputes_table,
--- add_listing_screenshots_storage, add_48h_review_gate.
+-- add_listing_screenshots_storage, add_48h_review_gate,
+-- remove_48h_gate_and_public_reviews, allow_reviews_without_purchase.
 --
 -- The final result — not the intermediate steps — is what's below.
 -- Re-run this against a fresh project to reproduce the database this app expects.
@@ -139,12 +140,21 @@ create policy "Buyers can view listings they've purchased" on public.listings
 
 create table public.reviews (
   id uuid primary key default gen_random_uuid(),
-  purchase_id uuid not null unique references public.purchases(id) on delete cascade,
+  -- Nullable as of allow_reviews_without_purchase: a review no longer
+  -- requires a real purchase. Still linked to one when the reviewer
+  -- genuinely has it (powers a "Verified buyer" badge); RLS below prevents
+  -- linking someone else's purchase to spoof that badge.
+  purchase_id uuid unique references public.purchases(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   listing_id uuid not null references public.listings(id) on delete cascade,
   rating int not null check (rating between 1 and 5),
   comment text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- Added in allow_reviews_without_purchase: without the purchase
+  -- requirement, the old natural one-review-per-purchase limit disappears
+  -- too. This replaces it with an explicit one-review-per-listing limit
+  -- per user, purchased or not.
+  constraint reviews_listing_user_unique unique (listing_id, user_id)
 );
 
 alter table public.reviews enable row level security;
@@ -152,20 +162,37 @@ alter table public.reviews enable row level security;
 create policy "Users can view their own reviews" on public.reviews
   for select to authenticated using ((select auth.uid()) = user_id);
 
-create policy "Users can create a review for their own purchase" on public.reviews
+-- Added in a later migration (remove_48h_gate_and_public_reviews): reviews
+-- are product info meant to be seen by anyone browsing a listing, not just
+-- the person who wrote them -- without this, a random visitor can't see
+-- anyone else's review at all, which the listing page's public reviews
+-- section needs.
+create policy "Anyone can view reviews on live listings" on public.reviews
+  for select to public
+  using (exists (select 1 from public.listings l where l.id = reviews.listing_id and l.status = 'live'));
+
+-- Superseded by "Users can review any live listing" below
+-- (allow_reviews_without_purchase) -- kept only as history of how this
+-- table's trust model evolved:
+--   1. add_admin_role_and_policies-era: a review required a real purchase
+--      (the 48h-gated version further required pu.purchased_at <= now() - 48h)
+--   2. allow_reviews_without_purchase: purchase requirement dropped
+--      entirely -- see the README's "Row Level Security" section for the
+--      trust trade-off this makes, and why a "Verified buyer" badge exists
+--      to partially compensate for it.
+create policy "Users can review any live listing" on public.reviews
   for insert to authenticated
   with check (
     (select auth.uid()) = user_id
-    and exists (
-      select 1 from public.purchases pu
-      where pu.id = purchase_id
-        and pu.user_id = (select auth.uid())
-        and pu.listing_id = reviews.listing_id
-        -- Added in a later migration (add_48h_review_gate): PDF (buyer flow
-        -- b5) only asks for a rating once the 48-hour buyer-confirmation
-        -- hold has closed. Enforced here so it can't be bypassed by calling
-        -- the insert directly, not just hidden in the UI.
-        and pu.purchased_at <= now() - interval '48 hours'
+    and exists (select 1 from public.listings l where l.id = reviews.listing_id and l.status = 'live')
+    and (
+      purchase_id is null
+      or exists (
+        select 1 from public.purchases pu
+        where pu.id = purchase_id
+          and pu.user_id = (select auth.uid())
+          and pu.listing_id = reviews.listing_id
+      )
     )
   );
 
