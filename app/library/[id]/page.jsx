@@ -49,10 +49,17 @@ export default async function LibraryDetailPage({ params }) {
     .eq("id", params.id)
     .single();
 
+  // Looks up by (listing_id, user_id), not purchase_id -- a review may
+  // already exist from before this purchase happened (written directly on
+  // the listing page, which doesn't require a purchase), and would have
+  // purchase_id left null. Matching on purchase_id alone would miss that
+  // and let the same reviewer hit the one-review-per-listing unique
+  // constraint on submit.
   const { data: existingReview } = await supabase
     .from("reviews")
     .select("*")
-    .eq("purchase_id", purchase.id)
+    .eq("listing_id", params.id)
+    .eq("user_id", userData.user.id)
     .maybeSingle();
 
   const listing = { ...listingRow, price: Number(listingRow.price) };
