@@ -7,7 +7,12 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 
 export async function middleware(request) {
-  let response = NextResponse.next({ request: { headers: request.headers } });
+  // Created ONCE. The cookie handlers below only ever call
+  // `.cookies.set(...)` on this same object -- they never construct a new
+  // NextResponse. See the "root cause" note in chat for why the previous
+  // version (which reassigned `response = NextResponse.next(...)` inside
+  // both `set` and `remove`) caused MIDDLEWARE_INVOCATION_TIMEOUT.
+  const response = NextResponse.next({ request: { headers: request.headers } });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -18,11 +23,9 @@ export async function middleware(request) {
           return request.cookies.get(name)?.value;
         },
         set(name, value, options) {
-          response = NextResponse.next({ request: { headers: request.headers } });
           response.cookies.set({ name, value, ...options });
         },
         remove(name, options) {
-          response = NextResponse.next({ request: { headers: request.headers } });
           response.cookies.set({ name, value: "", ...options });
         },
       },
@@ -34,5 +37,11 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Excludes static assets and, importantly, /api/* -- the API routes
+  // (Razorpay checkout, etc.) already create their own Supabase server
+  // client and call getUser() internally where needed. Running this
+  // middleware in front of them too was redundant: every checkout request
+  // paid for two auth round-trips instead of one, and any slowness on
+  // Supabase's side hit checkout twice as hard.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/).*)"],
 };
