@@ -4,6 +4,8 @@ import TopNav from "@/components/TopNav";
 import ModelTag from "@/components/ModelTag";
 import ListingCheckout from "@/components/ListingCheckout";
 import ScreenshotGallery from "@/components/ScreenshotGallery";
+import ReviewsSection from "@/components/ReviewsSection";
+import ListingReviewForm from "@/components/ListingReviewForm";
 import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
@@ -35,6 +37,27 @@ export default async function ListingDetailPage({ params }) {
   };
   const preview = listing.preview && listing.preview.length ? listing.preview : (listing.thread || []).slice(0, 2);
 
+  const { data: reviewRows } = await supabase
+    .from("reviews")
+    .select("id, rating, comment, created_at, user_id, purchase_id")
+    .eq("listing_id", params.id)
+    .order("created_at", { ascending: false });
+
+  const reviewerIds = [...new Set((reviewRows || []).map((r) => r.user_id))];
+  let reviewerNames = {};
+  if (reviewerIds.length > 0) {
+    const { data: reviewerProfiles } = await supabase.from("profiles").select("id, display_name").in("id", reviewerIds);
+    reviewerNames = Object.fromEntries((reviewerProfiles || []).map((p) => [p.id, p.display_name]));
+  }
+
+  const reviews = (reviewRows || []).map((r) => ({
+    ...r,
+    reviewerName: reviewerNames[r.user_id] || "Anonymous buyer",
+  }));
+
+  const { data: userData } = await supabase.auth.getUser();
+  const existingReview = userData.user ? reviews.find((r) => r.user_id === userData.user.id) : null;
+
   return (
     <div style={{ minHeight: "100vh" }}>
       <TopNav />
@@ -55,7 +78,14 @@ export default async function ListingDetailPage({ params }) {
             </h1>
             <div className="flex items-center gap-3 mb-6 text-sm" style={{ color: "#6B6F76" }}>
               <span className="flex items-center gap-1">
-                <Star size={13} fill="#E2A83E" color="#E2A83E" /> {listing.rating ?? "New"} {listing.reviews ? `(${listing.reviews} reviews)` : ""}
+                <Star size={13} fill="#E2A83E" color="#E2A83E" />
+                {reviews.length > 0 ? (
+                  <a href="#reviews" style={{ color: "#6B6F76", textDecoration: "underline" }}>
+                    {listing.rating ?? "New"} ({reviews.length} review{reviews.length === 1 ? "" : "s"})
+                  </a>
+                ) : (
+                  <span>{listing.rating ?? "New"}</span>
+                )}
               </span>
               <span>·</span>
               <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{listing.messages} messages</span>
@@ -104,6 +134,8 @@ export default async function ListingDetailPage({ params }) {
                 </div>
               </div>
             </div>
+
+            <ReviewsSection reviews={reviews} reviewForm={<ListingReviewForm listingId={listing.id} isLoggedIn={!!userData.user} existingReview={existingReview} />} />
           </div>
 
           <div>
