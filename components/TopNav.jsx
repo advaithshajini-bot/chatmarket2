@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function TopNav() {
+export default function TopNav({ hideAuthLinks = false }) {
   const router = useRouter();
   const [user, setUser] = useState(undefined); // undefined = loading, null = logged out
 
@@ -50,7 +50,7 @@ export default function TopNav() {
       </div>
 
       <div className="flex items-center gap-3">
-        {user === undefined ? null : user ? (
+        {hideAuthLinks ? null : user === undefined ? null : user ? (
           <>
             <span className="text-sm hidden sm:inline" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
               {user.name}

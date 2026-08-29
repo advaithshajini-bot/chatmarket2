@@ -13,6 +13,9 @@ const LANDING_STYLES = `
 .lnav-links{ display:flex; gap:32px; font-size:14px; }
 .lnav-cta{ padding:10px 20px; border-radius:6px; background:var(--ink); color:var(--paper-card); font-size:14px; font-weight:500; transition:transform .2s ease; }
 .lnav-cta:hover{ transform:translateY(-1px); }
+.lnav-auth{ display:flex; align-items:center; gap:10px; }
+.lnav-login{ padding:9px 18px; border-radius:6px; border:1.5px solid var(--ink); color:var(--ink); font-size:14px; font-weight:500; transition:background .2s ease; }
+.lnav-login:hover{ background:var(--paper-white); }
 @media(max-width:760px){ .lnav-links{ display:none; } }
 
 .lhero{ padding:90px 6% 20px; display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center; max-width:1200px; margin:0 auto; }
@@ -146,7 +149,10 @@ export default function LandingClient({ categoryCounts, threadsSold, netPaidRupe
           <a href="#categories">Categories</a>
           <a href="#pricing">For sellers</a>
         </div>
-        <Link href="/browse" className="lnav-cta">Browse threads</Link>
+        <div className="lnav-auth">
+          <Link href="/login" className="lnav-login">Log in</Link>
+          <Link href="/signup" className="lnav-cta">Sign up</Link>
+        </div>
       </nav>
 
       <section className="lhero" style={{ paddingBottom: 20 }}>
