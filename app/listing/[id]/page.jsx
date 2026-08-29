@@ -71,7 +71,17 @@ export default async function ListingDetailPage({ params }) {
         </Link>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
+          {/* Order below is mobile-specific (per request): Title → gallery →
+              locked-message preview → payment → description → reviews.
+              At sm (640px, this app's established mobile cutoff — same one
+              MobileTabBar/TopNav use) and up, order/placement resets to the
+              original layout: title, description, gallery, locked preview,
+              reviews in a 2/3-width column; payment as a separate sidebar
+              column. Kept as one instance each of ListingCheckout and
+              ListingReviewForm (both stateful) repositioned via CSS, rather
+              than duplicating them per breakpoint. */}
+
+          <div className="order-1 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-1">
             <ModelTag model={listing.model} />
             <h1 className="text-3xl mt-3 mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
               {listing.title}
@@ -92,10 +102,13 @@ export default async function ListingDetailPage({ params }) {
               <span>·</span>
               <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{listing.completion}% complete</span>
             </div>
-            <p className="text-sm mb-6" style={{ color: "#3A3D42" }}>{listing.description}</p>
+          </div>
 
+          <div className="order-2 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-3">
             <ScreenshotGallery screenshots={listing.screenshots} />
+          </div>
 
+          <div className="order-3 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-4">
             <div className="rounded-md p-5 relative overflow-hidden" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
               <div className="space-y-3">
                 {preview.map((m, i) => (
@@ -134,12 +147,18 @@ export default async function ListingDetailPage({ params }) {
                 </div>
               </div>
             </div>
-
-            <ReviewsSection reviews={reviews} reviewForm={<ListingReviewForm listingId={listing.id} isLoggedIn={!!userData.user} existingReview={existingReview} />} />
           </div>
 
-          <div>
+          <div className="order-4 sm:order-none lg:col-start-3 lg:row-start-1">
             <ListingCheckout listing={listing} />
+          </div>
+
+          <div className="order-5 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-2">
+            <p className="text-sm" style={{ color: "#3A3D42" }}>{listing.description}</p>
+          </div>
+
+          <div className="order-6 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-5">
+            <ReviewsSection reviews={reviews} reviewForm={<ListingReviewForm listingId={listing.id} isLoggedIn={!!userData.user} existingReview={existingReview} />} />
           </div>
         </div>
       </main>
