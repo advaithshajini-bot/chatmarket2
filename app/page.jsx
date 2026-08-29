@@ -10,10 +10,19 @@ export const dynamic = "force-dynamic";
 export default async function HomePage() {
   const supabase = createClient();
 
-  const [{ data: liveListings }, { data: purchases }, { data: reviews }] = await Promise.all([
+  // Category counts read straight from listings (already public — "live"
+  // listings are publicly readable), but threads-sold/paid-out/rating come
+  // from a SECURITY DEFINER RPC instead of querying purchases/reviews
+  // directly. purchases has no public or platform-wide SELECT policy at
+  // all (only "your own" / "sales of your own listings"), so a direct
+  // query would show zero to a logged-out visitor and an incomplete,
+  // personal-only number to a logged-in non-admin buyer — different
+  // numbers for different people, which is exactly what this page needs
+  // to not do. The RPC returns only the aggregate totals, never row-level
+  // purchase/review data, so it's safe to expose to anyone.
+  const [{ data: liveListings }, { data: statsRows }] = await Promise.all([
     supabase.from("listings").select("category").eq("status", "live"),
-    supabase.from("purchases").select("amount, status"),
-    supabase.from("reviews").select("rating"),
+    supabase.rpc("get_platform_stats"),
   ]);
 
   const categoryCounts = CATEGORIES.map((name) => ({
@@ -21,13 +30,11 @@ export default async function HomePage() {
     count: (liveListings || []).filter((l) => l.category === name).length,
   }));
 
-  const threadsSold = (purchases || []).length;
-  const netPaidRupees = (purchases || [])
-    .filter((p) => p.status === "paid")
-    .reduce((sum, p) => sum + Number(p.amount) * (1 - PLATFORM_FEE_PCT), 0);
-
-  const reviewCount = (reviews || []).length;
-  const avgRating = reviewCount > 0 ? (reviews || []).reduce((sum, r) => sum + r.rating, 0) / reviewCount : 0;
+  const stats = statsRows?.[0] || { threads_sold: 0, gross_paid: 0, review_count: 0, avg_rating: 0 };
+  const threadsSold = Number(stats.threads_sold);
+  const netPaidRupees = Number(stats.gross_paid) * (1 - PLATFORM_FEE_PCT);
+  const reviewCount = Number(stats.review_count);
+  const avgRating = Number(stats.avg_rating);
 
   return (
     <LandingClient
