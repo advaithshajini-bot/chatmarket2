@@ -785,6 +785,7 @@ export default function SellPage() {
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
   const [hasExistingListings, setHasExistingListings] = useState(false);
   const [screeningFindings, setScreeningFindings] = useState([]);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
   useEffect(() => {
     // Generated up front (not at final submit) so screenshots can be
@@ -795,18 +796,26 @@ export default function SellPage() {
   }, []);
 
   useEffect(() => {
-    const checkExisting = async () => {
+    // Gates the whole wizard on being logged in -- clicking "Sell" with no
+    // session should land straight on /login, not let someone browse the
+    // upload UI first and only find out at the final submit step.
+    const checkAuth = async () => {
       const supabase = createClient();
       const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) return;
+      if (!userData.user) {
+        router.push("/login?next=/sell");
+        return;
+      }
+      setCheckingAuth(false);
+
       const { count } = await supabase
         .from("listings")
         .select("id", { count: "exact", head: true })
         .eq("seller_id", userData.user.id);
       setHasExistingListings((count || 0) > 0);
     };
-    checkExisting();
-  }, []);
+    checkAuth();
+  }, [router]);
 
   const handleFinalSubmit = async () => {
     setSubmitError("");
@@ -870,6 +879,17 @@ export default function SellPage() {
     setDashboardRefreshKey((k) => k + 1);
     setStep(3);
   };
+
+  if (checkingAuth) {
+    return (
+      <div style={{ minHeight: "100vh" }}>
+        <TopNav />
+        <main className="px-6 py-16 max-w-sm mx-auto text-center">
+          <p className="text-sm" style={{ color: "#6B6F76" }}>Checking your session…</p>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: "100vh" }}>
