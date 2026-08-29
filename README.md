@@ -7,8 +7,10 @@ This build runs on a real Supabase project: Postgres tables with Row Level
 Security, and Supabase Auth for signup/login/sessions. Every screen reads
 from and writes to the real database now — browse, checkout, seller upload,
 seller earnings, seller dashboard, admin moderation, buyer library, purchase
-history, and reviews. Razorpay itself isn't real yet (see below), so no
-actual money moves — but every number shown is computed from real rows.
+history, and reviews. Checkout runs on real Razorpay (Orders API + server-side
+signature verification) as of Phase 1 — see below. Route (splitting payment
+to sellers, real payouts) is still Phase 2, pending Route approval on the
+Razorpay account.
 
 ## Stack
 - Next.js 14 (App Router), plain JS (no TypeScript)
@@ -42,18 +44,18 @@ linking to a profile page — see the PDF gap notes below.
 **Buyer side**
 | Route | What it is | Backed by |
 |---|---|---|
-| `/` | Animated marketing landing page. Stats (threads sold, ₹ paid out to sellers, average rating) and the per-category thread counts are real, fetched fresh from Supabase on every load — not hardcoded. Category pills link to `/browse?category=...`, which `BrowseClient` reads on load to preselect that filter. The hero's sample thread card stays illustrative (a real one would need a specific real listing to point at) | **Supabase** for stats/counts; hero card is illustrative |
-| `/browse` | Category-filtered listing grid | **Supabase (`listings` table)** |
-| `/listing/[id]` | Listing detail + real checkout (inserts a `purchases` row) | **Supabase** |
+| `/` | Animated marketing landing page. Stats (threads sold, ₹ paid out to sellers, average rating) come from a `SECURITY DEFINER` RPC (`get_platform_stats()`) rather than querying `purchases`/`reviews` directly — those tables have no public or platform-wide SELECT policy, only "your own", so a direct query showed 0 to a logged-out visitor and an incomplete, personal-only number to a logged-in non-admin buyer. The RPC returns only aggregate totals (never row-level buyer/amount data) so the numbers are identical for every visitor, logged in or not. Per-category thread counts are real, fetched fresh from Supabase on every load. Category pills link to `/browse?category=...`, which `BrowseClient` reads on load to preselect that filter. Nav shows Log in / Sign up (was a single "Browse threads" CTA). The hero's sample thread card stays illustrative (a real one would need a specific real listing to point at) | **Supabase** for stats/counts; hero card is illustrative |
+| `/browse` | Category-filtered listing grid, with real relevance-ranked search (`lib/search-relevance.js`) across model, title, category, and description — matches sort to the top by field weight (model > title > category > description), and non-matches stay visible below a divider rather than being hidden, by design (searching "claude" surfaces every Claude thread first without hiding the rest of the catalog) | **Supabase (`listings` table)** |
+| `/listing/[id]` | Listing detail + real checkout — Razorpay Orders API + Checkout.js, server-side signature verification before a `purchases` row is ever written (`app/api/razorpay/create-order`, `app/api/razorpay/verify-payment`). Also shows every real review on the listing — reviewer name, star rating, date, comment, with a "Verified buyer" badge when the review is genuinely linked to a real purchase — publicly, to any visitor, below the locked-message preview; the rating/review-count line links to `#reviews`. Any logged-in user can write a review here, purchase or not (`ListingReviewForm.jsx`) — by design, not an oversight; see the schema notes on the trust trade-off this makes. Section order is mobile-specific below the 640px breakpoint (title → gallery → locked preview → payment → description → reviews, via CSS `order`/grid placement, not duplicated markup) — unchanged above that | **Supabase + real Razorpay (test mode)** |
 | `/library` | Buyer's unlocked threads, with search | **Supabase** (`purchases` joined with `listings`) |
-| `/library/[id]` | Full unlocked thread + "continue this thread" panel (copy-to-clipboard + real .txt download) + star rating & review, gated to 48 hours after purchase per the UX flow PDF — before that, a live countdown replaces the review form | **Supabase** — including a real `reviews` table; a purchased listing stays visible even if later flagged/removed by moderation |
+| `/library/[id]` | Full unlocked thread + "continue this thread" panel (copy-to-clipboard + real .txt download) + star rating & review — reviewable any time after purchase, no waiting period | **Supabase** — including a real `reviews` table; a purchased listing stays visible even if later flagged/removed by moderation |
 | `/purchases` | Order history & receipts, filterable by paid/refunded. Buyers can report an issue on a paid order, which opens a real dispute the admin resolves. | **Supabase** |
 
 **Seller side**
 | Route | What it is | Backed by |
 |---|---|---|
-| `/sell` | Upload wizard (3 steps: upload → details → price, per the UX flow PDF) → screening animation → dashboard showing your real listings, sales count, and revenue. Returning sellers get a shortcut past the wizard straight to the dashboard. Step 1 does real client-side parsing of a dropped `.json`/`.txt` export (`lib/parse-thread-export.js`) to auto-detect the source model and message count — Claude's `chat_messages` export shape and ChatGPT's `mapping` export shape are handled specifically, everything else falls back to a generic/plain-text parse. Detection is best-effort and always editable, not authoritative. Also uploads up to 4 output screenshots to a real Supabase Storage bucket (`listing-screenshots`), shown as a swipeable gallery on the listing page. | **Supabase** |
-| `/sell/payout` | Razorpay linked-account KYC onboarding | UI-only simulation |
+| `/sell` | Gated on login — visiting or clicking "Sell" while logged out redirects straight to `/login?next=/sell` before the wizard ever renders, not just at final submit. Upload wizard (3 steps: upload → details → price, per the UX flow PDF) → real redaction scan → dashboard showing your real listings, sales count, and revenue. Returning sellers get a shortcut past the wizard straight to the dashboard. Step 1 does real client-side parsing of a dropped `.json`/`.txt` export (`lib/parse-thread-export.js`) — Claude's `chat_messages` shape, ChatGPT's `mapping` shape, a generic `{role,content}` array (possibly nested inside a wrapper object, e.g. `{ conversation_export: { messages: [...] } }` — tested against a real seller-submitted file), and a plain-transcript fallback (labeled `User:`/`Assistant:` lines, or blank-line-separated paragraphs if no labels at all). Also strips a leading UTF-8 BOM and normalizes `\r`-only line endings before parsing — both silently broke parsing and were traced to real mobile share-sheet/notes-app exports, not guessed. Model detection also checks JSON metadata fields (e.g. a `"platform"` field), not just the filename. Wrong file types and files with no detectable messages are rejected outright with a specific error — there's no manual-entry escape hatch, so Continue is blocked until a real parse succeeds. The submit step runs `lib/redact-pii.js` — a real pattern-matching scanner (emails, phone numbers, Luhn-validated card numbers, and common API-key/token shapes: AWS, Stripe, GitHub, Slack, OpenAI, JWT) — over title/description/thread before any of it is saved; the unredacted text is never persisted. Anything caught routes the listing into `flagged` instead of `pending_review`, and the findings (type + count, never the raw sensitive value) show on both the seller's confirmation screen and the admin queue. Also uploads up to 4 output screenshots to a real Supabase Storage bucket (`listing-screenshots`), shown as a swipeable gallery on the listing page. | **Supabase** |
+| `/sell/payout` | Razorpay linked-account KYC onboarding | UI-only simulation — Phase 2, pending Route approval |
 | `/sell/earnings` | Real gross/net/refunded totals, an 8-week earnings chart, and every sale transaction with the buyer's name. Payout history is honestly marked as not-yet-real — no batched settlement exists without real Razorpay. | **Supabase** |
 
 **Platform side**
@@ -64,7 +66,7 @@ linking to a profile page — see the PDF gap notes below.
 **Auth**
 | Route | What it is |
 |---|---|
-| `/login` | Real login via Supabase Auth (`signInWithPassword`) |
+| `/login` | Real login via Supabase Auth (`signInWithPassword`). `TopNav`'s Log in / Sell a thread links are hidden here (`hideAuthLinks`) since they're redundant on the login page itself |
 | `/signup` | Real account creation (`signUp`), auto-creates a `profiles` row via a DB trigger |
 
 ## RLS was verified, not just written
@@ -189,6 +191,16 @@ All tables have Row Level Security enabled:
   not just app code
 - A buyer can only file a dispute on their own `paid` purchase; the
   seller of that listing and admins can view it; only admins can resolve it
+- **Any logged-in user can review any live listing — a purchase is not
+  required.** This is a deliberate trust trade-off, not an oversight: the
+  landing page's pitch ("trust that what you're buying actually works")
+  implicitly leans on reviews being from real buyers, and opening reviews to
+  anyone weakens that signal — a seller's friend, or a competitor, can post
+  a review with nothing behind it. To preserve at least some of the signal,
+  a review is still linked to a real purchase when the reviewer genuinely
+  has one (shown as a "Verified buyer" badge); RLS enforces that this link
+  can't be spoofed with someone else's purchase id. One review per user per
+  listing either way (`reviews_listing_user_unique`)
 
 To point this app at a different Supabase project, run `docs/supabase-schema.sql`
 against it via the SQL editor, then update `.env.local`.
@@ -210,17 +222,28 @@ if you're looking for the shape of the old mock data, check git history or
   transfers, and webhooks for when payments go live
 
 ## What's not here yet
-- Real Razorpay integration — checkout and payout screens are UI-only simulations;
-  purchases record instantly with no real payment, and the "18% platform fee"
-  shown on the earnings page (`lib/constants.js`) is applied for display only.
-  This also blocks the PDF's payout-approvals admin screen (`a4`) — it needs
-  real settlement data to mean anything, and Razorpay Route needs a live
-  website URL to register, so it's deliberately deferred rather than built
-  as another UI-only shell
-- The actual redaction scanner — the screening step is a timed animation, not a real scan
+- Razorpay Route (splitting payment to sellers, real payouts) — checkout
+  itself is real (Phase 1: Orders API + verified signatures), but funds land
+  in the platform account only. Route needs Razorpay to review and approve
+  the account for marketplace use before seller payout code can be built
+  against real requirements instead of guessed ones. `/sell/payout` stays a
+  UI-only simulation until then, and the "18% platform fee" shown on the
+  earnings page (`lib/constants.js`) is still applied for display only —
+  no real transfer happens yet. This also blocks the PDF's payout-approvals
+  admin screen (`a4`), which needs real settlement data to mean anything
+- No webhook handler yet (`payment.captured`, `refund.processed`, etc.) —
+  the synchronous verify-payment flow covers the happy path, but a webhook
+  is the standard safety net for payments that succeed on Razorpay's side
+  after the buyer's browser disconnects before the verify call completes
+- Real OCR-based screenshot scanning — the redaction scanner covers text
+  (title/description/thread), not uploaded screenshot images; that would
+  need an OCR pass, which isn't part of this scanner
 - Payout history (`/sell/earnings`) is honestly empty/placeholder — there's no
   real bank settlement without real Razorpay Route transfers
-- Search relevance/indexing — the browse search box does simple client-side filtering
+- Server-side search indexing — relevance ranking (`lib/search-relevance.js`)
+  runs client-side over whatever `/browse` already fetched, which is fine at
+  today's catalog size but wouldn't scale to a large listings table the way
+  a real search index (e.g. Postgres full-text search) would
 - No aggregate rating/review-count rollup on `listings` — reviews are stored
   per purchase in the `reviews` table, but `listings.rating`/`reviews` aren't
   recomputed from them (would need a trigger)
