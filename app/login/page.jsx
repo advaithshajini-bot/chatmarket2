@@ -57,7 +57,7 @@ function LoginForm() {
   if (checkingSession) {
     return (
       <div style={{ minHeight: "100vh" }}>
-        <TopNav />
+        <TopNav hideAuthLinks />
         <main className="px-6 py-16 max-w-sm mx-auto text-center">
           <p className="text-sm" style={{ color: "#6B6F76" }}>Confirming your email…</p>
         </main>
@@ -67,7 +67,7 @@ function LoginForm() {
 
   return (
     <div style={{ minHeight: "100vh" }}>
-      <TopNav />
+      <TopNav hideAuthLinks />
       <main className="px-6 py-16 max-w-sm mx-auto">
         <h1 className="text-2xl mb-1" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
           Log in
