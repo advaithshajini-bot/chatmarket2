@@ -55,7 +55,7 @@ linking to a profile page — see the PDF gap notes below.
 | Route | What it is | Backed by |
 |---|---|---|
 | `/sell` | Gated on login — visiting or clicking "Sell" while logged out redirects straight to `/login?next=/sell` before the wizard ever renders, not just at final submit. Upload wizard (3 steps: upload → details → price, per the UX flow PDF) → real redaction scan → dashboard showing your real listings, sales count, and revenue. Returning sellers get a shortcut past the wizard straight to the dashboard. Step 1 does real client-side parsing of a dropped `.json`/`.txt` export (`lib/parse-thread-export.js`) — Claude's `chat_messages` shape, ChatGPT's `mapping` shape, a generic `{role,content}` array (possibly nested inside a wrapper object, e.g. `{ conversation_export: { messages: [...] } }` — tested against a real seller-submitted file), and a plain-transcript fallback (labeled `User:`/`Assistant:` lines, or blank-line-separated paragraphs if no labels at all). Also strips a leading UTF-8 BOM and normalizes `\r`-only line endings before parsing — both silently broke parsing and were traced to real mobile share-sheet/notes-app exports, not guessed. Model detection also checks JSON metadata fields (e.g. a `"platform"` field), not just the filename. Wrong file types and files with no detectable messages are rejected outright with a specific error — there's no manual-entry escape hatch, so Continue is blocked until a real parse succeeds. The submit step runs `lib/redact-pii.js` — a real pattern-matching scanner (emails, phone numbers, Luhn-validated card numbers, and common API-key/token shapes: AWS, Stripe, GitHub, Slack, OpenAI, JWT) — over title/description/thread before any of it is saved; the unredacted text is never persisted. Anything caught routes the listing into `flagged` instead of `pending_review`, and the findings (type + count, never the raw sensitive value) show on both the seller's confirmation screen and the admin queue. Also uploads up to 4 output screenshots to a real Supabase Storage bucket (`listing-screenshots`), shown as a swipeable gallery on the listing page. | **Supabase** |
-| `/sell/payout` | Razorpay linked-account KYC onboarding | UI-only simulation — Phase 2, pending Route approval |
+| `/sell/payout` | Real KYC data collection (personal details, PAN, Aadhaar, address, mobile/email OTP verification) — genuinely saved to Supabase, with real document uploads to a private storage bucket. Bank account + linked-account creation stay UI-only simulation, Phase 2, pending Route approval — see below for exactly which parts are real vs. not | **Supabase for KYC data + documents**; bank/linked-account creation still simulated |
 | `/sell/earnings` | Real gross/net/refunded totals, an 8-week earnings chart, and every sale transaction with the buyer's name. Payout history is honestly marked as not-yet-real — no batched settlement exists without real Razorpay. | **Supabase** |
 
 **Platform side**
@@ -153,6 +153,47 @@ tables — the dispute and its linked purchase — together or not at all.
   purchase to `refunded`; and calling `resolve_dispute()` a second time on
   an already-resolved dispute is rejected rather than silently overwriting
   the first resolution.
+
+## Seller KYC (`/sell/payout`) — what's real and what isn't
+
+The account-type step (proprietorship/partnership/private limited/individual)
+was removed — "Set up payout" now goes straight to a detailed personal-KYC
+form (`seller_kyc` table), matching a real government KYC form layout.
+
+**Real:**
+- Every field is genuinely saved to Supabase (`seller_kyc`, one row per
+  seller, RLS-scoped to the seller themselves + admins)
+- PAN document and Aadhaar document uploads go to a real, **private**
+  Supabase Storage bucket (`seller-kyc-documents`) — unlike
+  `listing-screenshots`, this bucket is not public; only the uploading
+  seller and admins can ever read these files (verified with the same
+  path-ownership RLS tests as the other buckets)
+- PAN format validation is real (`ABCDE1234F` pattern)
+- Mobile/email OTP is a real, working mechanism end to end: a 6-digit code
+  is generated, hashed (SHA-256) and stored with a 5-minute expiry and a
+  5-attempt limit, and verification genuinely checks against it
+  (`app/api/kyc/send-otp`, `app/api/kyc/verify-otp`)
+
+**Not real, by explicit choice, clearly labeled in the UI itself:**
+- **OTP delivery.** No SMS provider (Twilio, MSG91, etc.) or transactional
+  email service is connected, so instead of pretending to send the code,
+  the send-otp response returns it directly with `devMode: true`, and the
+  UI shows it in a clearly-labeled banner ("No SMS/email provider is
+  connected yet..."). The verification logic itself is real; only delivery
+  is stubbed. Swapping in a real provider means replacing the `devOtp`
+  return with an actual send call — the rest of the flow doesn't change.
+- **PAN/Aadhaar verification against the actual government database.**
+  This needs a licensed KYC provider (or Razorpay Route's own stakeholder
+  KYC once Route is approved on the account — the more likely long-term
+  path, since a second separate verification vendor would be redundant
+  with what Route already does). "Verify income tax PAN" only confirms the
+  *format* is valid and says so explicitly, rather than showing a green
+  "Verified ✓" that would misrepresent what actually happened.
+- Aadhaar: only the **last 4 digits** are stored, never the full number —
+  UIDAI has real restrictions on storing full Aadhaar numbers, and the
+  uploaded document image is what a human reviewer would need anyway.
+- Bank account entry and the "linked account created" step (step 2/3 of
+  the wizard) remain the same UI-only simulation as before.
 
 ## The Supabase schema
 `docs/supabase-schema.sql` is the schema actually applied to the project:
