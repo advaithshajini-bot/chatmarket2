@@ -5,7 +5,9 @@
 -- fix_purchases_listings_rls_recursion, add_admin_user_management,
 -- fix_protect_is_admin_column_bypass, add_disputes_table,
 -- add_listing_screenshots_storage, add_48h_review_gate,
--- remove_48h_gate_and_public_reviews, allow_reviews_without_purchase.
+-- remove_48h_gate_and_public_reviews, allow_reviews_without_purchase,
+-- add_public_platform_stats_rpc, extend_platform_stats_with_reviews,
+-- add_seller_kyc.
 --
 -- The final result — not the intermediate steps — is what's below.
 -- Re-run this against a fresh project to reproduce the database this app expects.
@@ -406,3 +408,149 @@ create policy "Admins can delete any screenshot" on storage.objects
 
 -- Where the uploaded URLs get attached once the listing is created.
 alter table public.listings add column screenshots jsonb not null default '[]'::jsonb;
+
+-- Added in add_public_platform_stats_rpc, extended in
+-- extend_platform_stats_with_reviews: the homepage's "threads sold" / "paid
+-- out to sellers" / "average rating" stats were computed by querying
+-- purchases/reviews directly through the visitor's own session. purchases
+-- has no public or platform-wide SELECT policy at all -- only "your own
+-- purchases" and "sales of your own listings" -- so an anonymous visitor
+-- saw zero and a logged-in non-admin buyer saw a count/sum computed from
+-- only THEIR OWN purchases, not the platform's. Reviews had a milder
+-- version of the same issue (an authenticated user's own review is visible
+-- even off a live listing, on top of the public "any review on a live
+-- listing" policy). Fixed with a SECURITY DEFINER function returning only
+-- the four safe aggregate numbers -- never row-level buyer/amount/reviewer
+-- data -- so it's identical for every visitor regardless of login state.
+create function public.get_platform_stats()
+returns table(threads_sold bigint, gross_paid numeric, review_count bigint, avg_rating numeric)
+language sql
+security definer
+set search_path = ''
+stable
+as $$
+  select
+    (select count(*) from public.purchases),
+    (select coalesce(sum(amount), 0) from public.purchases where status = 'paid'),
+    (select count(*) from public.reviews),
+    (select coalesce(avg(rating), 0) from public.reviews)
+$$;
+
+revoke all on function public.get_platform_stats() from public;
+grant execute on function public.get_platform_stats() to anon, authenticated;
+
+-- Added in add_seller_kyc: real seller KYC data collection, replacing the
+-- old 4-step account-type/details/bank/verify UI-only mock's "details" step
+-- with a full form matching a real government KYC form layout. PAN/Aadhaar
+-- verification against the actual government database is NOT implemented
+-- here -- that needs a licensed KYC provider (or Razorpay Route's own
+-- stakeholder KYC once Route is approved), by explicit choice, not an
+-- oversight. This table stores what a human reviewer would need in the
+-- meantime.
+--
+-- Aadhaar: only the last 4 digits are stored (aadhaar_last4), never the
+-- full number -- UIDAI has real restrictions on storing full Aadhaar
+-- numbers, and the uploaded document image is what a reviewer actually
+-- needs anyway.
+create table public.seller_kyc (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique references auth.users(id) on delete cascade,
+
+  citizen_of_india boolean,
+  first_name text,
+  middle_name text,
+  last_name text,
+  father_first_name text,
+  father_middle_name text,
+  father_last_name text,
+  nationality text,
+  resident_in_india boolean,
+  occupation_type text check (occupation_type in ('self_employed', 'professional', 'homemaker', 'student', 'serviceman')),
+  education_qualification text,
+  education_qualification_other text,
+  date_of_birth date,
+
+  pan_number text,
+  pan_attachment_path text,
+
+  has_aadhaar boolean,
+  aadhaar_last4 text,
+  aadhaar_attachment_path text,
+
+  -- OTP fields: real generation/hashing/expiry/attempt-limiting, but
+  -- delivery is a labeled stand-in -- see app/api/kyc/send-otp/route.js
+  -- and the README's "Seller KYC" section for exactly what's real.
+  mobile_country_code text,
+  mobile_number text,
+  mobile_verified boolean not null default false,
+  mobile_otp_hash text,
+  mobile_otp_expires_at timestamptz,
+  mobile_otp_attempts int not null default 0,
+
+  email text,
+  email_verified boolean not null default false,
+  email_otp_hash text,
+  email_otp_expires_at timestamptz,
+  email_otp_attempts int not null default 0,
+
+  permanent_address jsonb not null default '{}'::jsonb,
+  present_same_as_permanent boolean,
+  present_address jsonb not null default '{}'::jsonb,
+
+  status text not null default 'draft' check (status in ('draft', 'submitted')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.seller_kyc enable row level security;
+
+create policy "Sellers can view their own KYC record" on public.seller_kyc
+  for select to authenticated using ((select auth.uid()) = user_id);
+
+create policy "Sellers can create their own KYC record" on public.seller_kyc
+  for insert to authenticated with check ((select auth.uid()) = user_id);
+
+create policy "Sellers can update their own KYC record" on public.seller_kyc
+  for update to authenticated using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id);
+
+create policy "Admins can view any KYC record" on public.seller_kyc
+  for select to authenticated using ((select private.is_admin()));
+
+-- Auto-updates updated_at on every change, same convention as other
+-- mutable tables in this schema.
+create function private.set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+create trigger seller_kyc_set_updated_at
+  before update on public.seller_kyc
+  for each row execute procedure private.set_updated_at();
+
+-- Private bucket (unlike listing-screenshots) -- these are government ID
+-- documents, never publicly readable. Path convention <user_id>/<file>,
+-- same ownership-by-path pattern as listing-screenshots, plus an admin
+-- read policy for future manual KYC review.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('seller-kyc-documents', 'seller-kyc-documents', false, 10485760, array['image/png', 'image/jpeg', 'application/pdf']);
+
+create policy "Sellers can upload their own KYC documents" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'seller-kyc-documents' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+create policy "Sellers can view their own KYC documents" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'seller-kyc-documents' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+create policy "Sellers can delete their own KYC documents" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'seller-kyc-documents' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+create policy "Admins can view any KYC document" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'seller-kyc-documents' and (select private.is_admin()));
