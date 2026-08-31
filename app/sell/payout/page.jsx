@@ -351,9 +351,35 @@ function KycDetailsStep({ userId, onContinue }) {
       const supabase = createClient();
       const { data } = await supabase.from("seller_kyc").select("*").eq("user_id", userId).maybeSingle();
       if (data) {
+        // Every text column in seller_kyc is nullable (no defaults), so a
+        // row that was only partially saved -- e.g. an email OTP sent
+        // before the mobile field was ever touched -- comes back with
+        // some fields genuinely NULL, not "". Spreading that raw over the
+        // local "" defaults previously let null leak into state, which
+        // crashed the page the next time something called .length/.test/
+        // etc. on a field assuming it was always a string. Coerced here,
+        // once, so nothing downstream has to guard against null again.
+        const nullToEmpty = (v) => v ?? "";
         setF((prev) => ({
           ...prev,
           ...data,
+          first_name: nullToEmpty(data.first_name),
+          middle_name: nullToEmpty(data.middle_name),
+          last_name: nullToEmpty(data.last_name),
+          father_first_name: nullToEmpty(data.father_first_name),
+          father_middle_name: nullToEmpty(data.father_middle_name),
+          father_last_name: nullToEmpty(data.father_last_name),
+          nationality: nullToEmpty(data.nationality),
+          occupation_type: nullToEmpty(data.occupation_type),
+          education_qualification: nullToEmpty(data.education_qualification),
+          education_qualification_other: nullToEmpty(data.education_qualification_other),
+          date_of_birth: nullToEmpty(data.date_of_birth),
+          gender: nullToEmpty(data.gender),
+          pan_number: nullToEmpty(data.pan_number),
+          aadhaar_last4: nullToEmpty(data.aadhaar_last4),
+          mobile_country_code: data.mobile_country_code || "+91",
+          mobile_number: nullToEmpty(data.mobile_number),
+          email: nullToEmpty(data.email),
           permanent_address: { ...EMPTY_ADDRESS, ...(data.permanent_address || {}) },
           present_address: { ...EMPTY_ADDRESS, ...(data.present_address || {}) },
         }));
