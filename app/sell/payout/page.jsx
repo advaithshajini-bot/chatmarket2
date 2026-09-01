@@ -175,7 +175,7 @@ function FileAttachment({ label, path, onChange, userId }) {
   );
 }
 
-function OtpControl({ channel, canSend, verified, onVerified }) {
+function OtpControl({ channel, canSend, verified, onVerified, payload }) {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [devOtp, setDevOtp] = useState("");
@@ -196,7 +196,7 @@ function OtpControl({ channel, canSend, verified, onVerified }) {
     const res = await fetch("/api/kyc/send-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ channel }),
+      body: JSON.stringify({ channel, ...payload }),
     });
     const data = await res.json();
     setSending(false);
@@ -559,6 +559,7 @@ function KycDetailsStep({ userId, onContinue }) {
               canSend={f.mobile_number.length === 10 && !!f.mobile_country_code}
               verified={f.mobile_verified}
               onVerified={() => set("mobile_verified")(true)}
+              payload={{ mobileCountryCode: f.mobile_country_code, mobileNumber: f.mobile_number }}
             />
           </div>
 
@@ -570,6 +571,7 @@ function KycDetailsStep({ userId, onContinue }) {
               canSend={/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email || "")}
               verified={f.email_verified}
               onVerified={() => set("email_verified")(true)}
+              payload={{ email: f.email }}
             />
           </div>
         </div>
