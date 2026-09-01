@@ -104,11 +104,11 @@ export default async function ListingDetailPage({ params }) {
             </div>
           </div>
 
-          <div className="order-2 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-3">
+          <div className="order-2 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-4">
             <ScreenshotGallery screenshots={listing.screenshots} />
           </div>
 
-          <div className="order-3 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-4">
+          <div className="order-3 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-2">
             <div className="rounded-md p-5 relative overflow-hidden" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
               <div className="space-y-3">
                 {preview.map((m, i) => (
@@ -153,8 +153,11 @@ export default async function ListingDetailPage({ params }) {
             <ListingCheckout listing={listing} />
           </div>
 
-          <div className="order-5 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-2">
-            <p className="text-sm" style={{ color: "#3A3D42" }}>{listing.description}</p>
+          <div className="order-5 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-3">
+            <h2 className="text-lg mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>Thread details</h2>
+            <div className="rounded-md p-4" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
+              <p className="text-sm" style={{ color: "#3A3D42" }}>{listing.description}</p>
+            </div>
           </div>
 
           <div className="order-6 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-5">
