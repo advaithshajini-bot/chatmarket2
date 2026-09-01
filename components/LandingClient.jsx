@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 
 const LANDING_STYLES = `
 .landing-wrap{ overflow-x:hidden; }
@@ -93,7 +95,23 @@ function formatPayout(netPaidRupees) {
 
 export default function LandingClient({ categoryCounts, threadsSold, netPaidRupees, avgRating, reviewCount }) {
   const rootRef = useRef(null);
+  const router = useRouter();
   const payout = formatPayout(netPaidRupees);
+  const [user, setUser] = useState(undefined); // undefined = loading, null = logged out
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => setUser(data.user || null));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user || null));
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    setUser(null);
+    router.refresh();
+  };
 
   useEffect(() => {
     const revealEls = rootRef.current.querySelectorAll(".lreveal");
@@ -150,8 +168,14 @@ export default function LandingClient({ categoryCounts, threadsSold, netPaidRupe
           <a href="#pricing">For sellers</a>
         </div>
         <div className="lnav-auth">
-          <Link href="/login" className="lnav-login">Log in</Link>
-          <Link href="/signup" className="lnav-cta">Sign up</Link>
+          {user === undefined ? null : user ? (
+            <button onClick={handleLogout} className="lnav-login" style={{ cursor: "pointer" }}>Log out</button>
+          ) : (
+            <>
+              <Link href="/login" className="lnav-login">Log in</Link>
+              <Link href="/signup" className="lnav-cta">Sign up</Link>
+            </>
+          )}
         </div>
       </nav>
 
