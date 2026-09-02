@@ -19,6 +19,14 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(justVerified);
 
+  // Set once a password sign-in succeeds for an account that has MFA
+  // enrolled (only admins, in practice) and the session still needs to be
+  // elevated to aal2 before it's actually usable for sensitive actions.
+  const [mfaChallenge, setMfaChallenge] = useState(null); // { factorId, challengeId }
+  const [mfaCode, setMfaCode] = useState("");
+  const [mfaError, setMfaError] = useState("");
+  const [mfaVerifying, setMfaVerifying] = useState(false);
+
   useEffect(() => {
     // The email confirmation link redirects here carrying a session token in
     // the URL (Supabase's implicit-grant flow) — the client picks that up
@@ -50,9 +58,88 @@ function LoginForm() {
       return;
     }
 
+    // Password alone only gets an aal1 session. If this account has an
+    // MFA factor enrolled (only admins, via /admin/security), the session
+    // needs a second step before it's elevated to aal2 -- otherwise every
+    // admin write will silently fail against the aal2-gated policies even
+    // though sign-in "succeeded".
+    const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (aalData && aalData.nextLevel === "aal2" && aalData.currentLevel !== "aal2") {
+      const { data: factorsData } = await supabase.auth.mfa.listFactors();
+      const factor = factorsData?.totp?.[0];
+      if (factor) {
+        const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({ factorId: factor.id });
+        if (challengeError) {
+          setError(challengeError.message);
+          setLoading(false);
+          return;
+        }
+        setMfaChallenge({ factorId: factor.id, challengeId: challengeData.id });
+        setLoading(false);
+        return;
+      }
+    }
+
     router.push(next);
     router.refresh();
   };
+
+  const handleVerifyMfa = async (e) => {
+    e.preventDefault();
+    setMfaError("");
+    setMfaVerifying(true);
+
+    const supabase = createClient();
+    const { error: verifyError } = await supabase.auth.mfa.verify({
+      factorId: mfaChallenge.factorId,
+      challengeId: mfaChallenge.challengeId,
+      code: mfaCode,
+    });
+
+    setMfaVerifying(false);
+    if (verifyError) {
+      setMfaError(verifyError.message);
+      return;
+    }
+
+    router.push(next);
+    router.refresh();
+  };
+
+  if (mfaChallenge) {
+    return (
+      <div style={{ minHeight: "100vh" }}>
+        <TopNav hideAuthLinks />
+        <main className="px-6 py-16 max-w-sm mx-auto">
+          <h1 className="text-2xl mb-1" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
+            Enter your code
+          </h1>
+          <p className="text-sm mb-6" style={{ color: "#6B6F76" }}>
+            This account has two-factor authentication on — enter the 6-digit code from your authenticator app.
+          </p>
+          <form onSubmit={handleVerifyMfa} className="space-y-4">
+            <input
+              value={mfaCode}
+              onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              placeholder="000000"
+              autoFocus
+              className="w-full px-3 py-2.5 rounded text-center text-lg tracking-widest outline-none"
+              style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Mono', monospace", background: "#FFFFFF" }}
+            />
+            {mfaError && <p className="text-xs" style={{ color: "#B33A2E" }}>{mfaError}</p>}
+            <button
+              type="submit"
+              disabled={mfaCode.length !== 6 || mfaVerifying}
+              className="w-full py-3 rounded text-sm"
+              style={{ background: "#E2A83E", color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600 }}
+            >
+              {mfaVerifying ? "Verifying…" : "Verify"}
+            </button>
+          </form>
+        </main>
+      </div>
+    );
+  }
 
   if (checkingSession) {
     return (
