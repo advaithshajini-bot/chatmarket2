@@ -154,6 +154,49 @@ tables — the dispute and its linked purchase — together or not at all.
   an already-resolved dispute is rejected rather than silently overwriting
   the first resolution.
 
+## Admin panel isolation & MFA (2FA)
+
+Every admin query/mutation was already gated by RLS's `private.is_admin()`
+check — the real security boundary. This adds two more real layers on top,
+addressing "what if someone finds the URL" and "what if someone steals an
+admin password" separately, since those are different problems:
+
+**Host-based isolation (`middleware.js`).** `/admin` is hidden entirely
+from the main site's domain — a request for it there gets a flat 404
+before any auth check even runs, rather than a redirect (which would
+still confirm the route exists). It only responds once `ADMIN_HOST` is
+set as an env var, pointing at a second deployment of this same repo:
+
+1. In Vercel, import this same GitHub repo again as a **new project**
+   (e.g. `chatmarket-admin`) — same repo, same build, no code changes.
+2. Give that new project the same environment variables as the main one
+   (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, Razorpay
+   keys aren't needed there but don't hurt), **plus** `ADMIN_HOST` set to
+   whatever domain that new project ends up with (its auto-assigned
+   `*.vercel.app` domain, or a custom domain like `admin.yourdomain.com`
+   if you have one).
+3. Set `ADMIN_HOST` to that **same** value on the **main** project too
+   (`chatmarket2` / whichever one is live) — both deployments need to
+   agree on what counts as "the admin host" for the 404/redirect logic to
+   work correctly on both sides.
+4. Once both are set, `/admin` 404s on the main site and only works on the
+   admin deployment; the admin deployment redirects everything except
+   `/admin` and `/login` back to `/admin`.
+
+Leaving `ADMIN_HOST` unset (the default) disables this entirely — safe to
+deploy before you've set up the second project.
+
+**MFA (`/admin/security`, real TOTP via Supabase Auth).** Sensitive admin
+writes — approving/rejecting listings, granting admin access, resolving
+disputes — now require the session to be MFA-verified (`aal2`), not just
+logged in as an admin (`aal1`). Viewing the panel doesn't require it, so
+nobody's locked out of the ability to go enroll. **Enroll immediately
+after deploying this** — until you do, every admin write will fail with
+"not authorized", which is the intended behavior but will be confusing if
+you hit it before setting up MFA. Once enrolled, `/login` prompts for the
+6-digit code automatically on future sign-ins for that account — regular
+buyer/seller accounts are unaffected since they never enroll.
+
 ## Seller KYC (`/sell/payout`) — what's real and what isn't
 
 The account-type step (proprietorship/partnership/private limited/individual)
