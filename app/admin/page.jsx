@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldAlert, Clock, Lock, Users, Flag } from "lucide-react";
+import { ShieldAlert, Clock, Lock, Users, Flag, ShieldCheck } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import AdminQueueClient from "@/components/AdminQueueClient";
 import AdminUsersClient from "@/components/AdminUsersClient";
@@ -89,6 +89,13 @@ export default async function AdminPage() {
     <div style={{ minHeight: "100vh" }}>
       <TopNav />
       <main className="px-6 py-8 max-w-4xl mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>Admin</h1>
+          <Link href="/admin/security" className="text-xs inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ border: "1px solid #D8D5C9", color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+            <ShieldCheck size={12} /> Two-factor authentication
+          </Link>
+        </div>
+
         <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 mb-8">
           <div className="rounded-md p-4" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
             <div className="flex items-center gap-2 mb-1" style={{ color: "#B33A2E" }}>
