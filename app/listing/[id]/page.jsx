@@ -118,7 +118,7 @@ export default async function ListingDetailPage({ params }) {
                   <div key={i} className="flex gap-2 items-start">
                     <MessageSquare size={14} className="mt-1 shrink-0" color="#6B6F76" />
                     <div
-                      className="text-sm px-3 py-2 rounded"
+                      className="text-sm px-3 py-2 rounded line-clamp-2"
                       style={{
                         fontFamily: "'IBM Plex Sans', sans-serif",
                         background: m.who === "user" ? "#EDEEEA" : "#FFFFFF",
