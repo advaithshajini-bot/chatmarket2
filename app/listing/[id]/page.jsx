@@ -35,7 +35,10 @@ export default async function ListingDetailPage({ params }) {
     price: Number(listingRow.price),
     rating: listingRow.rating !== null ? Number(listingRow.rating) : null,
   };
-  const preview = listing.preview && listing.preview.length ? listing.preview : (listing.thread || []).slice(0, 2);
+  // Always exactly the seller's first 2 uploaded messages — .slice(0, 2)
+  // here is a safety net so the locked box never shows more than that,
+  // even if a listing's stored `preview` ever ends up longer.
+  const preview = (listing.preview && listing.preview.length ? listing.preview : (listing.thread || [])).slice(0, 2);
 
   const { data: reviewRows } = await supabase
     .from("reviews")
@@ -149,7 +152,7 @@ export default async function ListingDetailPage({ params }) {
             </div>
           </div>
 
-          <div className="order-4 sm:order-none lg:col-start-3 lg:row-start-1">
+          <div className="order-4 sm:order-none lg:col-start-3 lg:row-start-1 lg:row-span-5">
             <ListingCheckout listing={listing} />
           </div>
 
