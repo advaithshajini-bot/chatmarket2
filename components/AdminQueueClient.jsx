@@ -171,10 +171,23 @@ export default function AdminQueueClient({ initialQueue }) {
     setBusyId(id);
     setError("");
     const supabase = createClient();
-    const { error: updateError } = await supabase.from("listings").update({ status }).eq("id", id);
+    const { data: updated, error: updateError } = await supabase
+      .from("listings")
+      .update({ status })
+      .eq("id", id)
+      .select("id");
 
     if (updateError) {
       setError(updateError.message);
+      setBusyId(null);
+      return;
+    }
+
+    // Supabase doesn't error on an update that matches 0 rows (e.g. blocked
+    // silently by RLS) — .select() lets us tell "nothing changed" apart from
+    // a real success instead of showing a false "published" toast.
+    if (!updated || updated.length === 0) {
+      setError("That change didn't go through — check that your admin session is verified and try again.");
       setBusyId(null);
       return;
     }
@@ -185,7 +198,7 @@ export default function AdminQueueClient({ initialQueue }) {
   };
 
   const handleApprove = (id) => updateStatus(id, "live", "Listing published");
-  const handleFlag = (id) => updateStatus(id, "flagged", "Sent back to seller");
+  const handleFlag = (id) => updateStatus(id, "flagged", "Sent back to seller — rejected");
   const handleRemove = (id) => updateStatus(id, "removed", "Listing removed");
 
   return (
