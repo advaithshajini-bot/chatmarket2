@@ -35,7 +35,7 @@ function ListingCard({ listing }) {
           {(listing.preview || []).slice(0, 2).map((m, i) => (
             <div
               key={i}
-              className="text-xs px-2 py-1.5 rounded"
+              className="text-xs px-2 py-1.5 rounded line-clamp-2"
               style={{
                 fontFamily: "'IBM Plex Sans', sans-serif",
                 background: m.who === "user" ? "#EDEEEA" : "#FFFFFF",
