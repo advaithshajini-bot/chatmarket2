@@ -626,6 +626,7 @@ function DashboardStep({ refreshKey }) {
   const [loading, setLoading] = useState(true);
   const [listings, setListings] = useState([]);
   const [error, setError] = useState("");
+  const [payoutComplete, setPayoutComplete] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -639,6 +640,13 @@ function DashboardStep({ refreshKey }) {
         if (!cancelled) setLoading(false);
         return;
       }
+
+      const { data: kyc } = await supabase
+        .from("seller_kyc")
+        .select("status")
+        .eq("user_id", userData.user.id)
+        .maybeSingle();
+      if (!cancelled) setPayoutComplete(kyc?.status === "submitted");
 
       const { data: myListings, error: listingsError } = await supabase
         .from("listings")
@@ -699,12 +707,21 @@ function DashboardStep({ refreshKey }) {
     <div>
       {error && <p className="text-xs mb-4" style={{ color: "#B33A2E" }}>Couldn't load listings: {error}</p>}
 
-      <div className="rounded-md p-3 mb-6 flex items-center justify-between" style={{ background: "#FBF1DD", border: "1px solid #F0DFAE" }}>
-        <p className="text-xs" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-          Payout setup isn't complete — earnings can't be paid out yet.
-        </p>
-        <Link href="/sell/payout" className="text-xs font-medium" style={{ color: "#14213D" }}>Set up payouts →</Link>
-      </div>
+      {payoutComplete ? (
+        <div className="rounded-md p-3 mb-6 flex items-center gap-2" style={{ background: "#EAF2EF", border: "1px solid #CFE3DC" }}>
+          <CheckCircle2 size={14} color="#2F6F62" />
+          <p className="text-xs" style={{ color: "#2F6F62", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+            Payout setup completed
+          </p>
+        </div>
+      ) : (
+        <div className="rounded-md p-3 mb-6 flex items-center justify-between" style={{ background: "#FBF1DD", border: "1px solid #F0DFAE" }}>
+          <p className="text-xs" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+            Payout setup isn't complete — earnings can't be paid out yet.
+          </p>
+          <Link href="/sell/payout" className="text-xs font-medium" style={{ color: "#14213D" }}>Set up payouts →</Link>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <Link href="/sell/earnings" className="rounded-md p-4 block transition-transform hover:-translate-y-0.5" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
