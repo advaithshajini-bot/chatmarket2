@@ -12,7 +12,7 @@ import { COUNTRIES } from "@/lib/countries";
 import { EDUCATION_QUALIFICATIONS, OCCUPATION_TYPES } from "@/lib/kyc-options";
 import { createClient } from "@/lib/supabase/client";
 
-const VERIFY_STEPS = ["Validating PAN details", "Confirming bank account (penny-drop)", "Creating your Razorpay linked account"];
+const VERIFY_STEPS = ["Validating PAN details", "Confirming bank account", "Creating your Razorpay linked account"];
 const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 const OTP_COOLDOWN_SECONDS = 60;
 
@@ -650,12 +650,22 @@ export default function PayoutOnboardingPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) {
         router.push("/login?next=/sell/payout");
         return;
       }
       setUserId(data.user.id);
+      // If payout setup was already submitted, don't send the seller back
+      // through the wizard — go straight to the "you're all set" screen.
+      const { data: kyc } = await supabase
+        .from("seller_kyc")
+        .select("status")
+        .eq("user_id", data.user.id)
+        .maybeSingle();
+      if (kyc?.status === "submitted") {
+        setComplete(true);
+      }
       setCheckingAuth(false);
     });
   }, [router]);
@@ -728,7 +738,7 @@ export default function PayoutOnboardingPage() {
         {step === 2 && (
           <div>
             <h2 className="text-2xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>Where should we send your earnings?</h2>
-            <p className="text-sm mb-6" style={{ color: "#6B6F76" }}>We'll verify this with a ₹1 penny-drop before it's saved.</p>
+            <p className="text-sm mb-6" style={{ color: "#6B6F76" }}>We'll verify this before it's saved.</p>
             <div className="space-y-4 max-w-md mb-2">
               <Field label="Account holder name" value={bank.accountHolder} onChange={(v) => setBank({ ...bank, accountHolder: v })} placeholder="Exactly as it appears on your bank account" />
               <Field label="Account number" value={bank.accountNumber} onChange={(v) => setBank({ ...bank, accountNumber: v.replace(/\D/g, "") })} placeholder="0000000000" mono />
@@ -776,7 +786,21 @@ export default function PayoutOnboardingPage() {
                     <Copy size={14} color="#6B6F76" style={{ cursor: "pointer" }} />
                   </div>
                 </div>
-                <button onClick={() => setComplete(true)} className="px-6 py-3 rounded text-sm inline-flex items-center gap-2" style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}>
+                <button
+                  onClick={async () => {
+                    // Persist completion so the sell dashboard and this page
+                    // itself both know payout setup is done, instead of
+                    // relying on in-memory state that's lost on navigation.
+                    const supabase = createClient();
+                    await supabase
+                      .from("seller_kyc")
+                      .update({ status: "submitted" })
+                      .eq("user_id", userId);
+                    setComplete(true);
+                  }}
+                  className="px-6 py-3 rounded text-sm inline-flex items-center gap-2"
+                  style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}
+                >
                   Continue <ArrowRight size={15} />
                 </button>
               </>
