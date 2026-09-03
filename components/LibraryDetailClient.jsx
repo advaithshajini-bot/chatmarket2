@@ -1,24 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Unlock, Download, Copy, Check, MessageSquare, Sparkles, Clock3 } from "lucide-react";
+import { useState } from "react";
+import { Unlock, Download, Copy, Check, MessageSquare, Sparkles } from "lucide-react";
 import ModelTag from "@/components/ModelTag";
 import StarRating from "@/components/StarRating";
 import { createClient } from "@/lib/supabase/client";
 
 const CONTINUE_TARGETS = ["Claude", "ChatGPT", "Gemini"];
-const HOLD_HOURS = 48;
+const LIBRARY_DISPLAY_LIMIT = 6;
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-}
-
-function formatCountdown(ms) {
-  const totalMinutes = Math.max(0, Math.ceil(ms / 60000));
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
 }
 
 export default function LibraryDetailClient({ listing, purchase, existingReview }) {
@@ -28,18 +20,12 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
   const [submitted, setSubmitted] = useState(!!existingReview);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [now, setNow] = useState(() => Date.now());
-
-  const holdEndsAt = new Date(purchase.purchased_at).getTime() + HOLD_HOURS * 60 * 60 * 1000;
-  const holdActive = now < holdEndsAt;
-
-  useEffect(() => {
-    if (!holdActive) return;
-    const id = setInterval(() => setNow(Date.now()), 30000);
-    return () => clearInterval(id);
-  }, [holdActive]);
 
   const thread = listing.thread && listing.thread.length ? listing.thread : listing.preview || [];
+  // Display is capped for readability only -- Copy/Download below always use
+  // the full `thread` array, never this truncated one.
+  const displayThread = thread.slice(0, LIBRARY_DISPLAY_LIMIT);
+  const hiddenCount = Math.max(thread.length - displayThread.length, 0);
 
   const handleCopy = (target) => {
     const formatted = thread.map((m) => `${m.who === "user" ? "You" : listing.model}: ${m.text}`).join("\n\n");
@@ -64,7 +50,6 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
   };
 
   const handleSubmitReview = async () => {
-    if (holdActive) return;
     setSaving(true);
     setError("");
     const supabase = createClient();
@@ -107,11 +92,11 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
 
         <div className="rounded-md p-5" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
           <div className="space-y-3">
-            {thread.map((m, i) => (
+            {displayThread.map((m, i) => (
               <div key={i} className="flex gap-2 items-start">
                 <MessageSquare size={14} className="mt-1 shrink-0" color="#6B6F76" />
                 <div
-                  className="text-sm px-3 py-2 rounded"
+                  className="text-sm px-3 py-2 rounded line-clamp-2"
                   style={{
                     fontFamily: "'IBM Plex Sans', sans-serif",
                     background: m.who === "user" ? "#EDEEEA" : "#FFFFFF",
@@ -125,53 +110,42 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
             ))}
           </div>
           <div className="flex items-center gap-1.5 mt-4 pt-3 text-xs" style={{ borderTop: "1px dashed #D8D5C9", color: "#2F6F62" }}>
-            <Unlock size={12} /> Full thread — nothing hidden
+            <Unlock size={12} />
+            {hiddenCount > 0
+              ? `Showing ${displayThread.length} of ${thread.length} messages — Copy or Download below for the full thread`
+              : "Full thread — nothing hidden"}
           </div>
         </div>
 
         {!submitted ? (
-          holdActive ? (
-            <div className="rounded-md p-5 mt-5 flex items-start gap-2.5" style={{ background: "#FBF1DD", border: "1px solid #F0DFAE" }}>
-              <Clock3 size={15} color="#8A6A18" className="mt-0.5 shrink-0" />
-              <div>
-                <p className="text-sm" style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600, color: "#14213D" }}>
-                  Rating opens in {formatCountdown(holdEndsAt - now)}
-                </p>
-                <p className="text-xs mt-1" style={{ color: "#6B6F76" }}>
-                  Ratings open once the 48-hour buyer-confirmation hold closes, so you've had a real chance to try the thread first.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-md p-5 mt-5" style={{ background: "#FFFFFF", border: "1px solid #D8D5C9" }}>
-              <p className="text-sm mb-3" style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600, color: "#14213D" }}>
-                How was this thread?
-              </p>
-              <StarRating value={rating} onChange={setRating} />
-              <textarea
-                value={reviewText}
-                onChange={(e) => setReviewText(e.target.value)}
-                placeholder="Did it deliver what the listing promised? (optional)"
-                rows={2}
-                className="w-full mt-3 px-3 py-2 rounded text-sm outline-none resize-none"
-                style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif" }}
-              />
-              {error && <p className="text-xs mt-2" style={{ color: "#B33A2E" }}>{error}</p>}
-              <button
-                onClick={handleSubmitReview}
-                disabled={rating === 0 || saving}
-                className="mt-3 px-4 py-2 rounded text-xs"
-                style={{
-                  background: rating === 0 ? "#D8D5C9" : "#14213D",
-                  color: "#F7F7F4",
-                  fontFamily: "'IBM Plex Sans', sans-serif",
-                  fontWeight: 500,
-                }}
-            >
-              {saving ? "Submitting..." : "Submit review"}
-              </button>
-            </div>
-          )
+          <div className="rounded-md p-5 mt-5" style={{ background: "#FFFFFF", border: "1px solid #D8D5C9" }}>
+            <p className="text-sm mb-3" style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600, color: "#14213D" }}>
+              How was this thread?
+            </p>
+            <StarRating value={rating} onChange={setRating} />
+            <textarea
+              value={reviewText}
+              onChange={(e) => setReviewText(e.target.value)}
+              placeholder="Did it deliver what the listing promised? (optional)"
+              rows={2}
+              className="w-full mt-3 px-3 py-2 rounded text-sm outline-none resize-none"
+              style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif" }}
+            />
+            {error && <p className="text-xs mt-2" style={{ color: "#B33A2E" }}>{error}</p>}
+            <button
+              onClick={handleSubmitReview}
+              disabled={rating === 0 || saving}
+              className="mt-3 px-4 py-2 rounded text-xs"
+              style={{
+                background: rating === 0 ? "#D8D5C9" : "#14213D",
+                color: "#F7F7F4",
+                fontFamily: "'IBM Plex Sans', sans-serif",
+                fontWeight: 500,
+              }}
+          >
+            {saving ? "Submitting..." : "Submit review"}
+            </button>
+          </div>
         ) : (
           <div className="rounded-md p-4 mt-5 flex items-center gap-2 text-sm" style={{ background: "#EAF2EF", color: "#2F6F62" }}>
             <Check size={15} /> Thanks — your rating helps other buyers.
