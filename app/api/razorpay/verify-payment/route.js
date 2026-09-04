@@ -44,13 +44,34 @@ export async function POST(request) {
     return NextResponse.json({ error: "Listing not found." }, { status: 404 });
   }
 
+  // The client-supplied paymentMethod is just whichever button the buyer
+  // clicked before the Razorpay modal opened -- for the "Razorpay" option
+  // (and in general) they can still pick a different method inside the
+  // modal itself. Fetch the payment record from Razorpay so "Paid via"
+  // reflects what was actually used, not what was pre-selected.
+  let resolvedPaymentMethod = paymentMethod || "razorpay";
+  try {
+    const paymentRes = await fetch(`https://api.razorpay.com/v1/payments/${razorpay_payment_id}`, {
+      headers: {
+        Authorization: "Basic " + Buffer.from(`${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`).toString("base64"),
+      },
+    });
+    const paymentData = await paymentRes.json();
+    if (paymentRes.ok && paymentData.method) {
+      resolvedPaymentMethod = paymentData.method;
+    }
+  } catch (e) {
+    // Fall back to the client-supplied value below rather than failing
+    // the whole purchase over a "Paid via" label.
+  }
+
   const { data: purchase, error: insertError } = await supabase
     .from("purchases")
     .insert({
       user_id: userData.user.id,
       listing_id: listingId,
       amount: listing.price,
-      payment_method: paymentMethod || "razorpay",
+      payment_method: resolvedPaymentMethod,
       razorpay_order_id,
       razorpay_payment_id,
       razorpay_signature,
