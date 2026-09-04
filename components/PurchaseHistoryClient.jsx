@@ -57,6 +57,9 @@ function DisputeSection({ order, onDisputeFiled }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  const hoursSincePurchase = (Date.now() - new Date(order.date).getTime()) / (1000 * 60 * 60);
+  const windowClosed = hoursSincePurchase > 48;
+
   const handleSubmit = async () => {
     if (!reason.trim()) {
       setError("Give a quick description of what's wrong.");
@@ -74,6 +77,7 @@ function DisputeSection({ order, onDisputeFiled }) {
         listing_id: order.listingId,
         buyer_id: userData.user.id,
         reason: reason.trim(),
+        status: "open",
       })
       .select()
       .single();
@@ -81,7 +85,13 @@ function DisputeSection({ order, onDisputeFiled }) {
     setSubmitting(false);
 
     if (insertError) {
-      setError(insertError.code === "23505" ? "You've already reported an issue on this order." : insertError.message);
+      if (insertError.code === "23505") {
+        setError("You've already reported an issue on this order.");
+      } else if (insertError.message?.includes("row-level security") || insertError.code === "42501") {
+        setError("48 hours have lapsed from purchase, so an issue can no longer be raised.");
+      } else {
+        setError(insertError.message);
+      }
       return;
     }
 
@@ -113,6 +123,14 @@ function DisputeSection({ order, onDisputeFiled }) {
   }
 
   if (order.status !== "paid") return null;
+
+  if (windowClosed) {
+    return (
+      <p className="text-xs" style={{ color: "#B33A2E" }}>
+        48 hours have lapsed from purchase, so an issue can no longer be raised.
+      </p>
+    );
+  }
 
   return (
     <div>
