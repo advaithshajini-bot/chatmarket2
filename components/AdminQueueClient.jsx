@@ -29,8 +29,11 @@ function timeAgo(dateString) {
 
 function QueueRow({ item, onApprove, onFlag, onRemove, busy }) {
   const [open, setOpen] = useState(false);
+  const [showFullThread, setShowFullThread] = useState(false);
   const flagged = item.status === "flagged";
-  const preview = item.preview && item.preview.length ? item.preview : (item.thread || []).slice(0, 2);
+  const fullThread = item.thread && item.thread.length ? item.thread : (item.preview || []);
+  const preview = item.preview && item.preview.length ? item.preview : fullThread.slice(0, 2);
+  const displayedMessages = showFullThread ? fullThread : preview.slice(0, 2);
 
   return (
     <div style={{ background: "#FFFFFF" }}>
@@ -76,6 +79,17 @@ function QueueRow({ item, onApprove, onFlag, onRemove, busy }) {
             </span>
           </div>
 
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Price set by seller</p>
+              <p className="text-sm" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>₹{item.price}</p>
+            </div>
+            <div>
+              <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Category</p>
+              <p className="text-sm" style={{ fontFamily: "'IBM Plex Sans', sans-serif", color: "#14213D" }}>{item.category}</p>
+            </div>
+          </div>
+
           {item.screening_findings && item.screening_findings.length > 0 && (
             <div className="rounded-md p-2.5 mb-3" style={{ background: "#FBEAE8", border: "1px solid #F0C4BE" }}>
               <p className="text-[11px] uppercase tracking-wide mb-1" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#B33A2E" }}>
@@ -90,29 +104,49 @@ function QueueRow({ item, onApprove, onFlag, onRemove, busy }) {
           )}
 
           {item.description && (
-            <p className="text-xs mb-3" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-              {item.description}
-            </p>
+            <div className="mb-3">
+              <p className="text-[10px] uppercase tracking-wide mb-1" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Description written by seller</p>
+              <p className="text-xs" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+                {item.description}
+              </p>
+            </div>
           )}
 
-          {preview.length > 0 && (
-            <div className="space-y-1.5 mb-4">
-              {preview.slice(0, 2).map((m, i) => (
-                <div key={i} className="flex gap-2 items-start">
-                  <MessageSquare size={12} className="mt-0.5 shrink-0" color="#6B6F76" />
-                  <div
-                    className="text-xs px-2 py-1.5 rounded"
-                    style={{
-                      background: m.who === "user" ? "#EDEEEA" : "#FFFFFF",
-                      border: "1px solid #E4E2D8",
-                      color: "#3A3D42",
-                      fontFamily: "'IBM Plex Sans', sans-serif",
-                    }}
+          {displayedMessages.length > 0 && (
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1.5">
+                <p className="text-[10px] uppercase tracking-wide" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
+                  {showFullThread ? `Full document uploaded by seller (${fullThread.length} messages)` : "Preview shown to buyers"}
+                </p>
+                {fullThread.length > 2 && (
+                  <button
+                    onClick={() => setShowFullThread((v) => !v)}
+                    className="text-[11px] font-medium"
+                    style={{ color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif" }}
                   >
-                    {m.text}
+                    {showFullThread ? "Show preview only" : `Show full thread (${fullThread.length} msgs) →`}
+                  </button>
+                )}
+              </div>
+              <div className="space-y-1.5" style={{ maxHeight: showFullThread ? "420px" : "none", overflowY: showFullThread ? "auto" : "visible" }}>
+                {displayedMessages.map((m, i) => (
+                  <div key={i} className="flex gap-2 items-start">
+                    <MessageSquare size={12} className="mt-0.5 shrink-0" color="#6B6F76" />
+                    <div
+                      className="text-xs px-2 py-1.5 rounded"
+                      style={{
+                        background: m.who === "user" ? "#EDEEEA" : "#FFFFFF",
+                        border: "1px solid #E4E2D8",
+                        color: "#3A3D42",
+                        fontFamily: "'IBM Plex Sans', sans-serif",
+                        whiteSpace: "pre-wrap",
+                      }}
+                    >
+                      {m.text}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
 

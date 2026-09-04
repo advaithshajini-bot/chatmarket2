@@ -40,12 +40,27 @@ export default function ListingCheckout({ listing }) {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(async ({ data }) => {
       setIsLoggedIn(!!data.user);
       setUserInfo(data.user);
+
+      if (data.user) {
+        // If the buyer already owns this thread, show "Unlocked" right
+        // away instead of only finding out once they click Pay and hit
+        // the create-order 409.
+        const { data: existing } = await supabase
+          .from("purchases")
+          .select("id")
+          .eq("listing_id", listing.id)
+          .eq("user_id", data.user.id)
+          .eq("status", "paid")
+          .maybeSingle();
+        if (existing) setPaid(true);
+      }
+
       setCheckingAuth(false);
     });
-  }, []);
+  }, [listing.id]);
 
   const handlePay = async () => {
     if (!isLoggedIn) {
@@ -141,7 +156,9 @@ export default function ListingCheckout({ listing }) {
         Unlocks the full {listing.messages}-message thread for your account only
       </p>
 
-      {paid ? (
+      {checkingAuth ? (
+        <div className="h-10 rounded animate-pulse" style={{ background: "#EDEEEA" }} />
+      ) : paid ? (
         <div
           className="flex items-center gap-2 px-3 py-3 rounded text-sm"
           style={{ background: "#EAF2EF", color: "#2F6F62", fontFamily: "'IBM Plex Sans', sans-serif" }}
