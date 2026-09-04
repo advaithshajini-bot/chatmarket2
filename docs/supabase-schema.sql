@@ -554,3 +554,33 @@ create policy "Sellers can delete their own KYC documents" on storage.objects
 create policy "Admins can view any KYC document" on storage.objects
   for select to authenticated
   using (bucket_id = 'seller-kyc-documents' and (select private.is_admin()));
+
+-- ---------------------------------------------------------------------
+-- Migration: fix_disputes_status_default
+-- The disputes.status column's default had somehow been stored as the
+-- literal string "'open'::text" (quotes and cast baked in as characters)
+-- instead of evaluating to "open". Since the app never sets status
+-- explicitly on insert, every dispute filing hit disputes_status_check --
+-- regardless of timing, always. Restored a real default.
+alter table public.disputes alter column status set default 'open';
+
+-- ---------------------------------------------------------------------
+-- Migration: add_48h_dispute_filing_window
+-- The checkout page already promises "funds held for 48 hrs after unlock
+-- in case of a dispute" -- this was never actually enforced server-side.
+-- Buyers can now only file a dispute within 48 hours of the purchase;
+-- the UI mirrors this with a friendly message once the window closes.
+drop policy "Buyers can file a dispute on their own paid purchase" on public.disputes;
+
+create policy "Buyers can file a dispute on their own paid purchase" on public.disputes
+  for insert to authenticated
+  with check (
+    (select auth.uid()) = buyer_id
+    and exists (
+      select 1 from public.purchases pu
+      where pu.id = purchase_id
+        and pu.user_id = (select auth.uid())
+        and pu.status = 'paid'
+        and pu.purchased_at > now() - interval '48 hours'
+    )
+  );
