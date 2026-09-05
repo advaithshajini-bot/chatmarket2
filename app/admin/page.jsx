@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ShieldAlert, Clock, Lock, Users, Flag, ShieldCheck } from "lucide-react";
 import TopNav from "@/components/TopNav";
@@ -43,6 +44,20 @@ export default async function AdminPage() {
         </main>
       </div>
     );
+  }
+
+  // Admin flag alone isn't enough: if this account has MFA enrolled, the
+  // session must actually have completed it (aal2). Previously this check
+  // didn't exist at all here, so tapping "Admin" before entering the code
+  // rendered the full dashboard anyway -- including the user list below,
+  // which (being publicly readable via RLS) isn't blocked by the database
+  // the way the listings/disputes queries are. Same requirement as
+  // private.is_admin() at the database level, enforced here too so an
+  // unverified session never even reaches these queries.
+  const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (aalData && aalData.nextLevel === "aal2" && aalData.currentLevel !== "aal2") {
+    await supabase.auth.signOut();
+    redirect("/login?next=/admin");
   }
 
   const { data: queueData } = await supabase
