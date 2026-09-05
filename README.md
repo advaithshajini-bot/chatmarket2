@@ -22,6 +22,13 @@ Razorpay account.
 Running log of what's changed since the app first went live on real data,
 newest first.
 
+- **Site footer moved to every page, centered** — `SiteFooter` was only
+  rendered on `/browse`. Moved it into the root layout (`app/layout.jsx`)
+  instead, so it now appears on every page of the site with a single
+  change rather than needing to be added to each page individually. The
+  links are now center-aligned within their own max-width container
+  (previously left-aligned).
+
 - **Browse page footer** — added `components/SiteFooter.jsx` to `/browse`
   with About us, Help center, Privacy policy, Terms, Refund Policy, and
   Manage cookies. Created the four new pages this needed
