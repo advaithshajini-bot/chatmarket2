@@ -1,5 +1,6 @@
 import TopNav from "@/components/TopNav";
 import BrowseClient from "@/components/BrowseClient";
+import SiteFooter from "@/components/SiteFooter";
 import { createClient } from "@/lib/supabase/server";
 
 // Always hit Supabase fresh rather than caching a build-time snapshot.
@@ -27,6 +28,7 @@ export default async function BrowsePage() {
       <main className="px-6 py-8 max-w-6xl mx-auto">
         {error && <p className="text-sm mb-4" style={{ color: "#B33A2E" }}>Couldn't load listings: {error.message}</p>}
         <BrowseClient listings={listings} />
+        <SiteFooter />
       </main>
     </div>
   );
