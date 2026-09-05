@@ -1,19 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { KeyRound, CheckCircle2 } from "lucide-react";
+import { KeyRound, Mail, CheckCircle2 } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import { createClient } from "@/lib/supabase/client";
 
-// Step 1: buyer/seller enters their email, we email them a 6-digit code
-// (Supabase's password-recovery OTP -- the "reset password" email template
-// on the project needs to include {{ .Token }} for this to arrive as a
-// code rather than only a magic link; see README).
-// Step 2: they enter that code, which opens a short-lived recovery session.
-// Step 3: with that recovery session active, they set + confirm a new
-// password via supabase.auth.updateUser().
+// Step 1: enter email, we send Supabase's password-recovery link.
+// (Not an OTP code -- that would need a custom "Reset Password" email
+// template with {{ .Token }}, which isn't available on the free Supabase
+// plan this project runs on. The default template's magic link works on
+// every plan.)
+// Step 2: "check your email" -- nothing more happens on THIS tab.
+// Step 3: only reachable by actually clicking that link. Supabase fires a
+// PASSWORD_RECOVERY auth event when the link's session lands back on this
+// page, and that event -- not a button click -- is what unlocks the
+// "set new password" form. There's no way to skip straight to it.
 export default function ForgotPasswordPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -21,10 +24,6 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [sending, setSending] = useState(false);
   const [emailError, setEmailError] = useState("");
-
-  const [code, setCode] = useState("");
-  const [verifying, setVerifying] = useState(false);
-  const [codeError, setCodeError] = useState("");
   const [resent, setResent] = useState(false);
 
   const [newPassword, setNewPassword] = useState("");
@@ -32,7 +31,19 @@ export default function ForgotPasswordPage() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
 
-  const handleSendCode = async (e) => {
+  useEffect(() => {
+    const supabase = createClient();
+    // Fires once Supabase parses the recovery tokens out of the URL that
+    // the emailed link lands on. This is the only path to step 3.
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setStep(3);
+      }
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  const handleSendLink = async (e) => {
     e.preventDefault();
     setEmailError("");
     setSending(true);
@@ -51,33 +62,17 @@ export default function ForgotPasswordPage() {
   };
 
   const handleResend = async () => {
-    setCodeError("");
+    setEmailError("");
     const supabase = createClient();
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
       redirectTo: typeof window !== "undefined" ? `${window.location.origin}/forgot-password` : undefined,
     });
     if (error) {
-      setCodeError(error.message);
+      setEmailError(error.message);
       return;
     }
     setResent(true);
     setTimeout(() => setResent(false), 4000);
-  };
-
-  const handleVerifyCode = async (e) => {
-    e.preventDefault();
-    setCodeError("");
-    setVerifying(true);
-
-    const supabase = createClient();
-    const { error } = await supabase.auth.verifyOtp({ email, token: code, type: "recovery" });
-
-    setVerifying(false);
-    if (error) {
-      setCodeError(error.message);
-      return;
-    }
-    setStep(3);
   };
 
   const handleResetPassword = async (e) => {
@@ -103,8 +98,9 @@ export default function ForgotPasswordPage() {
       return;
     }
 
-    // The recovery session that verifyOtp created has done its job -- sign
-    // out so they log back in fresh with the new password, per the request.
+    // The recovery session that the link created has done its job -- sign
+    // out so the account can only be used again by logging in fresh with
+    // the new password, rather than leaving this session usable elsewhere.
     await supabase.auth.signOut();
     router.push("/login?reset=1");
   };
@@ -119,9 +115,9 @@ export default function ForgotPasswordPage() {
               Reset your password
             </h1>
             <p className="text-sm mb-6" style={{ color: "#6B6F76" }}>
-              Enter the email on your account and we'll send you a verification code.
+              Enter the email on your account and we'll send you a link to reset your password.
             </p>
-            <form onSubmit={handleSendCode} className="space-y-4">
+            <form onSubmit={handleSendLink} className="space-y-4">
               <div>
                 <label className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
                   Email
@@ -143,7 +139,7 @@ export default function ForgotPasswordPage() {
                 className="w-full py-3 rounded text-sm"
                 style={{ background: "#E2A83E", color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600 }}
               >
-                {sending ? "Sending code..." : "Send verification code"}
+                {sending ? "Sending link..." : "Send verification link"}
               </button>
             </form>
             <p className="text-xs mt-5" style={{ color: "#6B6F76" }}>
@@ -154,48 +150,46 @@ export default function ForgotPasswordPage() {
 
         {step === 2 && (
           <>
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center mb-4"
+              style={{ background: "#EAF2EF" }}
+            >
+              <Mail size={20} color="#2F6F62" />
+            </div>
             <h1 className="text-2xl mb-1" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
-              Enter your code
+              Check your email
             </h1>
             <p className="text-sm mb-6" style={{ color: "#6B6F76" }}>
-              We sent a 6-digit verification code to <span style={{ color: "#14213D", fontWeight: 500 }}>{email}</span>.
+              We sent a password reset link to <span style={{ color: "#14213D", fontWeight: 500 }}>{email}</span>. Open it on
+              this device to set a new password — this page will pick it up automatically.
             </p>
-            <form onSubmit={handleVerifyCode} className="space-y-4">
-              <input
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                placeholder="000000"
-                autoFocus
-                className="w-full px-3 py-2.5 rounded text-center text-lg tracking-widest outline-none"
-                style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Mono', monospace", background: "#FFFFFF" }}
-              />
-              {codeError && <p className="text-xs" style={{ color: "#B33A2E" }}>{codeError}</p>}
-              {resent && <p className="text-xs" style={{ color: "#2F6F62" }}>Code resent — check your inbox.</p>}
-              <button
-                type="submit"
-                disabled={code.length !== 6 || verifying}
-                className="w-full py-3 rounded text-sm"
-                style={{ background: "#E2A83E", color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600 }}
-              >
-                {verifying ? "Verifying..." : "Verify code"}
-              </button>
-            </form>
-            <p className="text-xs mt-5" style={{ color: "#6B6F76" }}>
+            {emailError && <p className="text-xs mb-3" style={{ color: "#B33A2E" }}>{emailError}</p>}
+            {resent && <p className="text-xs mb-3" style={{ color: "#2F6F62" }}>Link resent — check your inbox.</p>}
+            <p className="text-xs" style={{ color: "#6B6F76" }}>
               Didn't get it?{" "}
               <button onClick={handleResend} style={{ color: "#14213D", fontWeight: 500 }}>
-                Resend code
+                Resend link
               </button>
+            </p>
+            <p className="text-xs mt-5" style={{ color: "#6B6F76" }}>
+              <Link href="/login" style={{ color: "#14213D", fontWeight: 500 }}>← Back to log in</Link>
             </p>
           </>
         )}
 
         {step === 3 && (
           <>
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center mb-4"
+              style={{ background: "#EAF2EF" }}
+            >
+              <CheckCircle2 size={20} color="#2F6F62" />
+            </div>
             <h1 className="text-2xl mb-1" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
               Set a new password
             </h1>
             <p className="text-sm mb-6" style={{ color: "#6B6F76" }}>
-              Choose a new password for your account.
+              Link verified. Choose a new password for your account.
             </p>
             <form onSubmit={handleResetPassword} className="space-y-4">
               <div>
