@@ -12,6 +12,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/browse";
   const justVerified = searchParams.get("verified") === "1";
+  const justReset = searchParams.get("reset") === "1";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -170,6 +171,13 @@ function LoginForm() {
           </div>
         )}
 
+        {justReset && (
+          <div className="flex items-start gap-2 p-3 rounded-md mb-5" style={{ background: "#EAF2EF", border: "1px solid #CFE4DE" }}>
+            <CheckCircle2 size={15} color="#2F6F62" className="mt-0.5 shrink-0" />
+            <p className="text-xs" style={{ color: "#2F6F62" }}>Password updated — log in with your new password.</p>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Email</label>
@@ -183,7 +191,22 @@ function LoginForm() {
             />
           </div>
           <div>
-            <label className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Password</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs uppercase tracking-wide block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Password</label>
+              <Link
+                href="/forgot-password"
+                className="text-xs inline-flex items-center gap-1"
+                style={{ color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif" }}
+              >
+                <span
+                  className="inline-flex items-center justify-center rounded-full"
+                  style={{ width: 14, height: 14, background: "#D8D5C9", color: "#14213D", fontSize: 10, fontWeight: 700 }}
+                >
+                  ?
+                </span>
+                Forgot password
+              </Link>
+            </div>
             <input
               type="password"
               value={password}
