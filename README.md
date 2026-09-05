@@ -22,19 +22,44 @@ Razorpay account.
 Running log of what's changed since the app first went live on real data,
 newest first.
 
+- **Admin MFA is now actually enforced, at the database level** — the
+  login page always presented a "enter your 6-digit code" screen for admin
+  accounts with TOTP enrolled, but nothing ever checked that it was
+  completed: `private.is_admin()` only checked `profiles.is_admin`, so a
+  password-only (aal1) session was fully trusted by every admin-gated RLS
+  policy. Navigating away from the MFA screen (e.g. clicking Browse/Sell/
+  Library/Purchases before entering the code) worked because the session
+  itself was already genuinely valid — the "mandatory" step wasn't wired to
+  anything. Fixed `private.is_admin()` so that, for an account with a
+  *verified* TOTP factor, it now also requires the session to be `aal2` —
+  admin accounts with no MFA enrolled are unaffected. This blocks admin
+  reads/writes at the database itself, not just in the UI.
+- **App-wide "logged in" state is now AAL-aware** — added a shared
+  `lib/supabase/use-auth-user.js` hook (used by both `TopNav` and
+  `MobileTabBar`, replacing their separate copies of the same logic). If a
+  session only satisfies aal1 for an account that has MFA enrolled, the
+  hook signs it out and treats the visitor as logged out everywhere except
+  the pages that are themselves mid-flow (`/login`, `/signup`,
+  `/forgot-password` — where this check is skipped so it doesn't kill the
+  very session those pages need to finish their own verification step).
+- **Forgot password switched from a code to a link** — the previous version
+  asked for a 6-digit code, which requires customizing Supabase's password
+  recovery email template to include `{{ .Token }}`; that setting isn't
+  available on this project's (free-tier) Supabase plan. Rebuilt
+  `/forgot-password` around Supabase's default recovery **link** instead:
+  request it, check your email, click it. The "set new password" screen
+  can now *only* be reached by Supabase's `PASSWORD_RECOVERY` auth event
+  firing (i.e. actually clicking the emailed link) — there's no button that
+  skips to it, closing the gap where a password could effectively be
+  "reset" without ever verifying the email.
+
 - **Terms and Conditions on signup** — `/signup` now has a required checkbox
   ("I agree to the Terms and Conditions") gating the Create account button;
   it links to a new `/terms` page. Update the copy in `app/terms/page.jsx`
   with your actual legal terms before launch — what's there is placeholder text.
-- **Forgot password flow** — `/login` now has a "Forgot password" link under
-  the password field. It leads to `/forgot-password`, a 3-step flow: enter
-  email → enter a 6-digit code emailed to you → set + confirm a new password.
-  Built on Supabase Auth's password-recovery OTP (`resetPasswordForEmail` +
-  `verifyOtp({ type: "recovery" })` + `updateUser`).
-  **Action needed**: this only works if the project's "Reset Password" email
-  template (Supabase dashboard → Authentication → Email Templates) includes
-  `{{ .Token }}` — by default it only includes a magic-link `{{ .ConfirmationURL }}`.
-  Add the token to the template, or buyers/sellers will never receive a code.
+- **Forgot password link added to `/login`** — a "Forgot password" link now
+  sits under the password field, leading to `/forgot-password` (see the link-
+  based rewrite of that flow further up this changelog).
 - **Razorpay: EMI, Wallet, and Pay Later disabled** — checkout now explicitly
   passes `method: { wallet: false, emi: false, paylater: false }` to the
   Razorpay checkout config, regardless of which payment option the buyer
