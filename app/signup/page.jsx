@@ -12,6 +12,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [checkEmail, setCheckEmail] = useState(false);
@@ -19,6 +20,12 @@ export default function SignupPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
+    if (!agreedToTerms) {
+      setError("Please agree to the Terms and Conditions to continue.");
+      return;
+    }
+
     setLoading(true);
 
     const supabase = createClient();
@@ -115,13 +122,35 @@ export default function SignupPage() {
             <p className="text-xs mt-1" style={{ color: "#6B6F76" }}>At least 6 characters</p>
           </div>
 
+          <label className="flex items-start gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              className="mt-0.5 shrink-0"
+              style={{ width: 16, height: 16, accentColor: "#14213D" }}
+            />
+            <span className="text-xs" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+              I agree to the{" "}
+              <Link href="/terms" target="_blank" style={{ color: "#14213D", fontWeight: 500, textDecoration: "underline" }}>
+                Terms and Conditions
+              </Link>
+            </span>
+          </label>
+
           {error && <p className="text-xs" style={{ color: "#B33A2E" }}>{error}</p>}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !agreedToTerms}
             className="w-full py-3 rounded text-sm inline-flex items-center justify-center gap-2"
-            style={{ background: "#E2A83E", color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600 }}
+            style={{
+              background: !agreedToTerms ? "#D8D5C9" : "#E2A83E",
+              color: "#14213D",
+              fontFamily: "'IBM Plex Sans', sans-serif",
+              fontWeight: 600,
+              cursor: !agreedToTerms ? "not-allowed" : "pointer",
+            }}
           >
             <UserPlus size={15} /> {loading ? "Creating account..." : "Create account"}
           </button>
