@@ -22,6 +22,30 @@ Razorpay account.
 Running log of what's changed since the app first went live on real data,
 newest first.
 
+- **Browse page footer** — added `components/SiteFooter.jsx` to `/browse`
+  with About us, Help center, Privacy policy, Terms, Refund Policy, and
+  Manage cookies. Created the four new pages this needed
+  (`app/about`, `app/help`, `app/privacy`, `app/refund-policy`) — all
+  placeholder copy consistent with how the app actually behaves (48-hour
+  dispute window, Razorpay handling payments, etc.), not reviewed legal
+  text. "Terms" reuses the existing `/terms` page. "Manage cookies" opens
+  `components/CookiePreferencesModal.jsx`, a real (if simple) preference
+  center — Required/Analytics/Social Media/Advertising categories, saved to
+  `localStorage`; nothing in the app currently reads these preferences to
+  actually gate any tracking, since there's no analytics/ads integration to
+  gate yet.
+- **Admin MFA bypass via direct navigation, closed** — `/admin` only ever
+  checked the raw `profiles.is_admin` flag before rendering the *entire*
+  dashboard, including the user list (which, being publicly readable via
+  RLS, wasn't blocked by the earlier `is_admin()` aal2 fix at all). Tapping
+  "Admin" in the nav before completing the MFA challenge rendered the full
+  page instead of being turned away. `/admin` now checks the session's AAL
+  the same way `private.is_admin()` does, and redirects to
+  `/login?next=/admin` (signing out the incomplete session first) if an
+  MFA-enrolled admin hasn't reached aal2 yet. (`/admin/security`, the MFA
+  *enrollment* page itself, intentionally still doesn't require aal2 --
+  otherwise a first-time admin could never enroll.)
+
 - **Admin MFA is now actually enforced, at the database level** — the
   login page always presented a "enter your 6-digit code" screen for admin
   accounts with TOTP enrolled, but nothing ever checked that it was
