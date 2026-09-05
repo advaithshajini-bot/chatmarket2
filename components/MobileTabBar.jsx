@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Home, LayoutGrid, Plus, Receipt, User, Library, LogOut, ShieldCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { useAuthUser } from "@/lib/supabase/use-auth-user";
 
 function TabLink({ href, label, Icon, active }) {
   return (
@@ -23,20 +24,10 @@ function TabLink({ href, label, Icon, active }) {
 export default function MobileTabBar() {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState(undefined); // undefined = loading, null = logged out
+  const user = useAuthUser();
   const [youOpen, setYouOpen] = useState(false);
   const sheetRef = useRef(null);
 
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user ? { name: data.user.user_metadata?.display_name || data.user.email } : null);
-    });
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ? { name: session.user.user_metadata?.display_name || session.user.email } : null);
-    });
-    return () => listener.subscription.unsubscribe();
-  }, []);
 
   useEffect(() => {
     setYouOpen(false);

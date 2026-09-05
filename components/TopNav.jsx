@@ -1,32 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { useAuthUser } from "@/lib/supabase/use-auth-user";
 
 export default function TopNav({ hideAuthLinks = false }) {
   const router = useRouter();
-  const [user, setUser] = useState(undefined); // undefined = loading, null = logged out
-
-  useEffect(() => {
-    const supabase = createClient();
-
-    supabase.auth.getUser().then(({ data }) => {
-      setUser(data.user ? { name: data.user.user_metadata?.display_name || data.user.email, email: data.user.email } : null);
-    });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ? { name: session.user.user_metadata?.display_name || session.user.email, email: session.user.email } : null);
-    });
-
-    return () => listener.subscription.unsubscribe();
-  }, []);
+  const user = useAuthUser();
 
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
-    setUser(null);
     router.push("/");
     router.refresh();
   };
