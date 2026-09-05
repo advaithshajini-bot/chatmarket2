@@ -1,5 +1,6 @@
 import "./globals.css";
 import MobileTabBar from "@/components/MobileTabBar";
+import SiteFooter from "@/components/SiteFooter";
 
 export const metadata = {
   title: "chatmarket — continue where they left off",
@@ -11,6 +12,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>
         {children}
+        <SiteFooter />
         <MobileTabBar />
       </body>
     </html>
