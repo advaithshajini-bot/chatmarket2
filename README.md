@@ -18,6 +18,87 @@ Razorpay account.
 - lucide-react for icons
 - Supabase — Postgres + Auth, via `@supabase/supabase-js` and `@supabase/ssr`
 
+## Changelog — fixes and additions since initial build
+Running log of what's changed since the app first went live on real data,
+newest first.
+
+- **Terms and Conditions on signup** — `/signup` now has a required checkbox
+  ("I agree to the Terms and Conditions") gating the Create account button;
+  it links to a new `/terms` page. Update the copy in `app/terms/page.jsx`
+  with your actual legal terms before launch — what's there is placeholder text.
+- **Forgot password flow** — `/login` now has a "Forgot password" link under
+  the password field. It leads to `/forgot-password`, a 3-step flow: enter
+  email → enter a 6-digit code emailed to you → set + confirm a new password.
+  Built on Supabase Auth's password-recovery OTP (`resetPasswordForEmail` +
+  `verifyOtp({ type: "recovery" })` + `updateUser`).
+  **Action needed**: this only works if the project's "Reset Password" email
+  template (Supabase dashboard → Authentication → Email Templates) includes
+  `{{ .Token }}` — by default it only includes a magic-link `{{ .ConfirmationURL }}`.
+  Add the token to the template, or buyers/sellers will never receive a code.
+- **Razorpay: EMI, Wallet, and Pay Later disabled** — checkout now explicitly
+  passes `method: { wallet: false, emi: false, paylater: false }` to the
+  Razorpay checkout config, regardless of which payment option the buyer
+  picks in our own UI, so those three never appear inside the Razorpay modal.
+- **Listing page auto-detects an existing purchase** — previously a buyer who
+  already owned a thread would still see the payment form until they clicked
+  Pay (which then 409'd and revealed "Unlocked"). It now checks Supabase for
+  an existing paid purchase on page load and shows "Unlocked — check your
+  library" immediately, with no click required.
+- **Admin queue shows the full uploaded thread** — previously capped at the
+  2-message buyer preview. Price and description (as set by the seller) are
+  now clearly labeled, and a "Show full thread" toggle reveals every message
+  the seller uploaded, for real moderation instead of a 2-message glimpse.
+- **`listings.rating` / `listings.reviews` now reflect real reviews** — these
+  were denormalized columns that had drifted from the actual `reviews` table
+  (some listings showed a rating/count with zero real reviews behind them).
+  Added a Postgres trigger (`sync_listing_rating`, in `docs/supabase-schema.sql`)
+  that recalculates both from `reviews` on every insert/update/delete, and
+  backfilled existing rows. This fixes Browse, the listing page, and anywhere
+  else these columns are read, with no per-page code changes.
+- **Dispute filing bug fixed at the database level** — `disputes.status`'s
+  column default had been corrupted into the literal string `'open'::text`
+  instead of evaluating to `open`, so every dispute submission failed
+  `disputes_status_check`, regardless of timing. Fixed the default directly;
+  the app now also sets `status: "open"` explicitly on insert rather than
+  relying on the column default at all.
+- **Real 48-hour dispute filing window** — previously there was no time limit
+  on filing a dispute at all (despite checkout promising "funds held for 48
+  hrs"). Added a database-level policy restricting dispute inserts to within
+  48 hours of `purchases.purchased_at`, plus a matching friendly message in
+  the UI ("48 hours have lapsed from purchase...") once that window closes.
+- **"Paid via" now reflects the real Razorpay payment method** — previously
+  stored whichever button the buyer clicked in our own UI before the Razorpay
+  modal opened, which didn't always match what they used inside the modal.
+  The server now fetches the payment record from Razorpay's Payments API
+  after verification and stores the actual `method` field.
+- **48-hour rating hold removed** — buyers can now rate a purchase
+  immediately from their Library instead of waiting 48 hours.
+- **Library thread display capped** — the full purchased thread now shows at
+  most 6 messages on screen, each clamped to 2 lines with a trailing ellipsis,
+  for readability. Copy for Claude/ChatGPT/Gemini and Download as .txt are
+  unaffected — they always operate on the complete thread.
+- **Browse and listing page message previews clamped** — the 2 real preview
+  messages shown in a locked box are now visually capped to 2 lines each
+  (`line-clamp-2`) instead of rendering arbitrarily long text.
+- **Listing page layout fix** — the payment sidebar no longer forces extra
+  blank space under the title on desktop (it previously occupied a single
+  grid row shared with the short title block, forcing that row to match the
+  tall payment card's height). It now spans the same set of rows as the rest
+  of the page content, which also lets its `sticky` positioning follow the
+  page properly.
+- **Admin approve/reject made robust** — "Approve & publish" and "Send back
+  to seller" now verify the database update actually applied (Supabase
+  doesn't error on an update matching 0 rows, e.g. if blocked by RLS), and
+  the seller's own dashboard now labels these outcomes "Approved" / "Rejected"
+  instead of "Live" / "Flagged".
+- **Sell dashboard payout status fixed** — previously always showed "Payout
+  setup isn't complete" regardless of actual status, and completing payout
+  setup was never persisted (re-visiting `/sell/payout` always restarted the
+  wizard). Both are now backed by `seller_kyc.status`, and the dashboard
+  shows plain text "Payout setup completed" once done.
+- Removed the "(penny-drop)" wording from the payout verification screen
+  (not being used as a verification mechanism).
+
 ## Getting started
 ```bash
 npm install
@@ -310,9 +391,11 @@ if you're looking for the shape of the old mock data, check git history or
   itself is real (Phase 1: Orders API + verified signatures), but funds land
   in the platform account only. Route needs Razorpay to review and approve
   the account for marketplace use before seller payout code can be built
-  against real requirements instead of guessed ones. `/sell/payout` stays a
-  UI-only simulation until then, and the "18% platform fee" shown on the
-  earnings page (`lib/constants.js`) is still applied for display only —
+  against real requirements instead of guessed ones. Payout *setup status*
+  (`seller_kyc.status`) is now real and persisted — the seller dashboard
+  correctly reflects whether it's complete — but no real money movement to
+  sellers happens until Route is approved; the "18% platform fee" shown on
+  the earnings page (`lib/constants.js`) is still applied for display only —
   no real transfer happens yet. This also blocks the PDF's payout-approvals
   admin screen (`a4`), which needs real settlement data to mean anything
 - No webhook handler yet (`payment.captured`, `refund.processed`, etc.) —
@@ -328,9 +411,6 @@ if you're looking for the shape of the old mock data, check git history or
   runs client-side over whatever `/browse` already fetched, which is fine at
   today's catalog size but wouldn't scale to a large listings table the way
   a real search index (e.g. Postgres full-text search) would
-- No aggregate rating/review-count rollup on `listings` — reviews are stored
-  per purchase in the `reviews` table, but `listings.rating`/`reviews` aren't
-  recomputed from them (would need a trigger)
 - The PDF's admin flow (`a3`) treats a valid buyer report as "refund + delist"
   — pulling the listing down, not just refunding the order. Kept as refund-only
   for now (current behavior), by choice — a listing staying up after one
