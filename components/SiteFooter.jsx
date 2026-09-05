@@ -17,8 +17,8 @@ export default function SiteFooter() {
 
   return (
     <>
-      <footer className="mt-12 pt-6 pb-10" style={{ borderTop: "1px solid #D8D5C9" }}>
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+      <footer className="mt-12 pt-6 pb-10 px-6" style={{ borderTop: "1px solid #D8D5C9" }}>
+        <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
           {LINKS.map((link) => (
             <Link
               key={link.href}
