@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 
 const PAYMENT_METHODS = [
   { id: "upi", label: "UPI", icon: Smartphone, hint: "Pay via any UPI app", razorpayMethod: "upi" },
-  { id: "razorpay", label: "Razorpay", icon: Wallet, hint: "Cards, wallets & more", razorpayMethod: undefined },
+  { id: "razorpay", label: "Razorpay", icon: Wallet, hint: "Cards, UPI & netbanking", razorpayMethod: undefined },
   { id: "gpay", label: "Google Pay", icon: Wallet, hint: "Fast checkout", razorpayMethod: "upi" },
   { id: "netbanking", label: "Netbanking", icon: Landmark, hint: "All major banks", razorpayMethod: "netbanking" },
   { id: "card", label: "Credit / Debit Card", icon: CreditCard, hint: "Visa, Mastercard, RuPay", razorpayMethod: "card" },
@@ -103,7 +103,17 @@ export default function ListingCheckout({ listing }) {
           name: userInfo?.user_metadata?.display_name || "",
           email: userInfo?.email || "",
         },
-        method: selected?.razorpayMethod ? { [selected.razorpayMethod]: true } : undefined,
+        // Wallet, EMI, and Pay Later are switched off no matter which
+        // option the buyer picked above -- if a specific method was
+        // selected (UPI/netbanking/card), only that one is enabled; for
+        // the generic "Razorpay" option, everything else (card, UPI,
+        // netbanking) stays available, just not these three.
+        method: {
+          wallet: false,
+          emi: false,
+          paylater: false,
+          ...(selected?.razorpayMethod ? { [selected.razorpayMethod]: true } : {}),
+        },
         theme: { color: "#14213D" },
         modal: {
           ondismiss: () => setLoading(false),
