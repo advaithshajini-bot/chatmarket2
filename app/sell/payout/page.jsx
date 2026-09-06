@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight, ArrowLeft, CheckCircle2, Loader2, ShieldCheck, Info, Copy,
-  AlertCircle,
+  AlertCircle, Clock,
 } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import DatePickerField from "@/components/DatePickerField";
@@ -642,7 +642,8 @@ export default function PayoutOnboardingPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [step, setStep] = useState(1);
   const [bank, setBank] = useState({ accountHolder: "", accountNumber: "", confirmAccount: "", ifsc: "" });
-  const [complete, setComplete] = useState(false);
+  const [kycStatus, setKycStatus] = useState(null);
+  const [kycNote, setKycNote] = useState(null);
 
   const [checkedCount, setCheckedCount] = useState(0);
   const [finished, setFinished] = useState(false);
@@ -656,15 +657,20 @@ export default function PayoutOnboardingPage() {
         return;
       }
       setUserId(data.user.id);
-      // If payout setup was already submitted, don't send the seller back
-      // through the wizard — go straight to the "you're all set" screen.
+      // If payout setup was already submitted and approved, don't send the
+      // seller back through the wizard — go straight to the relevant
+      // status screen instead. Only "needs_changes"/"rejected" (or no
+      // record at all) fall through to the editable wizard below.
       const { data: kyc } = await supabase
         .from("seller_kyc")
-        .select("status")
+        .select("status, admin_note")
         .eq("user_id", data.user.id)
         .maybeSingle();
-      if (kyc?.status === "submitted") {
-        setComplete(true);
+      if (kyc?.status === "submitted" || kyc?.status === "approved") {
+        setKycStatus(kyc.status);
+      } else if (kyc?.status === "needs_changes" || kyc?.status === "rejected") {
+        setKycStatus(kyc.status);
+        setKycNote(kyc.admin_note || null);
       }
       setCheckingAuth(false);
     });
@@ -700,14 +706,36 @@ export default function PayoutOnboardingPage() {
     );
   }
 
-  if (complete) {
+  if (kycStatus === "approved") {
     return (
       <div style={{ minHeight: "100vh" }}>
         <TopNav />
         <div style={{ maxWidth: 640, margin: "60px auto" }} className="text-center px-6">
           <ShieldCheck size={32} color="#2F6F62" className="mx-auto mb-4" />
           <h2 className="text-2xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>You're all set to get paid</h2>
-          <p className="text-sm mb-6" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>Payout setup complete.</p>
+          <p className="text-sm mb-6" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>Payout setup approved.</p>
+          <button
+            onClick={() => router.push("/sell")}
+            className="px-6 py-3 rounded text-sm inline-flex items-center gap-2"
+            style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}
+          >
+            Back to dashboard <ArrowRight size={15} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (kycStatus === "submitted") {
+    return (
+      <div style={{ minHeight: "100vh" }}>
+        <TopNav />
+        <div style={{ maxWidth: 640, margin: "60px auto" }} className="text-center px-6">
+          <Clock size={32} color="#8A6A18" className="mx-auto mb-4" />
+          <h2 className="text-2xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>Submitted — awaiting review</h2>
+          <p className="text-sm mb-6" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+            Your payout details are in the queue for an admin to review. Earnings can be paid out once it's approved.
+          </p>
           <button
             onClick={() => router.push("/sell")}
             className="px-6 py-3 rounded text-sm inline-flex items-center gap-2"
@@ -730,6 +758,18 @@ export default function PayoutOnboardingPage() {
             Your listings stay live either way, but earnings can't be paid out until this is complete.
           </p>
         </div>
+
+        {(kycStatus === "needs_changes" || kycStatus === "rejected") && (
+          <div className="flex items-start gap-2 mb-6 p-3 rounded-md" style={{ background: "#FBEAE8", border: "1px solid #F0C4BE" }}>
+            <AlertCircle size={15} color="#B33A2E" className="mt-0.5 shrink-0" />
+            <div>
+              <p className="text-xs" style={{ color: "#B33A2E", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}>
+                {kycStatus === "rejected" ? "Your submission was rejected" : "Changes needed before this can be approved"}
+              </p>
+              {kycNote && <p className="text-xs mt-1" style={{ color: "#8A342B" }}>{kycNote}</p>}
+            </div>
+          </div>
+        )}
 
         <Stepper step={step} />
 
@@ -789,14 +829,18 @@ export default function PayoutOnboardingPage() {
                 <button
                   onClick={async () => {
                     // Persist completion so the sell dashboard and this page
-                    // itself both know payout setup is done, instead of
+                    // itself both know payout setup is submitted, instead of
                     // relying on in-memory state that's lost on navigation.
+                    // Status still needs an admin's approval before it's
+                    // actually "complete" -- setting kycStatus here (rather
+                    // than a plain "complete" flag) routes to the "awaiting
+                    // review" screen, not a false "you're all set".
                     const supabase = createClient();
                     await supabase
                       .from("seller_kyc")
                       .update({ status: "submitted" })
                       .eq("user_id", userId);
-                    setComplete(true);
+                    setKycStatus("submitted");
                   }}
                   className="px-6 py-3 rounded text-sm inline-flex items-center gap-2"
                   style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}
