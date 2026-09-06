@@ -3,14 +3,15 @@ import { Lock } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import LibraryClient from "@/components/LibraryClient";
 import { createClient } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/supabase/get-verified-user";
 
 export const dynamic = "force-dynamic";
 
 export default async function LibraryPage() {
   const supabase = createClient();
-  const { data: userData } = await supabase.auth.getUser();
+  const user = await getVerifiedUser(supabase);
 
-  if (!userData.user) {
+  if (!user) {
     return (
       <div style={{ minHeight: "100vh" }}>
         <TopNav />
@@ -26,13 +27,13 @@ export default async function LibraryPage() {
   const { data: purchases } = await supabase
     .from("purchases")
     .select("id, amount, purchased_at, status, listings(*)")
-    .eq("user_id", userData.user.id)
+    .eq("user_id", user.id)
     .order("purchased_at", { ascending: false });
 
   const { data: reviews } = await supabase
     .from("reviews")
     .select("purchase_id, rating")
-    .eq("user_id", userData.user.id);
+    .eq("user_id", user.id);
 
   const reviewMap = new Map((reviews || []).map((r) => [r.purchase_id, r.rating]));
 
