@@ -12,7 +12,23 @@ const LANDING_STYLES = `
 
 .lnav{ position:sticky; top:0; z-index:50; display:flex; align-items:center; justify-content:space-between; padding:20px 6%; background:rgba(237,238,234,0.85); backdrop-filter:blur(8px); border-bottom:1px solid var(--rule); }
 .llogo{ font-family:'Fraunces', serif; font-style:italic; font-size:22px; }
-.lnav-links{ display:flex; gap:32px; font-size:14px; }
+.lnav-links{ display:flex; gap:32px; font-size:14px; align-items:center; }
+.lnav-cat{ position:relative; cursor:default; }
+.lnav-cat-dropdown{
+  position:absolute; top:100%; left:50%; transform:translateX(-50%) translateY(4px);
+  background:var(--paper-white); border:1px solid var(--rule); border-radius:10px;
+  padding:8px; min-width:230px; max-height:360px; overflow-y:auto;
+  box-shadow:0 14px 32px rgba(20,33,61,0.14);
+  opacity:0; visibility:hidden; pointer-events:none;
+  transition:opacity .15s ease, transform .15s ease;
+  display:grid; gap:2px; z-index:60;
+}
+.lnav-cat:hover .lnav-cat-dropdown, .lnav-cat:focus-within .lnav-cat-dropdown{
+  opacity:1; visibility:visible; pointer-events:auto; transform:translateX(-50%) translateY(0);
+}
+.lnav-cat-item{ display:flex; align-items:center; justify-content:space-between; gap:16px; padding:8px 10px; border-radius:6px; font-size:13px; color:var(--ink); }
+.lnav-cat-item:hover{ background:var(--paper); }
+.lnav-cat-count{ font-size:11px; color:var(--muted); font-family:'IBM Plex Mono', monospace; }
 .lnav-cta{ padding:10px 20px; border-radius:6px; background:var(--ink); color:var(--paper-card); font-size:14px; font-weight:500; transition:transform .2s ease; }
 .lnav-cta:hover{ transform:translateY(-1px); }
 .lnav-auth{ display:flex; align-items:center; gap:10px; }
@@ -163,9 +179,19 @@ export default function LandingClient({ categoryCounts, threadsSold, netPaidRupe
       <nav className="lnav">
         <span className="llogo">chatmarket.</span>
         <div className="lnav-links">
-          <a href="#how">How it works</a>
-          <a href="#categories">Categories</a>
-          <a href="#pricing">For sellers</a>
+          <Link href="/how-it-works">How it works</Link>
+          <div className="lnav-cat" tabIndex={0}>
+            <span>Categories</span>
+            <div className="lnav-cat-dropdown">
+              {categoryCounts.map((c) => (
+                <Link key={c.name} href={`/browse?category=${encodeURIComponent(c.name)}`} className="lnav-cat-item">
+                  <span className="serif" style={{ fontWeight: 500 }}>{c.name}</span>
+                  <span className="lnav-cat-count">{c.count}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+          <Link href="/for-sellers">For sellers</Link>
         </div>
         <div className="lnav-auth">
           {user === undefined ? null : user ? (
