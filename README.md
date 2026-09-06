@@ -22,6 +22,48 @@ Razorpay account.
 Running log of what's changed since the app first went live on real data,
 newest first.
 
+- **AAL2 enforcement extended to every login-gated page** — the same gap
+  fixed on `/admin` existed on `/purchases`, `/library`, `/library/[id]`,
+  and `/sell/earnings`: each only checked "is there a session", so an
+  MFA-enrolled account with an unverified (aal1) session could reach real
+  purchase history, library, or earnings data before ever completing the
+  challenge. Added `lib/supabase/get-verified-user.js`, a server-side
+  counterpart to the client's `use-auth-user.js` hook, and switched all of
+  these pages (including `/admin`, refactored to use it too instead of its
+  own inline copy of the same check) to use it in place of a raw
+  `supabase.auth.getUser()`. `/admin/security` (MFA enrollment itself)
+  intentionally still doesn't require aal2, for the same reason as before.
+  One small behavior change on `/admin`: it now shows the same "you need to
+  log in" prompt as these other pages instead of an automatic redirect —
+  same protection, just consistent with the rest of the site.
+- **Seller payout KYC now has a real admin approval step** — submitting
+  payout KYC used to be treated as "payout setup complete" on its own, with
+  no admin sign-off actually happening (there wasn't even a database policy
+  letting an admin update a KYC record). Added `approved` / `rejected` /
+  `needs_changes` statuses alongside the existing `draft`/`submitted`, plus
+  `admin_note` and `reviewed_at` columns. A new admin panel section
+  (`components/AdminKycReviewClient.jsx`) shows a seller's full submitted
+  identity details -- name, father's name, DOB, PAN + document, Aadhaar
+  (last 4) + document, verified mobile/email, both addresses -- with
+  Approve / Modify / Reject actions (Modify and Reject require a note the
+  seller then sees on their own dashboard and in the payout wizard).
+  **Bank account details still aren't collected or stored anywhere in the
+  app** (see "What's not here yet" below), so there's nothing to review
+  there yet -- the review UI says so explicitly rather than pretending
+  otherwise. The seller dashboard and payout wizard now distinguish
+  "submitted, awaiting review" from "approved" -- only `approved` shows
+  "Payout setup completed". A database trigger
+  (`protect_kyc_review_fields`) stops a seller from setting their own
+  record to `approved` (or touching `admin_note`/`reviewed_at`) via a raw
+  update call -- they can only ever move their own record to `submitted`.
+- **Admins can remove an already-live listing, with a reason** — previously
+  once a listing was approved there was no way to take it back down; the
+  admin queue only ever showed `pending_review`/`flagged` listings. Added
+  `removal_reason` and `removed_at` columns to `listings`, a new admin
+  panel section listing every live listing with a "Remove" action that
+  requires a reason, and the seller's dashboard now shows that reason under
+  the listing (`"Removed by admin: <reason>"`) instead of just a status pill.
+
 - **"Back to" links removed from content pages** — `/about`, `/help`,
   `/privacy`, `/terms`, and `/refund-policy` no longer end with a "← Back
   to Browse" / "← Back to create an account" link.
