@@ -22,6 +22,20 @@ Razorpay account.
 Running log of what's changed since the app first went live on real data,
 newest first.
 
+- **"Back to" links removed from content pages** — `/about`, `/help`,
+  `/privacy`, `/terms`, and `/refund-policy` no longer end with a "← Back
+  to Browse" / "← Back to create an account" link.
+- **Home page nav: real pages instead of anchor scrolls** — "How it works"
+  and "For sellers" used to scroll to short teaser sections on the landing
+  page itself (and "For sellers" actually scrolled to a *checkout methods*
+  section, not anything about selling). They now link to two new, detailed
+  pages written for someone who's never heard of buying/selling AI chat
+  threads before: `app/how-it-works/page.jsx` (buyer's point of view) and
+  `app/for-sellers/page.jsx` (seller's point of view). "Categories" is now
+  a hover dropdown (desktop only, matching how the rest of that nav row
+  already hides on mobile) listing every category with its live listing
+  count, each linking straight to `/browse?category=<name>`.
+
 - **Site footer moved to every page, centered** — `SiteFooter` was only
   rendered on `/browse`. Moved it into the root layout (`app/layout.jsx`)
   instead, so it now appears on every page of the site with a single
