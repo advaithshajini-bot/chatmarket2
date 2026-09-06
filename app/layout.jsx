@@ -1,6 +1,7 @@
 import "./globals.css";
 import MobileTabBar from "@/components/MobileTabBar";
 import SiteFooter from "@/components/SiteFooter";
+import OfflineScreen from "@/components/OfflineScreen";
 
 export const metadata = {
   title: "chatmarket — continue where they left off",
@@ -14,6 +15,7 @@ export default function RootLayout({ children }) {
         {children}
         <SiteFooter />
         <MobileTabBar />
+        <OfflineScreen />
       </body>
     </html>
   );
