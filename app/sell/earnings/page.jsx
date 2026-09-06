@@ -3,6 +3,7 @@ import { Lock } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import SellerEarningsClient from "@/components/SellerEarningsClient";
 import { createClient } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/supabase/get-verified-user";
 import { PLATFORM_FEE_PCT } from "@/lib/constants";
 
 export const dynamic = "force-dynamic";
@@ -18,9 +19,9 @@ function weekBucketStart(date) {
 
 export default async function EarningsPage() {
   const supabase = createClient();
-  const { data: userData } = await supabase.auth.getUser();
+  const user = await getVerifiedUser(supabase);
 
-  if (!userData.user) {
+  if (!user) {
     return (
       <div style={{ minHeight: "100vh" }}>
         <TopNav />
@@ -40,7 +41,7 @@ export default async function EarningsPage() {
   const { data: rows, error } = await supabase
     .from("purchases")
     .select("id, amount, payment_method, status, purchased_at, user_id, listings!inner(id, title, seller_id)")
-    .eq("listings.seller_id", userData.user.id)
+    .eq("listings.seller_id", user.id)
     .order("purchased_at", { ascending: false });
 
   const purchases = rows || [];
