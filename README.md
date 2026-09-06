@@ -22,6 +22,21 @@ Razorpay account.
 Running log of what's changed since the app first went live on real data,
 newest first.
 
+- **Loading / 404 / offline / permission-denied screens** — added
+  `app/loading.jsx` (Next.js's automatic loading UI during route/data
+  loading), `app/not-found.jsx` (shown for any unmatched URL or a manual
+  `notFound()` call), `components/OfflineScreen.jsx` (mounted globally in
+  the root layout; watches the browser's online/offline events and shows a
+  full-screen takeover with a "Try again" button when the connection
+  drops), and `components/PermissionDenied.jsx` (a reusable "you don't have
+  permission" screen — `/admin`'s existing "your account doesn't have
+  admin access" case now uses this instead of its own one-off markup).
+- **Copyright line moved into the site-wide footer** — "© 2026 chatmarket.
+  Not affiliated with Anthropic, OpenAI, or Google." only ever appeared at
+  the bottom of the home page. Removed the "Not affiliated..." sentence
+  entirely, and moved "© 2026 chatmarket" into `SiteFooter.jsx` (next to
+  About us), so it now shows on every page the same way the footer links do.
+
 - **AAL2 enforcement extended to every login-gated page** — the same gap
   fixed on `/admin` existed on `/purchases`, `/library`, `/library/[id]`,
   and `/sell/earnings`: each only checked "is there a session", so an
