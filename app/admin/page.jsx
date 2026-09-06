@@ -6,6 +6,7 @@ import AdminUsersClient from "@/components/AdminUsersClient";
 import AdminDisputesClient from "@/components/AdminDisputesClient";
 import AdminLiveListingsClient from "@/components/AdminLiveListingsClient";
 import AdminKycReviewClient from "@/components/AdminKycReviewClient";
+import PermissionDenied from "@/components/PermissionDenied";
 import { createClient } from "@/lib/supabase/server";
 import { getVerifiedUser } from "@/lib/supabase/get-verified-user";
 
@@ -35,17 +36,7 @@ export default async function AdminPage() {
     .single();
 
   if (!profile?.is_admin) {
-    return (
-      <div style={{ minHeight: "100vh" }}>
-        <TopNav />
-        <main className="px-6 py-16 max-w-md mx-auto text-center">
-          <ShieldAlert size={24} color="#B33A2E" className="mx-auto mb-3" />
-          <p className="text-sm" style={{ color: "#6B6F76" }}>
-            Your account doesn't have admin access.
-          </p>
-        </main>
-      </div>
-    );
+    return <PermissionDenied message="Your account doesn't have admin access." />;
   }
 
   const { data: queueData } = await supabase
