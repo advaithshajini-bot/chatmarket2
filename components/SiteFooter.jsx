@@ -19,6 +19,9 @@ export default function SiteFooter() {
     <>
       <footer className="mt-12 pt-6 pb-10 px-6" style={{ borderTop: "1px solid #D8D5C9" }}>
         <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+          <span className="text-xs" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+            © 2026 chatmarket
+          </span>
           {LINKS.map((link) => (
             <Link
               key={link.href}

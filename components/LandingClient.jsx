@@ -95,7 +95,6 @@ const LANDING_STYLES = `
 .lfooter-cta{ background:var(--ink); color:var(--paper-card); border-radius:16px; margin:0 6% 90px; padding:70px 6%; text-align:center; }
 .lfooter-cta h2{ font-family:'Fraunces', serif; font-style:italic; font-weight:500; font-size:clamp(26px,3.6vw,42px); margin-bottom:20px; }
 .lfooter-cta p{ color:#B9BEC9; margin-bottom:30px; font-size:15px; }
-.lfooter{ text-align:center; padding:30px 6% 60px; color:var(--muted); font-size:13px; }
 `;
 
 // Below 1L, showing lakhs would round a real (small, early-stage) number
@@ -316,8 +315,6 @@ export default function LandingClient({ categoryCounts, threadsSold, netPaidRupe
         <p>List it in under five minutes. Get paid when it's put to use.</p>
         <Link href="/sell" className="lbtn-primary">Sell your first thread →</Link>
       </div>
-
-      <footer className="lfooter">© 2026 chatmarket. Not affiliated with Anthropic, OpenAI, or Google.</footer>
     </div>
   );
 }
