@@ -3,14 +3,15 @@ import { Lock } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import PurchaseHistoryClient from "@/components/PurchaseHistoryClient";
 import { createClient } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/supabase/get-verified-user";
 
 export const dynamic = "force-dynamic";
 
 export default async function PurchaseHistoryPage() {
   const supabase = createClient();
-  const { data: userData } = await supabase.auth.getUser();
+  const user = await getVerifiedUser(supabase);
 
-  if (!userData.user) {
+  if (!user) {
     return (
       <div style={{ minHeight: "100vh" }}>
         <TopNav />
@@ -26,13 +27,13 @@ export default async function PurchaseHistoryPage() {
   const { data: purchases } = await supabase
     .from("purchases")
     .select("id, amount, payment_method, status, purchased_at, listing_id, listings(title, seller_name)")
-    .eq("user_id", userData.user.id)
+    .eq("user_id", user.id)
     .order("purchased_at", { ascending: false });
 
   const { data: disputesData } = await supabase
     .from("disputes")
     .select("purchase_id, status, reason, resolution_note, created_at")
-    .eq("buyer_id", userData.user.id);
+    .eq("buyer_id", user.id);
 
   const disputeByPurchase = Object.fromEntries((disputesData || []).map((d) => [d.purchase_id, d]));
 
