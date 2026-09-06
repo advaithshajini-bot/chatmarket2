@@ -626,7 +626,8 @@ function DashboardStep({ refreshKey }) {
   const [loading, setLoading] = useState(true);
   const [listings, setListings] = useState([]);
   const [error, setError] = useState("");
-  const [payoutComplete, setPayoutComplete] = useState(false);
+  const [kycStatus, setKycStatus] = useState(null);
+  const [kycNote, setKycNote] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -643,14 +644,17 @@ function DashboardStep({ refreshKey }) {
 
       const { data: kyc } = await supabase
         .from("seller_kyc")
-        .select("status")
+        .select("status, admin_note")
         .eq("user_id", userData.user.id)
         .maybeSingle();
-      if (!cancelled) setPayoutComplete(kyc?.status === "submitted");
+      if (!cancelled) {
+        setKycStatus(kyc?.status || null);
+        setKycNote(kyc?.admin_note || null);
+      }
 
       const { data: myListings, error: listingsError } = await supabase
         .from("listings")
-        .select("id, title, price, status")
+        .select("id, title, price, status, removal_reason")
         .eq("seller_id", userData.user.id)
         .order("created_at", { ascending: false });
 
@@ -707,12 +711,33 @@ function DashboardStep({ refreshKey }) {
     <div>
       {error && <p className="text-xs mb-4" style={{ color: "#B33A2E" }}>Couldn't load listings: {error}</p>}
 
-      {payoutComplete ? (
+      {kycStatus === "approved" ? (
         <div className="rounded-md p-3 mb-6 flex items-center gap-2" style={{ background: "#EAF2EF", border: "1px solid #CFE3DC" }}>
           <CheckCircle2 size={14} color="#2F6F62" />
           <p className="text-xs" style={{ color: "#2F6F62", fontFamily: "'IBM Plex Sans', sans-serif" }}>
             Payout setup completed
           </p>
+        </div>
+      ) : kycStatus === "submitted" ? (
+        <div className="rounded-md p-3 mb-6 flex items-center gap-2" style={{ background: "#FBF1DD", border: "1px solid #F0DFAE" }}>
+          <Clock size={14} color="#8A6A18" />
+          <p className="text-xs" style={{ color: "#8A6A18", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+            Payout setup submitted — awaiting admin review
+          </p>
+        </div>
+      ) : kycStatus === "needs_changes" || kycStatus === "rejected" ? (
+        <div className="rounded-md p-3 mb-6" style={{ background: "#FBEAE8", border: "1px solid #F0C4BE" }}>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs" style={{ color: "#B33A2E", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}>
+              {kycStatus === "rejected" ? "Payout setup rejected" : "Payout setup needs changes"}
+            </p>
+            <Link href="/sell/payout" className="text-xs font-medium shrink-0" style={{ color: "#14213D" }}>Review and resubmit →</Link>
+          </div>
+          {kycNote && (
+            <p className="text-xs mt-1.5" style={{ color: "#8A342B" }}>
+              <span style={{ fontWeight: 500 }}>Admin note:</span> {kycNote}
+            </p>
+          )}
         </div>
       ) : (
         <div className="rounded-md p-3 mb-6 flex items-center justify-between" style={{ background: "#FBF1DD", border: "1px solid #F0DFAE" }}>
@@ -755,21 +780,28 @@ function DashboardStep({ refreshKey }) {
       ) : (
         <div className="rounded-md overflow-hidden" style={{ border: "1px solid #D8D5C9" }}>
           {listings.map((l, i) => (
-            <div key={l.id} className="flex items-center justify-between px-4 py-3.5 gap-4" style={{ background: "#FFFFFF", borderTop: i === 0 ? "none" : "1px solid #EAE8DE" }}>
-              <div className="flex items-center gap-3 min-w-0">
-                <MessageSquare size={15} color="#6B6F76" className="shrink-0" />
-                <span className="text-sm truncate" style={{ fontFamily: "'IBM Plex Sans', sans-serif", color: "#14213D" }}>{l.title}</span>
+            <div key={l.id} className="px-4 py-3.5" style={{ background: "#FFFFFF", borderTop: i === 0 ? "none" : "1px solid #EAE8DE" }}>
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <MessageSquare size={15} color="#6B6F76" className="shrink-0" />
+                  <span className="text-sm truncate" style={{ fontFamily: "'IBM Plex Sans', sans-serif", color: "#14213D" }}>{l.title}</span>
+                </div>
+                <div className="flex items-center gap-5 shrink-0">
+                  {l.status === "flagged" && (
+                    <span className="flex items-center gap-1 text-xs" style={{ color: "#B33A2E" }}>
+                      <AlertCircle size={13} /> needs edits
+                    </span>
+                  )}
+                  <span className="text-xs hidden sm:inline" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>{l.sales} sold</span>
+                  <span className="text-sm" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>₹{l.price}</span>
+                  <StatusPill status={l.status} />
+                </div>
               </div>
-              <div className="flex items-center gap-5 shrink-0">
-                {l.status === "flagged" && (
-                  <span className="flex items-center gap-1 text-xs" style={{ color: "#B33A2E" }}>
-                    <AlertCircle size={13} /> needs edits
-                  </span>
-                )}
-                <span className="text-xs hidden sm:inline" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>{l.sales} sold</span>
-                <span className="text-sm" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>₹{l.price}</span>
-                <StatusPill status={l.status} />
-              </div>
+              {l.status === "removed" && l.removal_reason && (
+                <p className="text-xs mt-2 pl-7" style={{ color: "#B33A2E" }}>
+                  <span style={{ fontWeight: 500 }}>Removed by admin:</span> {l.removal_reason}
+                </p>
+              )}
             </div>
           ))}
         </div>
