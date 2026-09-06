@@ -1,4 +1,3 @@
-import Link from "next/link";
 import TopNav from "@/components/TopNav";
 
 export const metadata = {
@@ -30,10 +29,6 @@ export default function AboutPage() {
             over and over, and figured other people were doing the same thing.
           </p>
         </div>
-
-        <p className="text-xs mt-12" style={{ color: "#6B6F76" }}>
-          <Link href="/browse" style={{ color: "#14213D", fontWeight: 500 }}>← Back to Browse</Link>
-        </p>
       </main>
     </div>
   );

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import TopNav from "@/components/TopNav";
 
 export const metadata = {
@@ -100,10 +99,6 @@ export default function TermsPage() {
             </div>
           ))}
         </div>
-
-        <p className="text-xs mt-12" style={{ color: "#6B6F76" }}>
-          <Link href="/signup" style={{ color: "#14213D", fontWeight: 500 }}>← Back to create an account</Link>
-        </p>
       </main>
     </div>
   );
