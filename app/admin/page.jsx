@@ -1,19 +1,21 @@
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { ShieldAlert, Clock, Lock, Users, Flag, ShieldCheck } from "lucide-react";
+import { ShieldAlert, Clock, Lock, Users, Flag, ShieldCheck, Trash2, FileCheck } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import AdminQueueClient from "@/components/AdminQueueClient";
 import AdminUsersClient from "@/components/AdminUsersClient";
 import AdminDisputesClient from "@/components/AdminDisputesClient";
+import AdminLiveListingsClient from "@/components/AdminLiveListingsClient";
+import AdminKycReviewClient from "@/components/AdminKycReviewClient";
 import { createClient } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/supabase/get-verified-user";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
   const supabase = createClient();
-  const { data: userData } = await supabase.auth.getUser();
+  const user = await getVerifiedUser(supabase);
 
-  if (!userData.user) {
+  if (!user) {
     return (
       <div style={{ minHeight: "100vh" }}>
         <TopNav />
@@ -29,7 +31,7 @@ export default async function AdminPage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select("is_admin")
-    .eq("id", userData.user.id)
+    .eq("id", user.id)
     .single();
 
   if (!profile?.is_admin) {
@@ -44,20 +46,6 @@ export default async function AdminPage() {
         </main>
       </div>
     );
-  }
-
-  // Admin flag alone isn't enough: if this account has MFA enrolled, the
-  // session must actually have completed it (aal2). Previously this check
-  // didn't exist at all here, so tapping "Admin" before entering the code
-  // rendered the full dashboard anyway -- including the user list below,
-  // which (being publicly readable via RLS) isn't blocked by the database
-  // the way the listings/disputes queries are. Same requirement as
-  // private.is_admin() at the database level, enforced here too so an
-  // unverified session never even reaches these queries.
-  const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-  if (aalData && aalData.nextLevel === "aal2" && aalData.currentLevel !== "aal2") {
-    await supabase.auth.signOut();
-    redirect("/login?next=/admin");
   }
 
   const { data: queueData } = await supabase
@@ -99,6 +87,51 @@ export default async function AdminPage() {
     resolutionNote: d.resolution_note,
     createdAt: d.created_at,
   }));
+
+  // Live listings, separately from the pending/flagged moderation queue --
+  // for removing something that was already approved and later found to
+  // be deficient in some way.
+  const { data: liveListingsData } = await supabase
+    .from("listings")
+    .select("id, title, price, category, model, seller_name, created_at")
+    .eq("status", "live")
+    .order("created_at", { ascending: false });
+  const liveListings = (liveListingsData || []).map((l) => ({ ...l, price: Number(l.price) }));
+
+  // Seller payout KYC awaiting or already given a decision. Submitting KYC
+  // used to be treated as "payout setup complete" on its own -- this is
+  // the actual admin sign-off step before that's true.
+  const { data: kycData } = await supabase
+    .from("seller_kyc")
+    .select("*")
+    .neq("status", "draft")
+    .order("updated_at", { ascending: true });
+
+  const rawKyc = kycData || [];
+  const kycUserIds = [...new Set(rawKyc.map((k) => k.user_id))];
+  let kycSellerNames = {};
+  if (kycUserIds.length > 0) {
+    const { data: kycProfiles } = await supabase.from("profiles").select("id, display_name").in("id", kycUserIds);
+    kycSellerNames = Object.fromEntries((kycProfiles || []).map((p) => [p.id, p.display_name]));
+  }
+
+  // Document paths live in a private bucket -- sign them here (server-side,
+  // with the admin's own session) so the client can open them directly
+  // without needing its own storage call.
+  const signAttachment = async (path) => {
+    if (!path) return null;
+    const { data, error } = await supabase.storage.from("seller-kyc-documents").createSignedUrl(path, 60 * 15);
+    return error ? null : data.signedUrl;
+  };
+
+  const kycRecords = await Promise.all(
+    rawKyc.map(async (k) => ({
+      ...k,
+      sellerName: kycSellerNames[k.user_id] || "Unknown",
+      panAttachmentUrl: await signAttachment(k.pan_attachment_path),
+      aadhaarAttachmentUrl: await signAttachment(k.aadhaar_attachment_path),
+    }))
+  );
 
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -150,12 +183,31 @@ export default async function AdminPage() {
         <AdminDisputesClient initialDisputes={disputes} />
 
         <div className="flex items-center gap-2 mt-10 mb-3">
+          <Trash2 size={14} color="#6B6F76" />
+          <p className="text-xs uppercase tracking-wide" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
+            Live listings — {liveListings.length}, live from Supabase
+          </p>
+        </div>
+        <p className="text-xs mb-3" style={{ color: "#6B6F76" }}>
+          Remove a listing that's already approved and live if it's later found deficient. The seller sees your reason on their dashboard.
+        </p>
+        <AdminLiveListingsClient initialListings={liveListings} />
+
+        <div className="flex items-center gap-2 mt-10 mb-3">
+          <FileCheck size={14} color="#6B6F76" />
+          <p className="text-xs uppercase tracking-wide" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
+            Seller payout KYC — {kycRecords.filter((k) => k.status === "submitted").length} awaiting review, live from Supabase
+          </p>
+        </div>
+        <AdminKycReviewClient initialRecords={kycRecords} />
+
+        <div className="flex items-center gap-2 mt-10 mb-3">
           <Users size={14} color="#6B6F76" />
           <p className="text-xs uppercase tracking-wide" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
             User management — {users.length} signed up
           </p>
         </div>
-        <AdminUsersClient initialUsers={users} currentUserId={userData.user.id} />
+        <AdminUsersClient initialUsers={users} currentUserId={user.id} />
       </main>
     </div>
   );
