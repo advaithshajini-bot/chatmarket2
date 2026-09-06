@@ -4,14 +4,15 @@ import TopNav from "@/components/TopNav";
 import ModelTag from "@/components/ModelTag";
 import LibraryDetailClient from "@/components/LibraryDetailClient";
 import { createClient } from "@/lib/supabase/server";
+import { getVerifiedUser } from "@/lib/supabase/get-verified-user";
 
 export const dynamic = "force-dynamic";
 
 export default async function LibraryDetailPage({ params }) {
   const supabase = createClient();
-  const { data: userData } = await supabase.auth.getUser();
+  const user = await getVerifiedUser(supabase);
 
-  if (!userData.user) {
+  if (!user) {
     return (
       <div style={{ minHeight: "100vh" }}>
         <TopNav />
@@ -27,7 +28,7 @@ export default async function LibraryDetailPage({ params }) {
   const { data: purchase } = await supabase
     .from("purchases")
     .select("*")
-    .eq("user_id", userData.user.id)
+    .eq("user_id", user.id)
     .eq("listing_id", params.id)
     .maybeSingle();
 
@@ -59,7 +60,7 @@ export default async function LibraryDetailPage({ params }) {
     .from("reviews")
     .select("*")
     .eq("listing_id", params.id)
-    .eq("user_id", userData.user.id)
+    .eq("user_id", user.id)
     .maybeSingle();
 
   const listing = { ...listingRow, price: Number(listingRow.price) };
