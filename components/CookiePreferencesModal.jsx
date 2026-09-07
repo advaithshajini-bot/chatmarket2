@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 
 const CATEGORIES = [
@@ -34,10 +34,46 @@ function loadPrefs() {
 
 export default function CookiePreferencesModal({ open, onClose }) {
   const [prefs, setPrefs] = useState({});
+  const pushedHistoryRef = useRef(false);
 
   useEffect(() => {
     if (open) setPrefs(loadPrefs());
   }, [open]);
+
+  // Mobile only: without this, the phone's back button/gesture just runs
+  // the browser's normal back navigation, which lands on whatever page was
+  // in history before this one -- different every time, and looks like
+  // the modal randomly sends you somewhere else. Pushing a history entry
+  // while the modal is open means back closes the modal first, then
+  // behaves normally on a second press. Desktop's back button already
+  // worked fine here (nothing to "close" via back on desktop, since this
+  // was never confused with real navigation there) so this is skipped
+  // above the sm breakpoint used elsewhere in the app.
+  useEffect(() => {
+    if (!open) return;
+    if (typeof window === "undefined" || window.innerWidth >= 640) return;
+
+    window.history.pushState({ chatmarketCookieModal: true }, "");
+    pushedHistoryRef.current = true;
+
+    const handlePopState = () => {
+      pushedHistoryRef.current = false;
+      onClose();
+    };
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      // Closed some other way (X, backdrop, Save, Reset) while our dummy
+      // history entry is still sitting there unconsumed -- pop it so the
+      // back button behaves normally afterward instead of needing an
+      // extra press.
+      if (pushedHistoryRef.current) {
+        pushedHistoryRef.current = false;
+        window.history.back();
+      }
+    };
+  }, [open, onClose]);
 
   if (!open) return null;
 

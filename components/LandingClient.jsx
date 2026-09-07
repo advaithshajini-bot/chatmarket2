@@ -208,7 +208,7 @@ export default function LandingClient({ categoryCounts, threadsSold, netPaidRupe
         <div>
           <span className="leyebrow">For builders tired of the blank prompt</span>
           <h1 className="lh1">Pick up a conversation.<br />Not a <em>blank page.</em></h1>
-          <p className="lsub">Chatmarket is where working AI threads — from Claude, ChatGPT, Gemini — change hands. Buy one that's already most of the way there, or sell the one you never finished.</p>
+          <p className="lsub">Buy and sell AI conversations. Someone already did the hard work in Claude, ChatGPT, Gemini, and more — a half-built app, a researched outline, a solved problem. Buy their thread and pick up where they left off. Or sell the one you never finished.</p>
           <div className="lhero-ctas">
             <Link href="/browse" className="lbtn-primary">Browse threads →</Link>
             <Link href="/sell" className="lbtn-outline">Sell a thread</Link>
