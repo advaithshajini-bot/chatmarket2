@@ -55,10 +55,6 @@ export default function HelpPage() {
             </div>
           ))}
         </div>
-
-        <p className="text-sm mt-12" style={{ color: "#6B6F76" }}>
-          Still stuck? Reach out from the contact address in your account settings.
-        </p>
       </main>
     </div>
   );

@@ -65,12 +65,6 @@ const SECTIONS = [
       "chatmarket may update these Terms and Conditions from time to time. Continuing to use chatmarket after changes are posted means you accept the updated terms.",
     ],
   },
-  {
-    heading: "10. Contact",
-    body: [
-      "Questions about these terms can be sent to the chatmarket support address listed in your account settings.",
-    ],
-  },
 ];
 
 export default function TermsPage() {
