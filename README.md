@@ -22,6 +22,22 @@ Razorpay account.
 Running log of what's changed since the app first went live on real data,
 newest first.
 
+- **Content trims** — removed "Still stuck? Reach out from the contact
+  address in your account settings." from `/help`, and removed the "10.
+  Contact" section from `/terms`.
+- **Home page hero text updated.**
+- **Manage cookies modal: mobile back button fixed** — on mobile, the
+  modal didn't push any history state of its own, so pressing the phone's
+  back button just ran the browser's normal back navigation and landed on
+  whatever page happened to be before it in history — different every
+  time, and looked like the modal was randomly sending people elsewhere.
+  `CookiePreferencesModal.jsx` now pushes a history entry while open
+  (mobile viewports only, matching the app's existing `sm` breakpoint) and
+  listens for the back button to close the modal instead of navigating
+  away; closing it any other way (X, backdrop, Save, Reset) cleans that
+  entry back up so a later back-press behaves normally. Desktop is
+  untouched — no history manipulation happens above that breakpoint.
+
 - **Loading / 404 / offline / permission-denied screens** — added
   `app/loading.jsx` (Next.js's automatic loading UI during route/data
   loading), `app/not-found.jsx` (shown for any unmatched URL or a manual
