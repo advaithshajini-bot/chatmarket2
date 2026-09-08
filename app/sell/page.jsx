@@ -622,12 +622,105 @@ function ReviewStep({ onDone, findings }) {
   );
 }
 
-function DashboardStep({ refreshKey }) {
+function KycGate({ status, note }) {
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <TopNav />
+      <main className="px-6 py-16 max-w-md mx-auto text-center">
+        {status === "submitted" ? (
+          <>
+            <Clock size={28} color="#8A6A18" className="mx-auto mb-4" />
+            <h1 className="text-2xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
+              Verification submitted
+            </h1>
+            <p className="text-sm" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+              Your identity verification is awaiting admin review. Once it's approved, you'll be able to list threads for sale.
+            </p>
+          </>
+        ) : status === "needs_changes" || status === "rejected" ? (
+          <>
+            <AlertCircle size={28} color="#B33A2E" className="mx-auto mb-4" />
+            <h1 className="text-2xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
+              {status === "rejected" ? "Verification rejected" : "Changes needed"}
+            </h1>
+            {note && (
+              <p className="text-sm mb-4 text-left rounded-md p-3" style={{ color: "#8A342B", background: "#FBEAE8", border: "1px solid #F0C4BE" }}>
+                <span style={{ fontWeight: 500 }}>Admin note:</span> {note}
+              </p>
+            )}
+            <p className="text-sm mb-6" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+              Review and resubmit your details to continue.
+            </p>
+            <Link
+              href="/sell/payout"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded text-sm"
+              style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}
+            >
+              Review and resubmit <ArrowRight size={15} />
+            </Link>
+          </>
+        ) : (
+          <>
+            <ShieldCheck size={28} color="#14213D" className="mx-auto mb-4" />
+            <h1 className="text-2xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
+              Verify your identity to start selling
+            </h1>
+            <p className="text-sm mb-6" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+              Before you can list a thread, we need to verify who you are and where to pay you — a one-time step
+              that an admin then reviews.
+            </p>
+            <Link
+              href="/sell/payout"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded text-sm"
+              style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}
+            >
+              Start verification <ArrowRight size={15} />
+            </Link>
+          </>
+        )}
+      </main>
+    </div>
+  );
+}
+
+function AwaitingApprovalStep({ listings, onAddAnother }) {
+  return (
+    <div>
+      <div className="rounded-md p-5 mb-6 text-center" style={{ background: "#FBF1DD", border: "1px solid #F0DFAE" }}>
+        <Clock size={22} color="#8A6A18" className="mx-auto mb-2" />
+        <p className="text-sm" style={{ color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600 }}>
+          Your submission is awaiting admin review
+        </p>
+        <p className="text-xs mt-1" style={{ color: "#6B6F76" }}>
+          Your full seller dashboard — purchases, reviews, reported issues — unlocks once a listing goes live.
+        </p>
+      </div>
+
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs uppercase tracking-wide" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Your listings</p>
+        <button onClick={onAddAnother} className="text-xs font-medium" style={{ color: "#14213D" }}>+ List another thread</button>
+      </div>
+      <div className="rounded-md overflow-hidden" style={{ border: "1px solid #D8D5C9" }}>
+        {listings.map((l, i) => (
+          <div key={l.id} className="px-4 py-3.5 flex items-center justify-between gap-4" style={{ background: "#FFFFFF", borderTop: i === 0 ? "none" : "1px solid #EAE8DE" }}>
+            <div className="flex items-center gap-3 min-w-0">
+              <MessageSquare size={15} color="#6B6F76" className="shrink-0" />
+              <span className="text-sm truncate" style={{ fontFamily: "'IBM Plex Sans', sans-serif", color: "#14213D" }}>{l.title}</span>
+            </div>
+            <StatusPill status={l.status} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DashboardStep({ refreshKey, onAddAnother }) {
   const [loading, setLoading] = useState(true);
   const [listings, setListings] = useState([]);
   const [error, setError] = useState("");
-  const [kycStatus, setKycStatus] = useState(null);
-  const [kycNote, setKycNote] = useState(null);
+  const [reviews, setReviews] = useState([]);
+  const [disputes, setDisputes] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -641,21 +734,12 @@ function DashboardStep({ refreshKey }) {
         if (!cancelled) setLoading(false);
         return;
       }
-
-      const { data: kyc } = await supabase
-        .from("seller_kyc")
-        .select("status, admin_note")
-        .eq("user_id", userData.user.id)
-        .maybeSingle();
-      if (!cancelled) {
-        setKycStatus(kyc?.status || null);
-        setKycNote(kyc?.admin_note || null);
-      }
+      const uid = userData.user.id;
 
       const { data: myListings, error: listingsError } = await supabase
         .from("listings")
         .select("id, title, price, status, removal_reason")
-        .eq("seller_id", userData.user.id)
+        .eq("seller_id", uid)
         .order("created_at", { ascending: false });
 
       if (listingsError) {
@@ -689,8 +773,26 @@ function DashboardStep({ refreshKey }) {
         revenue: salesByListing[l.id]?.revenue || 0,
       }));
 
+      // Review analysis and reported issues across every listing this
+      // seller owns -- both already allowed by RLS (owns_listing() for
+      // disputes; reviews on live listings are publicly readable, which
+      // covers the seller's own).
+      const { data: reviewRows } = await supabase
+        .from("reviews")
+        .select("id, rating, comment, created_at, listings!inner(id, title, seller_id)")
+        .eq("listings.seller_id", uid)
+        .order("created_at", { ascending: false });
+
+      const { data: disputeRows } = await supabase
+        .from("disputes")
+        .select("id, reason, status, resolution_note, created_at, listings!inner(id, title, seller_id)")
+        .eq("listings.seller_id", uid)
+        .order("created_at", { ascending: false });
+
       if (!cancelled) {
         setListings(withSales);
+        setReviews(reviewRows || []);
+        setDisputes(disputeRows || []);
         setLoading(false);
       }
     };
@@ -702,6 +804,9 @@ function DashboardStep({ refreshKey }) {
   const totalGross = listings.reduce((sum, l) => sum + l.revenue, 0);
   const totalNet = totalGross * (1 - PLATFORM_FEE_PCT);
   const liveCount = listings.filter((l) => l.status === "live").length;
+  const totalSales = listings.reduce((sum, l) => sum + l.sales, 0);
+  const avgRating = reviews.length > 0 ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length : null;
+  const openDisputes = disputes.filter((d) => d.status === "open").length;
 
   if (loading) {
     return <p className="text-sm" style={{ color: "#6B6F76" }}>Loading your dashboard...</p>;
@@ -711,44 +816,14 @@ function DashboardStep({ refreshKey }) {
     <div>
       {error && <p className="text-xs mb-4" style={{ color: "#B33A2E" }}>Couldn't load listings: {error}</p>}
 
-      {kycStatus === "approved" ? (
-        <div className="rounded-md p-3 mb-6 flex items-center gap-2" style={{ background: "#EAF2EF", border: "1px solid #CFE3DC" }}>
-          <CheckCircle2 size={14} color="#2F6F62" />
-          <p className="text-xs" style={{ color: "#2F6F62", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-            Payout setup completed
-          </p>
-        </div>
-      ) : kycStatus === "submitted" ? (
-        <div className="rounded-md p-3 mb-6 flex items-center gap-2" style={{ background: "#FBF1DD", border: "1px solid #F0DFAE" }}>
-          <Clock size={14} color="#8A6A18" />
-          <p className="text-xs" style={{ color: "#8A6A18", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-            Payout setup submitted — awaiting admin review
-          </p>
-        </div>
-      ) : kycStatus === "needs_changes" || kycStatus === "rejected" ? (
-        <div className="rounded-md p-3 mb-6" style={{ background: "#FBEAE8", border: "1px solid #F0C4BE" }}>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs" style={{ color: "#B33A2E", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}>
-              {kycStatus === "rejected" ? "Payout setup rejected" : "Payout setup needs changes"}
-            </p>
-            <Link href="/sell/payout" className="text-xs font-medium shrink-0" style={{ color: "#14213D" }}>Review and resubmit →</Link>
-          </div>
-          {kycNote && (
-            <p className="text-xs mt-1.5" style={{ color: "#8A342B" }}>
-              <span style={{ fontWeight: 500 }}>Admin note:</span> {kycNote}
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="rounded-md p-3 mb-6 flex items-center justify-between" style={{ background: "#FBF1DD", border: "1px solid #F0DFAE" }}>
-          <p className="text-xs" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-            Payout setup isn't complete — earnings can't be paid out yet.
-          </p>
-          <Link href="/sell/payout" className="text-xs font-medium" style={{ color: "#14213D" }}>Set up payouts →</Link>
-        </div>
-      )}
+      <div className="rounded-md p-3 mb-6 flex items-center gap-2" style={{ background: "#EAF2EF", border: "1px solid #CFE3DC" }}>
+        <CheckCircle2 size={14} color="#2F6F62" />
+        <p className="text-xs" style={{ color: "#2F6F62", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+          Payout setup completed
+        </p>
+      </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
         <Link href="/sell/earnings" className="rounded-md p-4 block transition-transform hover:-translate-y-0.5" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
           <div className="flex items-center gap-2 mb-1" style={{ color: "#6B6F76" }}>
             <TrendingUp size={14} /> <span className="text-xs uppercase tracking-wide" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>Earnings</span>
@@ -770,9 +845,19 @@ function DashboardStep({ refreshKey }) {
           <p className="text-2xl" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>{listings.length}</p>
           <p className="text-xs mt-1" style={{ color: "#6B6F76" }}>across every status</p>
         </div>
+        <div className="rounded-md p-4" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
+          <div className="flex items-center gap-2 mb-1" style={{ color: "#6B6F76" }}>
+            <Star size={14} /> <span className="text-xs uppercase tracking-wide" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>Purchases</span>
+          </div>
+          <p className="text-2xl" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>{totalSales}</p>
+          <p className="text-xs mt-1" style={{ color: "#6B6F76" }}>threads sold, all time</p>
+        </div>
       </div>
 
-      <p className="text-xs uppercase tracking-wide mb-3" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Your listings</p>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs uppercase tracking-wide" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Your listings</p>
+        <button onClick={onAddAnother} className="text-xs font-medium" style={{ color: "#14213D" }}>+ List another thread</button>
+      </div>
       {listings.length === 0 ? (
         <p className="text-sm text-center py-10 rounded-md" style={{ color: "#6B6F76", border: "1px solid #D8D5C9" }}>
           You haven't listed anything yet.
@@ -806,6 +891,77 @@ function DashboardStep({ refreshKey }) {
           ))}
         </div>
       )}
+
+      <p className="text-xs uppercase tracking-wide mb-3 mt-8" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Review analysis</p>
+      <div className="rounded-md p-4 mb-8" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
+        {reviews.length === 0 ? (
+          <p className="text-sm" style={{ color: "#6B6F76" }}>No reviews yet.</p>
+        ) : (
+          <>
+            <div className="flex items-center gap-3 mb-4">
+              <p className="text-2xl" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>{avgRating.toFixed(1)}</p>
+              <div>
+                <div className="flex items-center gap-0.5">
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star key={n} size={14} fill={n <= Math.round(avgRating) ? "#E2A83E" : "none"} color={n <= Math.round(avgRating) ? "#E2A83E" : "#D8D5C9"} />
+                  ))}
+                </div>
+                <p className="text-xs" style={{ color: "#6B6F76" }}>{reviews.length} review{reviews.length === 1 ? "" : "s"}</p>
+              </div>
+            </div>
+            <div className="space-y-3">
+              {reviews.slice(0, 5).map((r) => (
+                <div key={r.id} className="pt-3" style={{ borderTop: "1px solid #E4E2D8" }}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-0.5">
+                      {[1, 2, 3, 4, 5].map((n) => (
+                        <Star key={n} size={11} fill={n <= r.rating ? "#E2A83E" : "none"} color={n <= r.rating ? "#E2A83E" : "#D8D5C9"} />
+                      ))}
+                    </div>
+                    <span className="text-xs truncate max-w-[50%]" style={{ color: "#6B6F76" }}>{r.listings?.title}</span>
+                  </div>
+                  {r.comment && <p className="text-xs" style={{ color: "#3A3D42" }}>{r.comment}</p>}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      <p className="text-xs uppercase tracking-wide mb-3" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
+        Reported issues {openDisputes > 0 && `— ${openDisputes} open`}
+      </p>
+      {disputes.length === 0 ? (
+        <p className="text-sm text-center py-8 rounded-md" style={{ color: "#6B6F76", border: "1px solid #D8D5C9" }}>
+          No issues reported on your listings.
+        </p>
+      ) : (
+        <div className="rounded-md overflow-hidden" style={{ border: "1px solid #D8D5C9" }}>
+          {disputes.map((d, i) => (
+            <div key={d.id} className="px-4 py-3.5" style={{ background: "#FFFFFF", borderTop: i === 0 ? "none" : "1px solid #EAE8DE" }}>
+              <div className="flex items-center justify-between gap-3 mb-1">
+                <span className="text-sm truncate" style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500, color: "#14213D" }}>{d.listings?.title}</span>
+                <span
+                  className="text-[11px] px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0"
+                  style={{
+                    fontFamily: "'IBM Plex Mono', monospace",
+                    background: d.status === "open" ? "#FBF1DD" : d.status === "resolved_refunded" ? "#EAF2EF" : "#E8E7E2",
+                    color: d.status === "open" ? "#8A6A18" : d.status === "resolved_refunded" ? "#2F6F62" : "#6B6F76",
+                  }}
+                >
+                  {d.status === "open" ? "Open" : d.status === "resolved_refunded" ? "Refunded" : "Denied"}
+                </span>
+              </div>
+              <p className="text-xs" style={{ color: "#6B6F76" }}>{d.reason}</p>
+              {d.resolution_note && (
+                <p className="text-xs mt-1" style={{ color: "#8A6A18" }}>
+                  <span style={{ fontWeight: 500 }}>Resolution:</span> {d.resolution_note}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -833,8 +989,12 @@ export default function SellPage() {
   const [submitError, setSubmitError] = useState("");
   const [dashboardRefreshKey, setDashboardRefreshKey] = useState(0);
   const [hasExistingListings, setHasExistingListings] = useState(false);
+  const [hasLiveListing, setHasLiveListing] = useState(false);
   const [screeningFindings, setScreeningFindings] = useState([]);
+  const [statusListings, setStatusListings] = useState([]);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [kycStatus, setKycStatus] = useState(null);
+  const [kycNote, setKycNote] = useState(null);
 
   useEffect(() => {
     // Generated up front (not at final submit) so screenshots can be
@@ -843,6 +1003,28 @@ export default function SellPage() {
     // explicit id on the final insert in step 3 so the two line up.
     setForm((f) => (f.listingId ? f : { ...f, listingId: crypto.randomUUID() }));
   }, []);
+
+  const refreshSellerState = async (supabase, userId) => {
+    const { data: kyc } = await supabase
+      .from("seller_kyc")
+      .select("status, admin_note")
+      .eq("user_id", userId)
+      .maybeSingle();
+    setKycStatus(kyc?.status || null);
+    setKycNote(kyc?.admin_note || null);
+
+    const { data: myListings } = await supabase
+      .from("listings")
+      .select("id, title, status")
+      .eq("seller_id", userId)
+      .order("created_at", { ascending: false });
+
+    const listings = myListings || [];
+    setHasExistingListings(listings.length > 0);
+    setHasLiveListing(listings.some((l) => l.status === "live"));
+    setStatusListings(listings);
+    return listings;
+  };
 
   useEffect(() => {
     // Gates the whole wizard on being logged in -- clicking "Sell" with no
@@ -856,12 +1038,10 @@ export default function SellPage() {
         return;
       }
       setCheckingAuth(false);
-
-      const { count } = await supabase
-        .from("listings")
-        .select("id", { count: "exact", head: true })
-        .eq("seller_id", userData.user.id);
-      setHasExistingListings((count || 0) > 0);
+      const listings = await refreshSellerState(supabase, userData.user.id);
+      // Land existing sellers on their dashboard/status view by default;
+      // only force the upload wizard for someone with nothing listed yet.
+      if (listings.length > 0) setStep(3);
     };
     checkAuth();
   }, [router]);
@@ -924,9 +1104,37 @@ export default function SellPage() {
     setStep(2);
   };
 
-  const handleReviewDone = () => {
+  const handleReviewDone = async () => {
     setDashboardRefreshKey((k) => k + 1);
+    const supabase = createClient();
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData.user) await refreshSellerState(supabase, userData.user.id);
     setStep(3);
+  };
+
+  const startNewListing = () => {
+    // Without this, "List another thread" would reopen the wizard still
+    // holding the previous listing's title/description/price/screenshots
+    // -- and, critically, the same listingId, which would collide with the
+    // row already inserted for it.
+    setForm({
+      listingId: crypto.randomUUID(),
+      title: "",
+      category: "",
+      categoryOther: "",
+      model: "",
+      description: "",
+      messages: "",
+      price: "",
+      completion: 80,
+      fileAttached: false,
+      fileName: "",
+      parsedMessages: null,
+      screenshots: [],
+    });
+    setSubmitError("");
+    setWizardStep(1);
+    setStep(1);
   };
 
   if (checkingAuth) {
@@ -938,6 +1146,12 @@ export default function SellPage() {
         </main>
       </div>
     );
+  }
+
+  // Selling is gated on identity verification being admin-approved first --
+  // no access to the upload wizard or the dashboard until then.
+  if (kycStatus !== "approved") {
+    return <KycGate status={kycStatus} note={kycNote} />;
   }
 
   return (
@@ -976,7 +1190,13 @@ export default function SellPage() {
           </>
         )}
         {step === 2 && <ReviewStep onDone={handleReviewDone} findings={screeningFindings} />}
-        {step === 3 && <DashboardStep refreshKey={dashboardRefreshKey} />}
+        {step === 3 && (
+          hasLiveListing ? (
+            <DashboardStep refreshKey={dashboardRefreshKey} onAddAnother={startNewListing} />
+          ) : (
+            <AwaitingApprovalStep listings={statusListings} onAddAnother={startNewListing} />
+          )
+        )}
       </main>
     </div>
   );
