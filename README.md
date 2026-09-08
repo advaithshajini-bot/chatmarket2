@@ -22,6 +22,39 @@ Razorpay account.
 Running log of what's changed since the app first went live on real data,
 newest first.
 
+- **Selling flow reordered: KYC first, then uploads, then the real
+  dashboard** — previously a seller could upload and list threads with no
+  identity verification at all; KYC was a separate, optional step reachable
+  from a dashboard banner, unconnected to upload access. `/sell` now gates
+  on `seller_kyc.status`:
+  - Not yet `approved` (no record, `draft`, `submitted`, `needs_changes`,
+    or `rejected`) → a new `KycGate` screen with status-specific messaging
+    and a link into the payout/KYC wizard. No upload wizard, no dashboard.
+  - `approved`, but no listing has gone `live` yet → the upload wizard is
+    available, and a lightweight `AwaitingApprovalStep` view shows
+    submitted listings and their status, rather than the full dashboard.
+  - `approved` with at least one `live` listing → the full dashboard.
+  Existing sellers landing on `/sell` now default straight to their
+  dashboard/status view instead of the upload wizard if they already have
+  any listings (previously always defaulted to the upload wizard with a
+  manual link to the dashboard). Added "+ List another thread" to both the
+  full dashboard and the awaiting-approval view, since there was
+  previously no way back into the wizard once past the first listing;
+  fixed a latent bug this exposed where reopening the wizard would have
+  reused the previous listing's stale form data and id.
+  **One-time note**: the only existing seller account in the database had
+  2 live listings but KYC still at `submitted` — approved it directly so
+  this change doesn't retroactively lock them out of their own dashboard.
+- **Full seller dashboard now includes real analytics** — added a
+  "Purchases" stat (total units sold across every listing), a "Review
+  analysis" section (average rating, star breakdown, most recent reviews
+  with comments), and a "Reported issues" section (disputes filed against
+  the seller's listings, with status and any resolution note). All three
+  read data the seller already had RLS permission to see
+  (`private.owns_listing()` already covered purchases and disputes; live
+  listings' reviews are publicly readable) — no new database policies
+  needed.
+
 - **Content trims** — removed "Still stuck? Reach out from the contact
   address in your account settings." from `/help`, and removed the "10.
   Contact" section from `/terms`.
