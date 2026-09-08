@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const LANDING_STYLES = `
@@ -206,7 +207,23 @@ export default function LandingClient({ categoryCounts, threadsSold, netPaidRupe
 
       <section className="lhero" style={{ paddingBottom: 20 }}>
         <div>
-          <span className="leyebrow">For builders tired of the blank prompt</span>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const q = e.target.elements.heroSearch.value.trim();
+              router.push(q ? `/browse?q=${encodeURIComponent(q)}` : "/browse");
+            }}
+            className="flex items-center gap-2 px-3 py-2 rounded-full mb-5"
+            style={{ background: "#FFFFFF", border: "1px solid #D8D5C9", maxWidth: 420 }}
+          >
+            <Search size={14} color="#6B6F76" />
+            <input
+              name="heroSearch"
+              placeholder="Search threads — e.g. Stripe checkout, onboarding..."
+              className="text-sm bg-transparent outline-none w-full"
+              style={{ fontFamily: "'IBM Plex Sans', sans-serif", color: "#14213D" }}
+            />
+          </form>
           <h1 className="lh1">Pick up a conversation.<br />Not a <em>blank page.</em></h1>
           <p className="lsub">Buy and sell AI conversations. Someone already did the hard work in Claude, ChatGPT, Gemini, and more — a half-built app, a researched outline, a solved problem. Buy their thread and pick up where they left off. Or sell the one you never finished.</p>
           <div className="lhero-ctas">
@@ -239,26 +256,26 @@ export default function LandingClient({ categoryCounts, threadsSold, netPaidRupe
 
       <section id="how" className="lsection">
         <div className="lreveal">
-          <div className="lsection-eyebrow">How it works</div>
-          <h2 className="lsection-title">Three steps between a stalled chat and someone's head start.</h2>
-          <p className="lsection-sub">Whether you're closing out a project or picking one up, the flow is built around one thing: trust that what you're buying actually works.</p>
+          <div className="lsection-eyebrow">How it works — for buyers</div>
+          <h2 className="lsection-title">Three steps from someone else's stalled chat to your head start.</h2>
+          <p className="lsection-sub">A thread is a real AI conversation someone already had — with the messages, the code, the drafts, all of it. Here's exactly what you get and what to do with it.</p>
         </div>
 
         <div className="lsteps lreveal">
           <div className="lstep">
             <div className="lnum">01</div>
-            <h3>List your thread</h3>
-            <p>Upload the export, pick a category, set a price. Tell buyers how far you got and what's left.</p>
+            <h3>Find a thread already like yours</h3>
+            <p>Browse by category and preview the real opening messages for free, before you pay — an actual conversation someone had with Claude, ChatGPT, or Gemini, already partway (or all the way) through the same kind of problem you're facing.</p>
           </div>
           <div className="lstep">
             <div className="lnum">02</div>
-            <h3>We screen it</h3>
-            <p>An automated pass clears personal details and credentials before anything goes live — plus a human check early on.</p>
+            <h3>Unlock the whole conversation</h3>
+            <p>Pay once and the complete thread lands instantly in your Library — every message, in full. Not a summary, not a screenshot: the real back-and-forth, ready to copy or download as a plain text file.</p>
           </div>
           <div className="lstep">
             <div className="lnum">03</div>
-            <h3>Buyer unlocks it</h3>
-            <p>Payment is held for 48 hours after unlock. It releases to you once the buyer confirms the thread delivers.</p>
+            <h3>Pick it up in your own AI chat</h3>
+            <p>Copy the thread and paste it as your first message in a new Claude, ChatGPT, or Gemini conversation — the AI picks up the full context instantly and you continue right where it left off. Or open the downloaded file directly: read it for the answer, or pull the code, outline, or draft straight into your own project.</p>
           </div>
         </div>
       </section>

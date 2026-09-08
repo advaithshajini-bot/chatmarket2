@@ -69,7 +69,7 @@ export default function BrowseClient({ listings }) {
   const [activeCategory, setActiveCategory] = useState(
     categoryFromUrl && CATEGORIES.includes(categoryFromUrl) ? categoryFromUrl : "All"
   );
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(searchParams.get("q") || "");
 
   // Category is still a hard filter (an explicit pill the person chose),
   // but the search query is a ranking, not a filter: matches sort to the

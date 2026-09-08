@@ -12,9 +12,33 @@ import {
   ChevronUp,
   MessageSquare,
   ExternalLink,
+  Download,
 } from "lucide-react";
 import ModelTag from "@/components/ModelTag";
 import { createClient } from "@/lib/supabase/client";
+
+function slugifyFilename(title) {
+  return (title || "thread").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+}
+
+function downloadFile(filename, content, mimeType) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadThreadAsTxt(item, thread) {
+  const formatted = thread.map((m) => `${m.who === "user" ? "Buyer" : "Assistant"}: ${m.text}`).join("\n\n");
+  downloadFile(`${slugifyFilename(item.title)}.txt`, formatted, "text/plain");
+}
+
+function downloadThreadAsJson(item, thread) {
+  downloadFile(`${slugifyFilename(item.title)}.json`, JSON.stringify(thread, null, 2), "application/json");
+}
 
 function timeAgo(dateString) {
   const diffMs = Date.now() - new Date(dateString).getTime();
@@ -114,19 +138,35 @@ function QueueRow({ item, onApprove, onFlag, onRemove, busy }) {
 
           {displayedMessages.length > 0 && (
             <div className="mb-3">
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center justify-between mb-1.5 flex-wrap gap-y-1.5">
                 <p className="text-[10px] uppercase tracking-wide" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
                   {showFullThread ? `Full document uploaded by seller (${fullThread.length} messages)` : "Preview shown to buyers"}
                 </p>
-                {fullThread.length > 2 && (
+                <div className="flex items-center gap-3">
                   <button
-                    onClick={() => setShowFullThread((v) => !v)}
-                    className="text-[11px] font-medium"
+                    onClick={() => downloadThreadAsTxt(item, fullThread)}
+                    className="text-[11px] font-medium inline-flex items-center gap-1"
                     style={{ color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif" }}
                   >
-                    {showFullThread ? "Show preview only" : `Show full thread (${fullThread.length} msgs) →`}
+                    <Download size={11} /> .txt
                   </button>
-                )}
+                  <button
+                    onClick={() => downloadThreadAsJson(item, fullThread)}
+                    className="text-[11px] font-medium inline-flex items-center gap-1"
+                    style={{ color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif" }}
+                  >
+                    <Download size={11} /> .json
+                  </button>
+                  {fullThread.length > 2 && (
+                    <button
+                      onClick={() => setShowFullThread((v) => !v)}
+                      className="text-[11px] font-medium"
+                      style={{ color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif" }}
+                    >
+                      {showFullThread ? "Show preview only" : `Show full thread (${fullThread.length} msgs) →`}
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="space-y-1.5" style={{ maxHeight: showFullThread ? "420px" : "none", overflowY: showFullThread ? "auto" : "visible" }}>
                 {displayedMessages.map((m, i) => (
