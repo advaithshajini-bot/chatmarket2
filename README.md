@@ -22,6 +22,32 @@ Razorpay account.
 Running log of what's changed since the app first went live on real data,
 newest first.
 
+- **Admin can download a seller's uploaded document** — the admin
+  moderation queue (`components/AdminQueueClient.jsx`) already had a "Show
+  full thread" toggle; added ".txt" and ".json" download buttons next to
+  it, generated client-side from the same thread data (there's no separate
+  original-file blob stored — the parsed messages are the source of truth
+  once uploaded).
+- **Home page "How it works" rewritten for buyers** — it previously
+  described the *seller's* flow (list → we screen it → buyer unlocks it),
+  which doesn't explain anything to someone landing on the site with no
+  idea what a "thread" even is. Rewritten around what a buyer is actually
+  getting and what to do with it: find a thread already like your problem
+  → unlock the full conversation → paste it into a new Claude/ChatGPT/
+  Gemini chat to keep going, or pull the code/draft straight from the
+  downloaded file into your own project. (Kept to 3 steps, matching the
+  section's existing 3-column layout.)
+- **Home page hero: search bar instead of a tagline** — replaced "For
+  builders tired of the blank prompt" with a real search input, visually
+  identical to Browse's. Since the home page doesn't load the full listings
+  dataset the way Browse does (it only ever fetched category counts and
+  aggregate stats — no data to filter client-side), it submits to
+  `/browse?q=<query>` rather than filtering in place. Added `?q=` support
+  to `BrowseClient.jsx` (it already read `?category=`) so landing there
+  pre-fills the search box and runs the exact same live ranking Browse's
+  own search bar does — at that point it's the same input, not an
+  imitation of it.
+
 - **Selling flow reordered: KYC first, then uploads, then the real
   dashboard** — previously a seller could upload and list threads with no
   identity verification at all; KYC was a separate, optional step reachable
