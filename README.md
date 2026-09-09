@@ -22,6 +22,26 @@ Razorpay account.
 Running log of what's changed since the app first went live on real data,
 newest first.
 
+- **Home page: category counts removed, empty categories hidden** — the
+  "Browse by category" pills no longer show a thread count, and a category
+  with zero live listings no longer appears at all. (The separate hover
+  dropdown in the nav still shows every fixed category with its count —
+  this change was scoped to the "Browse by category" section specifically;
+  say the word if you want the same treatment there too.)
+- **Home page stats replaced with a seller-focused "How it works"** —
+  removed the "threads sold / paid out to sellers / average buyer rating"
+  counters (along with the now-unused `get_platform_stats` RPC call and
+  its animated-counter code — the RPC function itself is still in the
+  database, just unused, in case it's wanted elsewhere later) and replaced
+  the section with a 3-step seller walkthrough covering what a first-time
+  seller actually needs to know: how to produce the export/document in the
+  first place (Claude/ChatGPT/Gemini's export option, or copy-pasting into
+  a .txt file), the one-time identity verification required before
+  listing anything (name, PAN, address — reviewed by an admin), and how
+  and when payment actually arrives (48-hour hold after a sale, then
+  released). Mirrors the buyer-facing section added earlier in style and
+  length.
+
 - **Custom source model ("Other") now has somewhere to go** — the sell
   wizard's model dropdown already included "Other" as an option, but
   selecting it saved the literal string `"Other"` as the listing's model
