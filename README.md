@@ -22,6 +22,23 @@ Razorpay account.
 Running log of what's changed since the app first went live on real data,
 newest first.
 
+- **Custom source model ("Other") now has somewhere to go** — the sell
+  wizard's model dropdown already included "Other" as an option, but
+  selecting it saved the literal string `"Other"` as the listing's model
+  with no way to say what it actually was. Added a text box that appears
+  when "Other" is selected (mirroring how the category field already
+  worked), required before continuing, and used in place of "Other" at
+  submission.
+- **Browse: "See all" for categories, including sellers' custom ones**
+  — the category pill row now shows the fixed 6 categories plus a "See
+  all →" pill, which expands to include any custom category value present
+  in live listings (i.e. what a seller typed after selecting "Other" when
+  listing a thread — e.g. "Data Science"). This needed no separate wiring
+  for "show up once approved": `BrowseClient` only ever receives listings
+  with `status = 'live'` in the first place, so a custom category simply
+  appears in that expanded list the moment the listing goes live, the same
+  way the listing itself does.
+
 - **Admin can download a seller's uploaded document** — the admin
   moderation queue (`components/AdminQueueClient.jsx`) already had a "Show
   full thread" toggle; added ".txt" and ".json" download buttons next to
