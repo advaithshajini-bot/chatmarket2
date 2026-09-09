@@ -286,7 +286,9 @@ function UploadSubStep({ form, setForm, onContinue }) {
   // Continue now requires a real successful parse (parsedMessages present),
   // not just a model + a typed-in count — matches "don't let a bad or
   // unparseable file continue" exactly.
-  const canContinue = form.parsedMessages && form.parsedMessages.length > 0 && form.model;
+  const canContinue =
+    form.parsedMessages && form.parsedMessages.length > 0 && form.model &&
+    (form.model !== "Other" || form.modelOther.trim());
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -347,6 +349,15 @@ function UploadSubStep({ form, setForm, onContinue }) {
               {MODELS.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
             {form.fileAttached && <p className="text-[11px] mt-1" style={{ color: "#6B6F76" }}>Auto-detected — correct it here if it's wrong</p>}
+            {form.model === "Other" && (
+              <input
+                value={form.modelOther}
+                onChange={(e) => setForm({ ...form, modelOther: e.target.value })}
+                placeholder="Name the source model"
+                className="w-full px-3 py-2.5 rounded text-sm outline-none mt-2"
+                style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
+              />
+            )}
           </div>
           <div>
             <label className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Message count</label>
@@ -976,6 +987,7 @@ export default function SellPage() {
     category: "",
     categoryOther: "",
     model: "",
+    modelOther: "",
     description: "",
     messages: "",
     price: "",
@@ -1060,6 +1072,7 @@ export default function SellPage() {
 
     const sellerName = userData.user.user_metadata?.display_name || userData.user.email;
     const category = form.category === "Other" ? form.categoryOther.trim() : form.category;
+    const model = form.model === "Other" ? form.modelOther.trim() : form.model;
 
     // Real redaction, not a simulation -- strips emails, phone numbers, card
     // numbers, and common API-key/token shapes from everything the buyer
@@ -1076,7 +1089,7 @@ export default function SellPage() {
       id: form.listingId,
       title: redacted.title,
       category,
-      model: form.model,
+      model,
       description: redacted.description,
       messages: Number(form.messages) || 0,
       completion: form.completion,
@@ -1123,6 +1136,7 @@ export default function SellPage() {
       category: "",
       categoryOther: "",
       model: "",
+      modelOther: "",
       description: "",
       messages: "",
       price: "",
