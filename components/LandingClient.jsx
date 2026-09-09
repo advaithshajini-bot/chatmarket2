@@ -82,12 +82,7 @@ const LANDING_STYLES = `
 .lcat-strip{ display:flex; gap:14px; overflow-x:auto; padding-bottom:8px; }
 .lcat-pill{ flex:0 0 auto; background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:20px 22px; min-width:180px; transition:transform .2s ease, border-color .2s ease; }
 .lcat-pill:hover{ transform:translateY(-3px); border-color:var(--ink); }
-.lcat-pill .lcount{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--muted); margin-top:6px; }
 
-.lstats{ display:grid; grid-template-columns:repeat(3,1fr); gap:40px; text-align:center; }
-@media(max-width:700px){ .lstats{ grid-template-columns:1fr; gap:32px; } }
-.lstat-num{ font-family:'Fraunces', serif; font-weight:700; font-size:clamp(32px,4vw,46px); color:var(--ink); }
-.lstat-label{ color:var(--muted); font-size:13.5px; margin-top:6px; }
 
 .lpay-row{ display:flex; flex-wrap:wrap; gap:12px; }
 .lpay-chip{ display:flex; align-items:center; gap:8px; background:var(--paper-white); border:1px solid var(--rule); padding:10px 16px; border-radius:100px; font-size:13.5px; }
@@ -98,21 +93,9 @@ const LANDING_STYLES = `
 .lfooter-cta p{ color:#B9BEC9; margin-bottom:30px; font-size:15px; }
 `;
 
-// Below 1L, showing lakhs would round a real (small, early-stage) number
-// down to "₹0.0L+" -- so plain rupees below that threshold, lakhs above it.
-// Either way this is the real net-paid-to-sellers figure (gross minus the
-// platform fee, same formula as /sell/earnings), not a placeholder.
-function formatPayout(netPaidRupees) {
-  if (netPaidRupees >= 100000) {
-    return { target: netPaidRupees / 100000, decimals: 1, prefix: "₹", suffix: "L+" };
-  }
-  return { target: netPaidRupees, decimals: 0, prefix: "₹", suffix: "" };
-}
-
-export default function LandingClient({ categoryCounts, threadsSold, netPaidRupees, avgRating, reviewCount }) {
+export default function LandingClient({ categoryCounts }) {
   const rootRef = useRef(null);
   const router = useRouter();
-  const payout = formatPayout(netPaidRupees);
   const [user, setUser] = useState(undefined); // undefined = loading, null = logged out
 
   useEffect(() => {
@@ -137,38 +120,8 @@ export default function LandingClient({ categoryCounts, threadsSold, netPaidRupe
     );
     revealEls.forEach((el) => io.observe(el));
 
-    const counters = rootRef.current.querySelectorAll(".lstat-num");
-    const counterIO = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const el = entry.target;
-            const target = parseFloat(el.dataset.target);
-            const decimals = parseInt(el.dataset.decimals || "0");
-            const prefix = el.dataset.prefix || "";
-            const suffix = el.dataset.suffix || "";
-            const duration = 1400;
-            const startTime = performance.now();
-            function tick(now) {
-              const progress = Math.min((now - startTime) / duration, 1);
-              const eased = 1 - Math.pow(1 - progress, 3);
-              const value = target * eased;
-              const formatted = decimals > 0 ? value.toFixed(decimals) : Math.round(value).toLocaleString("en-IN");
-              el.textContent = prefix + formatted + suffix;
-              if (progress < 1) requestAnimationFrame(tick);
-            }
-            requestAnimationFrame(tick);
-            counterIO.unobserve(el);
-          }
-        });
-      },
-      { threshold: 0.4 }
-    );
-    counters.forEach((el) => counterIO.observe(el));
-
     return () => {
       io.disconnect();
-      counterIO.disconnect();
     };
   }, []);
 
@@ -286,28 +239,36 @@ export default function LandingClient({ categoryCounts, threadsSold, netPaidRupe
           <h2 className="lsection-title">Every thread, sorted the way you'd shop for anything else.</h2>
         </div>
         <div className="lcat-strip lreveal">
-          {categoryCounts.map((c) => (
+          {categoryCounts.filter((c) => c.count > 0).map((c) => (
             <Link key={c.name} href={`/browse?category=${encodeURIComponent(c.name)}`} className="lcat-pill">
               <div className="serif" style={{ fontWeight: 600 }}>{c.name}</div>
-              <div className="lcount">{c.count} {c.count === 1 ? "thread" : "threads"}</div>
             </Link>
           ))}
         </div>
       </section>
 
       <section className="lsection">
-        <div className="lstats lreveal">
-          <div>
-            <div className="lstat-num" data-target={threadsSold} data-decimals="0">0</div>
-            <div className="lstat-label">threads sold</div>
+        <div className="lreveal">
+          <div className="lsection-eyebrow">How it works — for sellers</div>
+          <h2 className="lsection-title">You already did the work. Here's how to get paid for it.</h2>
+          <p className="lsection-sub">If you've never sold a conversation before, here's exactly what's involved — from the file you need to how and when the money actually reaches you.</p>
+        </div>
+
+        <div className="lsteps lreveal">
+          <div className="lstep">
+            <div className="lnum">01</div>
+            <h3>Export the conversation</h3>
+            <p>Open the chat in Claude, ChatGPT, or Gemini and use its export/download option to save it as a JSON file — or just select and copy the whole conversation into a plain text (.txt) file if export isn't available. That file is the "document" you'll upload.</p>
           </div>
-          <div>
-            <div className="lstat-num" data-target={payout.target} data-decimals={payout.decimals} data-prefix={payout.prefix} data-suffix={payout.suffix}>0</div>
-            <div className="lstat-label">paid out to sellers</div>
+          <div className="lstep">
+            <div className="lnum">02</div>
+            <h3>Verify your identity — once</h3>
+            <p>Before you can list anything, you'll complete a one-time identity check: your name, PAN, and address, so we know who to pay. An admin reviews it, usually quickly. You can't upload a thread until this is approved — it's what makes payouts possible in the first place.</p>
           </div>
-          <div>
-            <div className="lstat-num" data-target={avgRating} data-decimals="1">0</div>
-            <div className="lstat-label">{reviewCount > 0 ? `average buyer rating (${reviewCount} review${reviewCount === 1 ? "" : "s"})` : "average buyer rating — no reviews yet"}</div>
+          <div className="lstep">
+            <div className="lnum">03</div>
+            <h3>List it, get approved, get paid</h3>
+            <p>Upload your file, pick a category and price, and tell buyers what it covers. An admin briefly reviews the listing too, then it goes live. When someone buys it, that payment is held for 48 hours (in case of a dispute), then released to your account.</p>
           </div>
         </div>
       </section>
