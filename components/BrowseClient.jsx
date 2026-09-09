@@ -67,9 +67,21 @@ export default function BrowseClient({ listings }) {
   const searchParams = useSearchParams();
   const categoryFromUrl = searchParams.get("category");
   const [activeCategory, setActiveCategory] = useState(
-    categoryFromUrl && CATEGORIES.includes(categoryFromUrl) ? categoryFromUrl : "All"
+    categoryFromUrl && CATEGORIES.includes(categoryFromUrl) ? categoryFromUrl : (categoryFromUrl || "All")
   );
   const [query, setQuery] = useState(searchParams.get("q") || "");
+  // Custom categories a seller typed in via "Other" when listing a thread
+  // (e.g. "Data Science") show up here automatically the moment that
+  // listing goes live -- this component only ever receives live listings,
+  // so there's nothing extra to wire up: whatever distinct category values
+  // exist in the data beyond the fixed list are exactly the custom ones.
+  const extraCategories = [...new Set(listings.map((l) => l.category))]
+    .filter((c) => c && !CATEGORIES.includes(c))
+    .sort();
+  const [showAllCategories, setShowAllCategories] = useState(
+    !!(categoryFromUrl && extraCategories.includes(categoryFromUrl))
+  );
+  const visibleCategories = showAllCategories ? [...CATEGORIES, ...extraCategories] : CATEGORIES;
 
   // Category is still a hard filter (an explicit pill the person chose),
   // but the search query is a ranking, not a filter: matches sort to the
@@ -99,8 +111,8 @@ export default function BrowseClient({ listings }) {
         />
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        {["All", ...CATEGORIES].map((cat) => (
+      <div className="flex flex-wrap items-center gap-2 mb-6">
+        {["All", ...visibleCategories].map((cat) => (
           <button
             key={cat}
             onClick={() => setActiveCategory(cat)}
@@ -115,6 +127,15 @@ export default function BrowseClient({ listings }) {
             {cat}
           </button>
         ))}
+        {!showAllCategories && extraCategories.length > 0 && (
+          <button
+            onClick={() => setShowAllCategories(true)}
+            className="px-3 py-1.5 text-sm rounded-full"
+            style={{ fontFamily: "'IBM Plex Sans', sans-serif", color: "#6B6F76", border: "1px dashed #D8D5C9" }}
+          >
+            See all →
+          </button>
+        )}
       </div>
 
       <h2 className="text-2xl mb-1" style={{ fontFamily: "'Fraunces', serif", fontStyle: "italic", color: "#14213D" }}>
