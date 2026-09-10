@@ -12,32 +12,23 @@ import {
   ChevronUp,
   MessageSquare,
   ExternalLink,
-  Download,
+  FileArchive,
 } from "lucide-react";
 import ModelTag from "@/components/ModelTag";
 import { createClient } from "@/lib/supabase/client";
 
-function slugifyFilename(title) {
-  return (title || "thread").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
-}
-
-function downloadFile(filename, content, mimeType) {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function downloadThreadAsTxt(item, thread) {
-  const formatted = thread.map((m) => `${m.who === "user" ? "Buyer" : "Assistant"}: ${m.text}`).join("\n\n");
-  downloadFile(`${slugifyFilename(item.title)}.txt`, formatted, "text/plain");
-}
-
-function downloadThreadAsJson(item, thread) {
-  downloadFile(`${slugifyFilename(item.title)}.json`, JSON.stringify(thread, null, 2), "application/json");
+async function downloadListingZip(zipPath, setError) {
+  if (!zipPath) {
+    setError("No zip file was uploaded for this listing.");
+    return;
+  }
+  const supabase = createClient();
+  const { data, error } = await supabase.storage.from("listing-files").createSignedUrl(zipPath, 60);
+  if (error || !data) {
+    setError("Couldn't generate a download link — try again in a moment.");
+    return;
+  }
+  window.location.href = data.signedUrl;
 }
 
 function timeAgo(dateString) {
@@ -54,6 +45,7 @@ function timeAgo(dateString) {
 function QueueRow({ item, onApprove, onFlag, onRemove, busy }) {
   const [open, setOpen] = useState(false);
   const [showFullThread, setShowFullThread] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
   const flagged = item.status === "flagged";
   const fullThread = item.thread && item.thread.length ? item.thread : (item.preview || []);
   const preview = item.preview && item.preview.length ? item.preview : fullThread.slice(0, 2);
@@ -136,37 +128,32 @@ function QueueRow({ item, onApprove, onFlag, onRemove, busy }) {
             </div>
           )}
 
+          <div className="mb-3">
+            <button
+              onClick={() => downloadListingZip(item.output_zip_path, setDownloadError)}
+              className="text-[11px] font-medium inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded"
+              style={{ color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif", border: "1px solid #D8D5C9" }}
+            >
+              <FileArchive size={12} /> Download uploaded zip
+            </button>
+            {downloadError && <p className="text-[11px] mt-1" style={{ color: "#B33A2E" }}>{downloadError}</p>}
+          </div>
+
           {displayedMessages.length > 0 && (
             <div className="mb-3">
               <div className="flex items-center justify-between mb-1.5 flex-wrap gap-y-1.5">
                 <p className="text-[10px] uppercase tracking-wide" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
-                  {showFullThread ? `Full document uploaded by seller (${fullThread.length} messages)` : "Preview shown to buyers"}
+                  {showFullThread ? `Full conversation uploaded by seller (${fullThread.length} messages)` : "Preview shown to buyers"}
                 </p>
-                <div className="flex items-center gap-3">
+                {fullThread.length > 2 && (
                   <button
-                    onClick={() => downloadThreadAsTxt(item, fullThread)}
-                    className="text-[11px] font-medium inline-flex items-center gap-1"
+                    onClick={() => setShowFullThread((v) => !v)}
+                    className="text-[11px] font-medium"
                     style={{ color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif" }}
                   >
-                    <Download size={11} /> .txt
+                    {showFullThread ? "Show preview only" : `Show full thread (${fullThread.length} msgs) →`}
                   </button>
-                  <button
-                    onClick={() => downloadThreadAsJson(item, fullThread)}
-                    className="text-[11px] font-medium inline-flex items-center gap-1"
-                    style={{ color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif" }}
-                  >
-                    <Download size={11} /> .json
-                  </button>
-                  {fullThread.length > 2 && (
-                    <button
-                      onClick={() => setShowFullThread((v) => !v)}
-                      className="text-[11px] font-medium"
-                      style={{ color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif" }}
-                    >
-                      {showFullThread ? "Show preview only" : `Show full thread (${fullThread.length} msgs) →`}
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
               <div className="space-y-1.5" style={{ maxHeight: showFullThread ? "420px" : "none", overflowY: showFullThread ? "auto" : "visible" }}>
                 {displayedMessages.map((m, i) => (

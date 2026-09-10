@@ -223,12 +223,12 @@ export default function LandingClient({ categoryCounts }) {
           <div className="lstep">
             <div className="lnum">02</div>
             <h3>Unlock the whole conversation</h3>
-            <p>Pay once and the complete thread lands instantly in your Library — every message, in full. Not a summary, not a screenshot: the real back-and-forth, ready to copy or download as a plain text file.</p>
+            <p>Pay once and the complete package lands instantly in your Library — every message, in full, plus whatever the seller bundled in. Not a summary, not a screenshot: the real back-and-forth, ready to copy or download as a zip file.</p>
           </div>
           <div className="lstep">
             <div className="lnum">03</div>
             <h3>Pick it up in your own AI chat</h3>
-            <p>Copy the thread and paste it as your first message in a new Claude, ChatGPT, or Gemini conversation — the AI picks up the full context instantly and you continue right where it left off. Or open the downloaded file directly: read it for the answer, or pull the code, outline, or draft straight into your own project.</p>
+            <p>Copy the thread and paste it as your first message in a new Claude, ChatGPT, or Gemini conversation — the AI picks up the full context instantly and you continue right where it left off. Or unzip the download directly: read the conversation for the answer, or pull the code, outline, or draft straight into your own project.</p>
           </div>
         </div>
       </section>
@@ -258,7 +258,7 @@ export default function LandingClient({ categoryCounts }) {
           <div className="lstep">
             <div className="lnum">01</div>
             <h3>Export the conversation</h3>
-            <p>Open the chat in Claude, ChatGPT, or Gemini and use its export/download option to save it as a JSON file — or just select and copy the whole conversation into a plain text (.txt) file if export isn't available. That file is the "document" you'll upload.</p>
+            <p>Open the chat in Claude, ChatGPT, or Gemini and use its export/download option to save it as a JSON file — or just select and copy the whole conversation into a plain text (.txt) file if export isn't available. Then zip that file together with anything it produced (code, documents, images) — that zip is what you'll upload.</p>
           </div>
           <div className="lstep">
             <div className="lnum">02</div>

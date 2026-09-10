@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Unlock, Download, Copy, Check, MessageSquare, Sparkles } from "lucide-react";
+import { Unlock, Copy, Check, MessageSquare, Sparkles, FileArchive } from "lucide-react";
 import ModelTag from "@/components/ModelTag";
 import StarRating from "@/components/StarRating";
 import { createClient } from "@/lib/supabase/client";
@@ -20,6 +20,8 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
   const [submitted, setSubmitted] = useState(!!existingReview);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [downloadError, setDownloadError] = useState("");
+  const [downloading, setDownloading] = useState(false);
 
   const thread = listing.thread && listing.thread.length ? listing.thread : listing.preview || [];
   // Display is capped for readability only -- Copy/Download below always use
@@ -38,15 +40,23 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
     setTimeout(() => setCopiedTarget(null), 1800);
   };
 
-  const handleDownload = () => {
-    const formatted = thread.map((m) => `${m.who === "user" ? "You" : listing.model}: ${m.text}`).join("\n\n");
-    const blob = new Blob([formatted], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${listing.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDownloadZip = async () => {
+    if (!listing.output_zip_path) {
+      setDownloadError("No file was found for this listing — contact support from your Purchases page.");
+      return;
+    }
+    setDownloading(true);
+    setDownloadError("");
+    const supabase = createClient();
+    const { data, error: signError } = await supabase.storage
+      .from("listing-files")
+      .createSignedUrl(listing.output_zip_path, 60);
+    setDownloading(false);
+    if (signError || !data) {
+      setDownloadError("Couldn't generate a download link — try again in a moment.");
+      return;
+    }
+    window.location.href = data.signedUrl;
   };
 
   const handleSubmitReview = async () => {
@@ -112,7 +122,7 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
           <div className="flex items-center gap-1.5 mt-4 pt-3 text-xs" style={{ borderTop: "1px dashed #D8D5C9", color: "#2F6F62" }}>
             <Unlock size={12} />
             {hiddenCount > 0
-              ? `Showing ${displayThread.length} of ${thread.length} messages — Copy or Download below for the full thread`
+              ? `Showing ${displayThread.length} of ${thread.length} messages — Copy below to continue it, or download the full zip for everything`
               : "Full thread — nothing hidden"}
           </div>
         </div>
@@ -178,12 +188,14 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
             ))}
           </div>
           <button
-            onClick={handleDownload}
+            onClick={handleDownloadZip}
+            disabled={downloading}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded text-sm"
             style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", color: "#14213D" }}
           >
-            <Download size={14} /> Download as .txt
+            <FileArchive size={14} /> {downloading ? "Preparing download…" : "Download files (.zip)"}
           </button>
+          {downloadError && <p className="text-xs mt-2" style={{ color: "#B33A2E" }}>{downloadError}</p>}
         </div>
       </div>
     </div>
