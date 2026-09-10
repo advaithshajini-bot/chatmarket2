@@ -106,8 +106,9 @@ export default function HowItWorksPage() {
                 <p className="text-sm" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif", lineHeight: 1.7 }}>
                   The moment payment goes through, the full thread appears in your Library — no waiting. From
                   there you can: <strong>copy it</strong> in a format ready to paste into a new Claude, ChatGPT, or
-                  Gemini conversation to keep going where it left off, or <strong>download it</strong> as a plain
-                  text file to keep or read offline.
+                  Gemini conversation to keep going where it left off, or <strong>download the zip file</strong> the
+                  seller uploaded — the conversation plus whatever it produced (code, documents, images) — to keep
+                  or use offline.
                 </p>
               </div>
             </div>
@@ -161,8 +162,8 @@ export default function HowItWorksPage() {
               </p>
               <p className="text-sm" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif", lineHeight: 1.7 }}>
                 Only if you want to continue the conversation with the AI itself — you'll paste the copied thread
-                into your own account with that AI tool and keep going. If you just want to read it or use it as
-                reference, downloading the text file is enough on its own.
+                into your own account with that AI tool and keep going. If you just want to read it, use the code,
+                or reuse whatever it produced, downloading the zip file is enough on its own.
               </p>
             </div>
             <div>
@@ -170,8 +171,10 @@ export default function HowItWorksPage() {
                 Is the seller's name or personal information in the thread?
               </p>
               <p className="text-sm" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif", lineHeight: 1.7 }}>
-                No — threads are scanned and personal details are stripped out before a listing is allowed to go
-                live.
+                The conversation itself is scanned and personal details are stripped out before a listing is
+                allowed to go live. That automatic scan covers the conversation text — not the other files a
+                seller might bundle in (code, documents, images), so treat those the way you would any file from
+                a stranger.
               </p>
             </div>
             <div>
