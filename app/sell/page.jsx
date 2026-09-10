@@ -3,8 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import JSZip from "jszip";
 import {
-  Upload,
   CheckCircle2,
   Loader2,
   ShieldCheck,
@@ -16,6 +16,7 @@ import {
   Star,
   TrendingUp,
   Image as ImageIcon,
+  FileArchive,
 } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import StatusPill from "@/components/StatusPill";
@@ -249,45 +250,98 @@ function UploadSubStep({ form, setForm, onContinue }) {
     // Checked before ever reading the file: a wrong-format upload gets its
     // own distinct message rather than being funneled into "no messages
     // found" further down.
-    if (!/\.(json|txt)$/i.test(file.name)) {
-      setParseError("This file isn't in a supported format. Upload a .json export or a .txt transcript.");
-      setForm((f) => ({ ...f, fileAttached: false, fileName: "", model: "", messages: "", parsedMessages: null }));
+    if (!/\.zip$/i.test(file.name)) {
+      setParseError("This file isn't a zip. Upload a .zip containing your conversation export plus any generated outputs.");
+      setForm((f) => ({ ...f, fileAttached: false, fileName: "", model: "", messages: "", parsedMessages: null, zipPath: "", otherFiles: [] }));
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      setParseError("That zip is over the 50MB limit.");
+      setForm((f) => ({ ...f, fileAttached: false, fileName: "", model: "", messages: "", parsedMessages: null, zipPath: "", otherFiles: [] }));
       return;
     }
 
     setParsing(true);
     setParseError("");
     try {
-      const text = await file.text();
-      const result = parseThreadExport(text, file.name);
-      if (!result) {
-        // No manual-entry escape hatch here on purpose: a failed parse
-        // means there's no real thread content to sell, so it shouldn't be
-        // possible to type in a fake model/count and continue anyway.
-        setParseError("Couldn't find any messages in that file. Double-check it's a real export or transcript, then try again.");
-        setForm((f) => ({ ...f, fileAttached: false, fileName: "", model: "", messages: "", parsedMessages: null }));
-      } else {
-        setForm((f) => ({
-          ...f,
-          fileAttached: true,
-          fileName: file.name,
-          model: result.model || f.model,
-          messages: String(result.messageCount),
-          parsedMessages: result.messages,
-        }));
+      const zip = await JSZip.loadAsync(file);
+      const entries = Object.values(zip.files).filter((f) => !f.dir);
+
+      if (entries.length === 0) {
+        setParseError("That zip looks empty.");
+        setForm((f) => ({ ...f, fileAttached: false, fileName: "", model: "", messages: "", parsedMessages: null, zipPath: "", otherFiles: [] }));
+        setParsing(false);
+        return;
       }
+
+      // Try every .json/.txt entry (in the zip's own order) and use the
+      // first one that actually parses into real conversation messages,
+      // rather than just grabbing the first .json/.txt by name — a zip
+      // can easily contain other .json/.txt files among the "outputs"
+      // (config files, notes, etc.) that aren't the conversation itself.
+      const candidates = entries.filter((f) => /\.(json|txt)$/i.test(f.name));
+      let parsedResult = null;
+      let convoEntry = null;
+      for (const entry of candidates) {
+        const text = await entry.async("text");
+        const result = parseThreadExport(text, entry.name);
+        if (result) {
+          parsedResult = result;
+          convoEntry = entry;
+          break;
+        }
+      }
+
+      if (!parsedResult) {
+        setParseError("Couldn't find a conversation inside that zip. Make sure it includes a .json export or .txt transcript with real messages.");
+        setForm((f) => ({ ...f, fileAttached: false, fileName: "", model: "", messages: "", parsedMessages: null, zipPath: "", otherFiles: [] }));
+        setParsing(false);
+        return;
+      }
+
+      const otherFiles = entries.filter((f) => f !== convoEntry).map((f) => f.name);
+
+      // Uploaded now (not deferred to final submit), scoped under this
+      // listing's own id — same pattern screenshots already use, so it's
+      // sitting in storage ready to reference by the time the listing row
+      // is actually inserted in step 3.
+      const supabase = createClient();
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) {
+        setParseError("Your session expired — refresh the page and log back in.");
+        setParsing(false);
+        return;
+      }
+      const path = `${userData.user.id}/${form.listingId}/${file.name}`;
+      const { error: uploadError } = await supabase.storage.from("listing-files").upload(path, file, { upsert: true });
+      if (uploadError) {
+        setParseError(`Couldn't upload the zip: ${uploadError.message}`);
+        setParsing(false);
+        return;
+      }
+
+      setForm((f) => ({
+        ...f,
+        fileAttached: true,
+        fileName: file.name,
+        model: parsedResult.model || f.model,
+        messages: String(parsedResult.messageCount),
+        parsedMessages: parsedResult.messages,
+        zipPath: path,
+        otherFiles,
+      }));
     } catch {
-      setParseError("Couldn't read that file — try a .json export or a .txt transcript.");
-      setForm((f) => ({ ...f, fileAttached: false, fileName: "", model: "", messages: "", parsedMessages: null }));
+      setParseError("Couldn't read that zip — make sure it's a valid .zip file, then try again.");
+      setForm((f) => ({ ...f, fileAttached: false, fileName: "", model: "", messages: "", parsedMessages: null, zipPath: "", otherFiles: [] }));
     }
     setParsing(false);
   };
 
-  // Continue now requires a real successful parse (parsedMessages present),
-  // not just a model + a typed-in count — matches "don't let a bad or
-  // unparseable file continue" exactly.
+  // Continue now requires a real successful parse (parsedMessages present)
+  // AND a successfully uploaded zip, not just a model + a typed-in count —
+  // matches "don't let a bad or unparseable file continue" exactly.
   const canContinue =
-    form.parsedMessages && form.parsedMessages.length > 0 && form.model &&
+    form.parsedMessages && form.parsedMessages.length > 0 && form.zipPath && form.model &&
     (form.model !== "Other" || form.modelOther.trim());
 
   return (
@@ -303,22 +357,30 @@ function UploadSubStep({ form, setForm, onContinue }) {
           <input
             ref={fileInputRef}
             type="file"
-            accept=".json,.txt"
+            accept=".zip"
             className="hidden"
             onChange={(e) => handleFile(e.target.files?.[0])}
           />
-          <Upload size={22} color="#6B6F76" />
+          <FileArchive size={22} color="#6B6F76" />
           <p className="text-sm" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
             {parsing ? (
-              <span style={{ color: "#6B6F76" }}>Reading file…</span>
+              <span style={{ color: "#6B6F76" }}>Reading zip…</span>
             ) : form.fileAttached ? (
               <span style={{ color: "#2F6F62", fontWeight: 500 }}>{form.fileName} attached</span>
             ) : (
-              <>Drop your .json export from Claude, ChatGPT, or Gemini, or <span style={{ color: "#14213D", fontWeight: 500 }}>browse</span></>
+              <>Drop a .zip with your conversation export and any generated outputs, or <span style={{ color: "#14213D", fontWeight: 500 }}>browse</span></>
             )}
           </p>
-          <p className="text-xs" style={{ color: "#6B6F76" }}>We auto-detect the source model and message count · .json or .txt only · max 20MB</p>
+          <p className="text-xs" style={{ color: "#6B6F76" }}>We auto-detect the source model and message count from the conversation file inside · .zip only · max 50MB</p>
         </div>
+        <p className="text-[11px]" style={{ color: "#8A6A18" }}>
+          Note: only the conversation itself is automatically scanned for personal info before going live — not other files in the zip. Don't bundle in anything you wouldn't want a stranger to see.
+        </p>
+        {form.otherFiles && form.otherFiles.length > 0 && (
+          <p className="text-xs" style={{ color: "#6B6F76" }}>
+            Also bundled: {form.otherFiles.join(", ")}
+          </p>
+        )}
 
         {parseError && (
           <div className="flex items-start gap-2 p-3 rounded-md" style={{ background: "#FBEAE8", border: "1px solid #F0C4BE" }}>
@@ -995,6 +1057,8 @@ export default function SellPage() {
     fileAttached: false,
     fileName: "",
     parsedMessages: null,
+    zipPath: "",
+    otherFiles: [],
     screenshots: [],
   });
   const [submitting, setSubmitting] = useState(false);
@@ -1099,6 +1163,7 @@ export default function SellPage() {
       preview: redacted.messages.slice(0, 2),
       thread: redacted.messages,
       screenshots: form.screenshots.map((s) => s.url),
+      output_zip_path: form.zipPath,
       screening_findings: redacted.findings,
       // Anything the scanner actually caught gets routed into the same
       // "flagged" bucket the admin queue already shows alongside
@@ -1144,6 +1209,8 @@ export default function SellPage() {
       fileAttached: false,
       fileName: "",
       parsedMessages: null,
+      zipPath: "",
+      otherFiles: [],
       screenshots: [],
     });
     setSubmitError("");
