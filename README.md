@@ -17,10 +17,50 @@ Razorpay account.
 - Tailwind CSS for layout utilities, inline styles for the design-token colors/fonts
 - lucide-react for icons
 - Supabase — Postgres + Auth, via `@supabase/supabase-js` and `@supabase/ssr`
+- JSZip, client-side, for reading a seller's uploaded zip in the browser
 
 ## Changelog — fixes and additions since initial build
 Running log of what's changed since the app first went live on real data,
 newest first.
+
+- **Sellers now upload a zip, not a bare .json/.txt file** — the core
+  upload format changed from "a single conversation export file" to "a zip
+  containing the conversation export plus whatever it produced" (code,
+  documents, images). This touched a lot of places:
+  - `app/sell/page.jsx`: the upload step now accepts `.zip` only (50MB
+    limit), unzips it client-side with JSZip, and tries every `.json`/`.txt`
+    entry inside — in the zip's own order — until one actually parses as a
+    real conversation via the existing `parseThreadExport`, rather than
+    just grabbing the first `.json`/`.txt` by name (a zip can easily
+    contain other small json/txt files among the outputs that aren't the
+    conversation). The zip is uploaded to a new private `listing-files`
+    storage bucket immediately on selection (same pattern the screenshot
+    uploader already used), and `listings.output_zip_path` records where.
+    Other bundled filenames are shown to the seller for confirmation.
+  - **Redaction scope, stated honestly**: automatic PII/secret scanning
+    still only runs on the parsed conversation text — there's no reasonable
+    way to scan arbitrary bundled files (code, images, PDFs) with the
+    existing text-regex-based redaction. Added an explicit note on the
+    upload screen itself, and corrected two marketing pages
+    (`/how-it-works`, `/for-sellers`) that previously implied the *whole
+    upload* was screened — they said so before this zip change existed,
+    and it was worth catching now rather than leaving a safety claim that
+    doesn't match what the system actually does.
+  - **Buyer downloads**: `components/LibraryDetailClient.jsx`'s "Download
+    as .txt" is now "Download files (.zip)" — a signed URL to the actual
+    uploaded zip, not a generated text file. "Copy for Claude/ChatGPT/
+    Gemini" is unchanged, since that's about continuing the conversation
+    live, not about the file format.
+  - **Admin**: `components/AdminQueueClient.jsx`'s generated .txt/.json
+    download buttons are replaced with a "Download uploaded zip" button
+    (also a signed URL) — the conversation preview/full-thread toggle for
+    moderation is unchanged.
+  - **Access control**: new RLS on `storage.objects` for the `listing-files`
+    bucket — sellers can upload/read/delete their own files, admins can
+    read any, and buyers can read a file only if they have a matching paid
+    purchase for that listing (checked via the listing id encoded in the
+    storage path, `{seller_id}/{listing_id}/{filename}`).
+  - Added `jszip` to `package.json`.
 
 - **Home page: category counts removed, empty categories hidden** — the
   "Browse by category" pills no longer show a thread count, and a category
@@ -368,13 +408,13 @@ linking to a profile page — see the PDF gap notes below.
 | `/browse` | Category-filtered listing grid, with real relevance-ranked search (`lib/search-relevance.js`) across model, title, category, and description — matches sort to the top by field weight (model > title > category > description), and non-matches stay visible below a divider rather than being hidden, by design (searching "claude" surfaces every Claude thread first without hiding the rest of the catalog) | **Supabase (`listings` table)** |
 | `/listing/[id]` | Listing detail + real checkout — Razorpay Orders API + Checkout.js, server-side signature verification before a `purchases` row is ever written (`app/api/razorpay/create-order`, `app/api/razorpay/verify-payment`). Also shows every real review on the listing — reviewer name, star rating, date, comment, with a "Verified buyer" badge when the review is genuinely linked to a real purchase — publicly, to any visitor, below the locked-message preview; the rating/review-count line links to `#reviews`. Any logged-in user can write a review here, purchase or not (`ListingReviewForm.jsx`) — by design, not an oversight; see the schema notes on the trust trade-off this makes. Description renders as a titled "Thread details" box. Section order is mobile-specific below the 640px breakpoint (title → gallery → locked preview → payment → description → reviews, via CSS `order`/grid placement, not duplicated markup) — untouched there; above that, desktop/tablet order is title → locked preview → description → gallery → reviews, with the locked-message preview moved up to close a real layout gap (the payment sidebar's height was forcing empty space under the title in the row they shared) | **Supabase + real Razorpay (test mode)** |
 | `/library` | Buyer's unlocked threads, with search | **Supabase** (`purchases` joined with `listings`) |
-| `/library/[id]` | Full unlocked thread + "continue this thread" panel (copy-to-clipboard + real .txt download) + star rating & review — reviewable any time after purchase, no waiting period | **Supabase** — including a real `reviews` table; a purchased listing stays visible even if later flagged/removed by moderation |
+| `/library/[id]` | Full unlocked thread + "continue this thread" panel (copy-to-clipboard + real zip download of the seller's uploaded file, via a signed URL) + star rating & review — reviewable any time after purchase, no waiting period | **Supabase** — including a real `reviews` table; a purchased listing stays visible even if later flagged/removed by moderation |
 | `/purchases` | Order history & receipts, filterable by paid/refunded. Buyers can report an issue on a paid order, which opens a real dispute the admin resolves. | **Supabase** |
 
 **Seller side**
 | Route | What it is | Backed by |
 |---|---|---|
-| `/sell` | Gated on login — visiting or clicking "Sell" while logged out redirects straight to `/login?next=/sell` before the wizard ever renders, not just at final submit. Upload wizard (3 steps: upload → details → price, per the UX flow PDF) → real redaction scan → dashboard showing your real listings, sales count, and revenue. Returning sellers get a shortcut past the wizard straight to the dashboard. Step 1 does real client-side parsing of a dropped `.json`/`.txt` export (`lib/parse-thread-export.js`) — Claude's `chat_messages` shape, ChatGPT's `mapping` shape, a generic `{role,content}` array (possibly nested inside a wrapper object, e.g. `{ conversation_export: { messages: [...] } }` — tested against a real seller-submitted file), and a plain-transcript fallback (labeled `User:`/`Assistant:` lines, or blank-line-separated paragraphs if no labels at all). Also strips a leading UTF-8 BOM and normalizes `\r`-only line endings before parsing — both silently broke parsing and were traced to real mobile share-sheet/notes-app exports, not guessed. Model detection also checks JSON metadata fields (e.g. a `"platform"` field), not just the filename. Wrong file types and files with no detectable messages are rejected outright with a specific error — there's no manual-entry escape hatch, so Continue is blocked until a real parse succeeds. The submit step runs `lib/redact-pii.js` — a real pattern-matching scanner (emails, phone numbers, Luhn-validated card numbers, and common API-key/token shapes: AWS, Stripe, GitHub, Slack, OpenAI, JWT) — over title/description/thread before any of it is saved; the unredacted text is never persisted. Anything caught routes the listing into `flagged` instead of `pending_review`, and the findings (type + count, never the raw sensitive value) show on both the seller's confirmation screen and the admin queue. Also uploads up to 4 output screenshots to a real Supabase Storage bucket (`listing-screenshots`), shown as a swipeable gallery on the listing page. | **Supabase** |
+| `/sell` | Gated on login and, since KYC review was added, on payout verification being admin-approved — see the seller-flow changelog entry above for exactly how that gating works. Upload wizard (3 steps: upload → details → price) → real redaction scan → dashboard showing your real listings, sales count, revenue, review analysis, and reported issues. Step 1 takes a `.zip` (max 50MB) and unzips it client-side with JSZip, trying every `.json`/`.txt` entry inside — in the zip's own order — through the same real conversation parser (`lib/parse-thread-export.js`) until one actually parses, rather than assuming the first by name is the conversation. That parser handles Claude's `chat_messages` shape, ChatGPT's `mapping` shape, a generic `{role,content}` array (possibly nested inside a wrapper object, e.g. `{ conversation_export: { messages: [...] } }` — tested against a real seller-submitted file), and a plain-transcript fallback (labeled `User:`/`Assistant:` lines, or blank-line-separated paragraphs if no labels at all); also strips a leading UTF-8 BOM and normalizes `\r`-only line endings, both traced to real mobile share-sheet/notes-app exports. Model detection also checks JSON metadata fields, not just the filename. A zip with no parseable conversation inside is rejected outright — there's no manual-entry escape hatch, so Continue is blocked until a real parse succeeds. The submit step runs `lib/redact-pii.js` — a real pattern-matching scanner (emails, phone numbers, Luhn-validated card numbers, and common API-key/token shapes: AWS, Stripe, GitHub, Slack, OpenAI, JWT) — over title/description/the parsed conversation before any of it is saved; the unredacted text is never persisted. **This scan only covers the conversation text** — other files bundled into the zip (code, documents, images) aren't scanned, which is stated on the upload screen itself, not just in this doc. Anything the scanner catches routes the listing into `flagged` instead of `pending_review`, and the findings (type + count, never the raw sensitive value) show on both the seller's confirmation screen and the admin queue. The whole zip is uploaded to a real private Supabase Storage bucket (`listing-files`), which is what a buyer actually downloads later — not a regenerated file. Also uploads up to 4 output screenshots to a real Supabase Storage bucket (`listing-screenshots`), shown as a swipeable gallery on the listing page. | **Supabase** |
 | `/sell/payout` | Real KYC data collection (personal details, PAN, Aadhaar, address, mobile/email OTP verification) — genuinely saved to Supabase, with real document uploads to a private storage bucket. Bank account + linked-account creation stay UI-only simulation, Phase 2, pending Route approval — see below for exactly which parts are real vs. not | **Supabase for KYC data + documents**; bank/linked-account creation still simulated |
 | `/sell/earnings` | Real gross/net/refunded totals, an 8-week earnings chart, and every sale transaction with the buyer's name. Payout history is honestly marked as not-yet-real — no batched settlement exists without real Razorpay. | **Supabase** |
 
