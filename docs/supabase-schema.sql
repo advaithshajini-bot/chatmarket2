@@ -584,3 +584,46 @@ create policy "Buyers can file a dispute on their own paid purchase" on public.d
         and pu.purchased_at > now() - interval '48 hours'
     )
   );
+
+-- ---------------------------------------------------------------------
+-- Migration: add_listing_files_zip_upload
+-- Sellers now upload a single zip containing the conversation export plus
+-- any generated outputs, instead of a bare .json/.txt file. The
+-- conversation portion is still parsed client-side out of the zip for
+-- preview/redaction/continue-in-AI-chat purposes (listings.thread/preview
+-- unchanged), but the zip itself -- stored here, not as jsonb text -- is
+-- the real deliverable a buyer downloads.
+insert into storage.buckets (id, name, public)
+values ('listing-files', 'listing-files', false);
+
+alter table public.listings add column output_zip_path text;
+
+create policy "Sellers can upload their own listing files" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'listing-files' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+create policy "Sellers can view their own listing files" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'listing-files' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+create policy "Sellers can delete their own listing files" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'listing-files' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+create policy "Admins can view any listing file" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'listing-files' and (select private.is_admin()));
+
+-- Path convention is {seller_id}/{listing_id}/{filename}, so the second
+-- folder segment is the listing id -- check it against a paid purchase.
+create policy "Buyers can download files for purchases they made" on storage.objects
+  for select to authenticated
+  using (
+    bucket_id = 'listing-files'
+    and exists (
+      select 1 from public.purchases p
+      where p.listing_id = ((storage.foldername(name))[2])::uuid
+        and p.user_id = (select auth.uid())
+        and p.status = 'paid'
+    )
+  );
