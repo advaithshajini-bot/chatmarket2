@@ -11,11 +11,11 @@ const FAQS = [
   },
   {
     q: "What can I do with a thread after I buy it?",
-    a: "You can read it in your Library, copy it for Claude, ChatGPT, or Gemini to continue the conversation, or download it as a .txt file.",
+    a: "You can read it in your Library, copy it for Claude, ChatGPT, or Gemini to continue the conversation, or download the full zip file the seller uploaded.",
   },
   {
     q: "How do I sell a thread?",
-    a: "Go to Sell and upload an exported thread (JSON or plain text) from Claude, ChatGPT, or Gemini. We scan it for personal information before it's listed, then it goes to a short review before appearing on Browse.",
+    a: "Go to Sell and upload a .zip file containing your exported conversation (JSON or plain text, from Claude, ChatGPT, or Gemini) plus any outputs it produced. We scan the conversation for personal information before it's listed, then it goes to a short review before appearing on Browse.",
   },
   {
     q: "When do I get paid as a seller?",
