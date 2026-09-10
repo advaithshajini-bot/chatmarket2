@@ -35,9 +35,9 @@ export default function ForSellersPage() {
                   1. Export and upload your thread
                 </h3>
                 <p className="text-sm" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif", lineHeight: 1.7 }}>
-                  From Sell, upload the conversation as a JSON export (from Claude, ChatGPT, or Gemini) or as plain
-                  text. Give it a clear title, pick a category, and write an honest description of what it covers
-                  and roughly how finished it is.
+                  From Sell, upload a .zip file containing the conversation export (JSON or plain text, from Claude,
+                  ChatGPT, or Gemini) plus any files it produced — code, documents, images. Give it a clear title,
+                  pick a category, and write an honest description of what it covers and roughly how finished it is.
                 </p>
               </div>
             </div>
@@ -51,9 +51,12 @@ export default function ForSellersPage() {
                   2. We screen it automatically
                 </h3>
                 <p className="text-sm" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif", lineHeight: 1.7 }}>
-                  Before anything goes live, your upload is scanned for things like personal information, emails,
-                  phone numbers, and API keys or passwords, and those are automatically redacted. If anything gets
-                  flagged, your listing goes to "needs edits" instead of live, and you can revise and resubmit it.
+                  Before anything goes live, the conversation inside your zip is scanned for things like personal
+                  information, emails, phone numbers, and API keys or passwords, and those are automatically
+                  redacted. That automatic scan covers the conversation text — not other files you bundle in
+                  (code, documents, images) — so don't include anything in those you wouldn't want a stranger to
+                  see. If anything gets flagged, your listing goes to "needs edits" instead of live, and you can
+                  revise and resubmit it.
                 </p>
               </div>
             </div>
