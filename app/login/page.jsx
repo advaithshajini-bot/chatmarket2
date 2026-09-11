@@ -7,17 +7,30 @@ import { LogIn, CheckCircle2 } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import { createClient } from "@/lib/supabase/client";
 
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24">
+      <path fill="#4285F4" d="M23.52 12.27c0-.85-.08-1.67-.22-2.45H12v4.63h6.47a5.53 5.53 0 0 1-2.4 3.63v3h3.88c2.27-2.09 3.57-5.17 3.57-8.81Z" />
+      <path fill="#34A853" d="M12 24c3.24 0 5.96-1.07 7.95-2.92l-3.88-3c-1.08.72-2.45 1.15-4.07 1.15-3.13 0-5.78-2.11-6.73-4.96H1.26v3.11A11.99 11.99 0 0 0 12 24Z" />
+      <path fill="#FBBC05" d="M5.27 14.27a7.2 7.2 0 0 1 0-4.54V6.62H1.26a12 12 0 0 0 0 10.76l4.01-3.11Z" />
+      <path fill="#EA4335" d="M12 4.77c1.76 0 3.35.61 4.6 1.8l3.44-3.44C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.69 1.26 6.62l4.01 3.11C6.22 6.88 8.87 4.77 12 4.77Z" />
+    </svg>
+  );
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/browse";
   const justVerified = searchParams.get("verified") === "1";
   const justReset = searchParams.get("reset") === "1";
+  const oauthError = searchParams.get("error") === "oauth";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(justVerified);
 
   // Set once a password sign-in succeeds for an account that has MFA
@@ -107,6 +120,24 @@ function LoginForm() {
     router.refresh();
   };
 
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setGoogleLoading(true);
+    const supabase = createClient();
+    const { error: oauthErr } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(next)}`,
+      },
+    });
+    // On success, Supabase redirects the browser to Google immediately —
+    // this only returns (with an error) if that redirect never happened.
+    if (oauthErr) {
+      setError(oauthErr.message);
+      setGoogleLoading(false);
+    }
+  };
+
   if (mfaChallenge) {
     return (
       <div style={{ minHeight: "100vh" }}>
@@ -177,6 +208,28 @@ function LoginForm() {
             <p className="text-xs" style={{ color: "#2F6F62" }}>Password updated — log in with your new password.</p>
           </div>
         )}
+
+        {oauthError && (
+          <div className="flex items-start gap-2 p-3 rounded-md mb-5" style={{ background: "#FBEAE8", border: "1px solid #F0C4BE" }}>
+            <p className="text-xs" style={{ color: "#B33A2E" }}>Google sign-in didn't go through — try again.</p>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          disabled={googleLoading}
+          className="w-full py-3 rounded text-sm inline-flex items-center justify-center gap-2 mb-4"
+          style={{ border: "1px solid #D8D5C9", background: "#FFFFFF", color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}
+        >
+          <GoogleIcon /> {googleLoading ? "Redirecting to Google…" : "Continue with Google"}
+        </button>
+
+        <div className="flex items-center gap-3 mb-4">
+          <div style={{ flex: 1, borderTop: "1px solid #D8D5C9" }} />
+          <span className="text-xs" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Mono', monospace" }}>OR</span>
+          <div style={{ flex: 1, borderTop: "1px solid #D8D5C9" }} />
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
