@@ -23,6 +23,35 @@ Razorpay account.
 Running log of what's changed since the app first went live on real data,
 newest first.
 
+- **Google sign-in added to `/login`** — a "Continue with Google" button
+  above the existing email/password form (`supabase.auth.signInWithOAuth`),
+  plus a new `app/auth/callback/route.js` that exchanges Google's auth code
+  for a real session (`exchangeCodeForSession`) and forwards to wherever
+  `?next=` pointed. A first-time Google sign-in creates the account
+  automatically — Supabase Auth's normal OAuth behavior, no separate
+  signup step needed.
+  **Action needed, outside what I can configure from here**: this requires
+  (1) a Google Cloud OAuth client (Client ID + Secret), (2) the Google
+  provider enabled in Supabase's dashboard (Authentication → Providers)
+  with those credentials, and (3) `https://<your-domain>/auth/callback`
+  (and `http://localhost:3000/auth/callback` for local dev) added under
+  Authentication → URL Configuration → Redirect URLs. Without all three,
+  clicking the button will fail or redirect back with an error.
+- **Home page: "See all" button on Browse by category** — an oval button
+  now sits at the end of the category strip, styled distinctly from the
+  category cards, linking to `/browse`.
+- **Social icons + WhatsApp added to the header** — `components/SocialBar.jsx`,
+  shown in a slim bar above the main nav (desktop only, same breakpoint as
+  the rest of the nav links) on every page via `TopNav.jsx`: LinkedIn,
+  Facebook, Instagram, YouTube, then a WhatsApp icon with the number
+  `+91 9150427083` next to it. lucide-react has no WhatsApp glyph, so
+  that one's a hand-drawn `currentColor` SVG to match the others instead
+  of using WhatsApp's brand green.
+  **Action needed**: LinkedIn/Facebook/Instagram/YouTube are placeholder
+  `#` links — swap in the real URLs in `SOCIAL_LINKS` in `SocialBar.jsx`
+  once those pages exist. The WhatsApp link (`wa.me/919150427083`) is real
+  and already works, since it needs only the number, not a page.
+
 - **Sellers now upload a zip, not a bare .json/.txt file** — the core
   upload format changed from "a single conversation export file" to "a zip
   containing the conversation export plus whatever it produced" (code,
