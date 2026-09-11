@@ -244,6 +244,23 @@ export default function LandingClient({ categoryCounts }) {
               <div className="serif" style={{ fontWeight: 600 }}>{c.name}</div>
             </Link>
           ))}
+          <Link
+            href="/browse"
+            className="flex-shrink-0 flex items-center justify-center"
+            style={{
+              flex: "0 0 auto",
+              borderRadius: 999,
+              padding: "0 26px",
+              minWidth: 140,
+              border: "1px solid #14213D",
+              color: "#14213D",
+              fontFamily: "'IBM Plex Sans', sans-serif",
+              fontWeight: 500,
+              fontSize: 14,
+            }}
+          >
+            See all →
+          </Link>
         </div>
       </section>
 
