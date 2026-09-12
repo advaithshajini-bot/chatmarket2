@@ -627,3 +627,9 @@ create policy "Buyers can download files for purchases they made" on storage.obj
         and p.status = 'paid'
     )
   );
+
+-- ---------------------------------------------------------------------
+-- Migration: add_listing_zip_contents_note
+-- Seller-written note describing what's actually inside the uploaded zip
+-- (distinct from the description field), capped at 500 chars in the UI.
+alter table public.listings add column zip_contents text;
