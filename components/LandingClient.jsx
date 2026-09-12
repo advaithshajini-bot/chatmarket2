@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search, ChevronDown } from "lucide-react";
+import { Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import SocialBar from "@/components/SocialBar";
 
@@ -139,9 +139,7 @@ export default function LandingClient({ categoryCounts }) {
         <div className="lnav-links">
           <Link href="/how-it-works">How it works</Link>
           <div className="lnav-cat" tabIndex={0}>
-            <span className="flex items-center gap-1">
-              Categories <ChevronDown size={14} />
-            </span>
+            <span>Categories</span>
             <div className="lnav-cat-dropdown">
               {categoryCounts.map((c) => (
                 <Link key={c.name} href={`/browse?category=${encodeURIComponent(c.name)}`} className="lnav-cat-item">
