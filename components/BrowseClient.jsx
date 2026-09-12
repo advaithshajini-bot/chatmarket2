@@ -27,9 +27,12 @@ function ListingCard({ listing }) {
           </div>
         </div>
 
-        <h3 className="text-[17px] leading-snug mb-3" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
+        <h3 className="text-[17px] leading-snug mb-1 line-clamp-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
           {listing.title}
         </h3>
+        <p className="text-xs mb-3" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
+          {listing.category}
+        </p>
 
         <div className="space-y-1.5">
           {(listing.preview || []).slice(0, 2).map((m, i) => (
