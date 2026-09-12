@@ -50,10 +50,7 @@ function ListingCard({ listing }) {
 
         <PerforatedDivider />
 
-        <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
-            {listing.messages} msgs · {listing.completion}% complete
-          </span>
+        <div className="flex items-center justify-end">
           <span className="text-base" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
             ₹{listing.price}
           </span>

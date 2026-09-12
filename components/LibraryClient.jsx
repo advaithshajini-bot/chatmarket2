@@ -41,10 +41,9 @@ function LibraryCard({ item }) {
           by {listing.seller_name} · purchased {timeAgo(purchasedAt)}
         </p>
         <div
-          className="flex items-center justify-between text-xs pt-3"
+          className="flex items-center justify-end text-xs pt-3"
           style={{ borderTop: "1px dashed #D8D5C9", fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}
         >
-          <span>{listing.messages} msgs</span>
           {rated ? (
             <span className="flex items-center gap-1" style={{ color: "#E2A83E" }}>
               <Star size={11} fill="#E2A83E" color="#E2A83E" /> {myRating}.0 rated

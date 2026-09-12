@@ -1,12 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Unlock, Copy, Check, MessageSquare, Sparkles, FileArchive } from "lucide-react";
+import { Unlock, Check, MessageSquare, FileArchive } from "lucide-react";
 import ModelTag from "@/components/ModelTag";
 import StarRating from "@/components/StarRating";
 import { createClient } from "@/lib/supabase/client";
 
-const CONTINUE_TARGETS = ["Claude", "ChatGPT", "Gemini"];
 const LIBRARY_DISPLAY_LIMIT = 6;
 
 function formatDate(iso) {
@@ -14,7 +13,6 @@ function formatDate(iso) {
 }
 
 export default function LibraryDetailClient({ listing, purchase, existingReview }) {
-  const [copiedTarget, setCopiedTarget] = useState(null);
   const [rating, setRating] = useState(existingReview?.rating || 0);
   const [reviewText, setReviewText] = useState(existingReview?.comment || "");
   const [submitted, setSubmitted] = useState(!!existingReview);
@@ -24,21 +22,10 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
   const [downloading, setDownloading] = useState(false);
 
   const thread = listing.thread && listing.thread.length ? listing.thread : listing.preview || [];
-  // Display is capped for readability only -- Copy/Download below always use
-  // the full `thread` array, never this truncated one.
+  // Display is capped for readability only -- Download below always uses
+  // the full uploaded zip, never this truncated preview.
   const displayThread = thread.slice(0, LIBRARY_DISPLAY_LIMIT);
   const hiddenCount = Math.max(thread.length - displayThread.length, 0);
-
-  const handleCopy = (target) => {
-    const formatted = thread.map((m) => `${m.who === "user" ? "You" : listing.model}: ${m.text}`).join("\n\n");
-    try {
-      navigator.clipboard.writeText(formatted);
-    } catch (e) {
-      /* clipboard unavailable */
-    }
-    setCopiedTarget(target);
-    setTimeout(() => setCopiedTarget(null), 1800);
-  };
 
   const handleDownloadZip = async () => {
     if (!listing.output_zip_path) {
@@ -91,7 +78,7 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
           {listing.title}
         </h1>
         <p className="text-sm mb-6" style={{ color: "#6B6F76" }}>
-          {listing.messages} messages · bought from {listing.seller_name} · {formatDate(purchase.purchased_at)}
+          Bought from {listing.seller_name} · {formatDate(purchase.purchased_at)}
         </p>
 
         {purchase.status === "refunded" && (
@@ -122,7 +109,7 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
           <div className="flex items-center gap-1.5 mt-4 pt-3 text-xs" style={{ borderTop: "1px dashed #D8D5C9", color: "#2F6F62" }}>
             <Unlock size={12} />
             {hiddenCount > 0
-              ? `Showing ${displayThread.length} of ${thread.length} messages — Copy below to continue it, or download the full zip for everything`
+              ? `Showing ${displayThread.length} of ${thread.length} messages — download the full zip for everything`
               : "Full thread — nothing hidden"}
           </div>
         </div>
@@ -166,27 +153,14 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
       <div>
         <div className="rounded-md p-5 sticky top-20" style={{ background: "#FFFFFF", border: "1px solid #D8D5C9" }}>
           <div className="flex items-center gap-2 mb-3">
-            <Sparkles size={15} color="#E2A83E" />
+            <FileArchive size={15} color="#E2A83E" />
             <p className="text-sm" style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600, color: "#14213D" }}>
-              Continue this thread
+              Your files
             </p>
           </div>
           <p className="text-xs mb-4" style={{ color: "#6B6F76" }}>
-            Copy the full conversation, then paste it as your first message in a new chat to pick up right where it left off.
+            Download everything the seller uploaded — the conversation plus whatever it produced.
           </p>
-          <div className="space-y-2 mb-4">
-            {CONTINUE_TARGETS.map((target) => (
-              <button
-                key={target}
-                onClick={() => handleCopy(target)}
-                className="w-full flex items-center justify-between px-3 py-2.5 rounded text-sm"
-                style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", color: "#14213D", background: "#FFFFFF" }}
-              >
-                <span>Copy for {target}</span>
-                {copiedTarget === target ? <Check size={15} color="#2F6F62" /> : <Copy size={14} color="#6B6F76" />}
-              </button>
-            ))}
-          </div>
           <button
             onClick={handleDownloadZip}
             disabled={downloading}

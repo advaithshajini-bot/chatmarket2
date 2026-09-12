@@ -28,7 +28,7 @@ function WhatsAppIcon({ size = 16 }) {
 
 export default function SocialBar() {
   return (
-    <div className="hidden sm:flex items-center gap-4">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
       {SOCIAL_LINKS.map(({ label, href, Icon }) => (
         <a
           key={label}
@@ -36,10 +36,10 @@ export default function SocialBar() {
           target="_blank"
           rel="noreferrer"
           aria-label={label}
-          style={{ color: "#6B6F76" }}
+          style={{ color: "#14213D" }}
           className="hover:opacity-70 transition-opacity"
         >
-          <Icon size={16} strokeWidth={1.75} />
+          <Icon size={20} strokeWidth={1.75} />
         </a>
       ))}
       <a
@@ -47,10 +47,10 @@ export default function SocialBar() {
         target="_blank"
         rel="noreferrer"
         aria-label="WhatsApp"
-        style={{ color: "#6B6F76" }}
+        style={{ color: "#14213D" }}
         className="flex items-center gap-1.5 hover:opacity-70 transition-opacity"
       >
-        <WhatsAppIcon />
+        <WhatsAppIcon size={20} />
         <span className="text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{WHATSAPP_DISPLAY}</span>
       </a>
     </div>

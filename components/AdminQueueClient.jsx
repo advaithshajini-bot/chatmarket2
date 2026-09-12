@@ -90,9 +90,6 @@ function QueueRow({ item, onApprove, onFlag, onRemove, busy }) {
         <div className="px-4 pb-4" style={{ background: "#FAFAF8" }}>
           <div className="flex items-center gap-2 pt-3 mb-3">
             <ModelTag model={item.model} />
-            <span className="text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
-              {item.messages} msgs · {item.completion}% complete
-            </span>
           </div>
 
           <div className="grid grid-cols-2 gap-3 mb-3">

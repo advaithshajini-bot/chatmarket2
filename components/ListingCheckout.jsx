@@ -163,7 +163,7 @@ export default function ListingCheckout({ listing }) {
         <span className="text-xs" style={{ color: "#6B6F76" }}>platform fee included</span>
       </div>
       <p className="text-xs mb-4" style={{ color: "#6B6F76" }}>
-        Unlocks the full {listing.messages}-message thread for your account only
+        Unlocks the full thread for your account only
       </p>
 
       {checkingAuth ? (

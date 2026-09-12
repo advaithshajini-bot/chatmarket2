@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import SocialBar from "@/components/SocialBar";
 
 const LANDING_STYLES = `
 .landing-wrap{ overflow-x:hidden; }
@@ -129,12 +130,18 @@ export default function LandingClient({ categoryCounts }) {
     <div ref={rootRef} className="landing-wrap">
       <style>{LANDING_STYLES}</style>
 
+      <div className="flex items-center justify-end px-6 py-2" style={{ borderBottom: "1px solid #E4E2D8" }}>
+        <SocialBar />
+      </div>
+
       <nav className="lnav">
         <span className="llogo">chatmarket.</span>
         <div className="lnav-links">
           <Link href="/how-it-works">How it works</Link>
           <div className="lnav-cat" tabIndex={0}>
-            <span>Categories</span>
+            <span className="flex items-center gap-1">
+              Categories <ChevronDown size={14} />
+            </span>
             <div className="lnav-cat-dropdown">
               {categoryCounts.map((c) => (
                 <Link key={c.name} href={`/browse?category=${encodeURIComponent(c.name)}`} className="lnav-cat-item">
@@ -200,8 +207,7 @@ export default function LandingClient({ categoryCounts }) {
           <div className="llocked-row l2"></div>
           <div className="llocked-row l3"></div>
 
-          <div className="lprice-tab">
-            <span className="mono" style={{ color: "var(--muted)", fontSize: 12 }}>42 messages · 80% complete</span>
+          <div className="lprice-tab" style={{ justifyContent: "flex-end" }}>
             <span className="lamt">₹499</span>
           </div>
         </div>

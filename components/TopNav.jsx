@@ -20,7 +20,7 @@ export default function TopNav({ hideAuthLinks = false }) {
   return (
     <div className="sticky top-0 z-50" style={{ background: "rgba(237,238,234,0.9)", backdropFilter: "blur(8px)" }}>
       <div
-        className="hidden sm:flex items-center justify-end px-6 py-1.5"
+        className="flex items-center justify-end px-6 py-2"
         style={{ borderBottom: "1px solid #E4E2D8" }}
       >
         <SocialBar />
