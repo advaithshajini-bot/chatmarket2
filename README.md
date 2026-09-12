@@ -23,6 +23,27 @@ Razorpay account.
 Running log of what's changed since the app first went live on real data,
 newest first.
 
+- **Character limits + counters on the sell wizard, and a new "What's in
+  the zip?" field** — Title (200), Description (2000), and the new "What's
+  in the zip?" note (500, `listings.zip_contents` — a new column) all now
+  show a live count and hard-stop typing at the max (both via the input's
+  own `maxLength` and a matching `.slice()` on the value, so pasting past
+  the limit gets truncated too, not just typing). The new field goes
+  through the same PII redaction as title/description before saving
+  (`lib/redact-pii.js`'s `redactListing` now takes and returns
+  `zipContents` too).
+- **Browse: title clamped to 2 lines, category shown underneath** — listing
+  titles on Browse cards now cut off with `line-clamp-2` instead of
+  wrapping to however many lines they need, and the listing's category now
+  shows directly under the title.
+
+- **Chevron arrow added to the "Categories" dropdown trigger** — the home
+  page nav's "Categories" hover dropdown had no visual indicator that it
+  opened anything; added a small `ChevronDown` next to the label.
+  Confirmed the social icon color (dark ink, no background) from last
+  round's fix already matches the intended look — no further change needed
+  there.
+
 - **Business model pivot: AI conversations → AI-generated outputs/artifacts**
   — a few connected changes:
   - **Message count and "% complete" removed everywhere they were
