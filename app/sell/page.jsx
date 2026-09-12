@@ -118,8 +118,7 @@ function BuyerPreviewCard({ form }) {
         <p className="text-xs mb-4" style={{ color: "#6B6F76" }}>
           {form.description || "A short note on progress helps buyers trust the listing."}
         </p>
-        <div className="flex items-center justify-between text-xs pt-3" style={{ borderTop: "1px dashed #D8D5C9", fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
-          <span>{form.messages || "—"} msgs · {form.completion}% done</span>
+        <div className="flex items-center justify-end text-xs pt-3" style={{ borderTop: "1px dashed #D8D5C9", fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
           <span className="text-base" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>{form.price ? `₹${form.price}` : "₹—"}</span>
         </div>
       </div>
@@ -391,48 +390,34 @@ function UploadSubStep({ form, setForm, onContinue }) {
 
         {form.fileAttached && !parseError && (
           <div className="flex items-center gap-2 text-xs" style={{ color: "#2F6F62" }}>
-            <CheckCircle2 size={13} /> Detected {form.model || "an unknown model"} · {form.messages} messages
+            <CheckCircle2 size={13} /> Detected {form.model || "an unknown model"}
           </div>
         )}
 
         <ScreenshotUploader form={form} setForm={setForm} />
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Source model</label>
-            <select
-              value={form.model}
-              onChange={(e) => setForm({ ...form, model: e.target.value })}
-              disabled={!form.fileAttached}
-              className="w-full px-3 py-2.5 rounded text-sm outline-none disabled:opacity-50"
-              style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
-            >
-              <option value="">Select model</option>
-              {MODELS.map((m) => <option key={m} value={m}>{m}</option>)}
-            </select>
-            {form.fileAttached && <p className="text-[11px] mt-1" style={{ color: "#6B6F76" }}>Auto-detected — correct it here if it's wrong</p>}
-            {form.model === "Other" && (
-              <input
-                value={form.modelOther}
-                onChange={(e) => setForm({ ...form, modelOther: e.target.value })}
-                placeholder="Name the source model"
-                className="w-full px-3 py-2.5 rounded text-sm outline-none mt-2"
-                style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
-              />
-            )}
-          </div>
-          <div>
-            <label className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Message count</label>
+        <div>
+          <label className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Source model</label>
+          <select
+            value={form.model}
+            onChange={(e) => setForm({ ...form, model: e.target.value })}
+            disabled={!form.fileAttached}
+            className="w-full px-3 py-2.5 rounded text-sm outline-none disabled:opacity-50"
+            style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
+          >
+            <option value="">Select model</option>
+            {MODELS.map((m) => <option key={m} value={m}>{m}</option>)}
+          </select>
+          {form.fileAttached && <p className="text-[11px] mt-1" style={{ color: "#6B6F76" }}>Auto-detected — correct it here if it's wrong</p>}
+          {form.model === "Other" && (
             <input
-              type="number"
-              value={form.messages}
-              readOnly
-              disabled
-              className="w-full px-3 py-2.5 rounded text-sm outline-none opacity-50"
-              style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#F7F7F4" }}
+              value={form.modelOther}
+              onChange={(e) => setForm({ ...form, modelOther: e.target.value })}
+              placeholder="Name the source model"
+              className="w-full px-3 py-2.5 rounded text-sm outline-none mt-2"
+              style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
             />
-            <p className="text-[11px] mt-1" style={{ color: "#6B6F76" }}>Counted from the file — not editable</p>
-          </div>
+          )}
         </div>
 
         <button
@@ -469,31 +454,14 @@ function DetailsSubStep({ form, setForm, onContinue, onBack }) {
         </div>
 
         <div>
-          <label className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Description — what's done, what's left</label>
+          <label className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Description — what it is and what it includes</label>
           <textarea
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
-            placeholder="e.g. Billing UI and webhook handling are done. Still needs the trial-cancellation flow."
+            placeholder="e.g. A billing UI with Stripe checkout and webhook handling, generated end-to-end."
             rows={3}
             className="w-full px-3 py-2.5 rounded text-sm outline-none resize-none"
             style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
-          />
-        </div>
-
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs uppercase tracking-wide" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>How far did you get?</label>
-            <span className="text-sm" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>{form.completion}%</span>
-          </div>
-          <input
-            type="range"
-            min="5"
-            max="100"
-            step="5"
-            value={form.completion}
-            onChange={(e) => setForm({ ...form, completion: Number(e.target.value) })}
-            className="w-full"
-            style={{ accentColor: "#E2A83E" }}
           />
         </div>
 
@@ -1053,7 +1021,7 @@ export default function SellPage() {
     description: "",
     messages: "",
     price: "",
-    completion: 80,
+    completion: 100,
     fileAttached: false,
     fileName: "",
     parsedMessages: null,
@@ -1156,7 +1124,7 @@ export default function SellPage() {
       model,
       description: redacted.description,
       messages: Number(form.messages) || 0,
-      completion: form.completion,
+      completion: 100,
       price: Number(form.price),
       seller_id: userData.user.id,
       seller_name: sellerName,
@@ -1205,7 +1173,7 @@ export default function SellPage() {
       description: "",
       messages: "",
       price: "",
-      completion: 80,
+      completion: 100,
       fileAttached: false,
       fileName: "",
       parsedMessages: null,
