@@ -99,6 +99,25 @@ function MiniStepper({ step }) {
   );
 }
 
+function CharCount({ value, max }) {
+  const count = (value || "").length;
+  const atLimit = count >= max;
+  return (
+    <div className="flex justify-end mt-1.5">
+      <span
+        className="text-[11px] px-2 py-0.5 rounded"
+        style={{
+          fontFamily: "'IBM Plex Mono', monospace",
+          background: atLimit ? "#B33A2E" : "#14213D",
+          color: "#F7F7F4",
+        }}
+      >
+        {count} / {max}
+      </span>
+    </div>
+  );
+}
+
 function BuyerPreviewCard({ form }) {
   return (
     <div>
@@ -446,23 +465,41 @@ function DetailsSubStep({ form, setForm, onContinue, onBack }) {
           <label className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Title</label>
           <input
             value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            onChange={(e) => setForm({ ...form, title: e.target.value.slice(0, 200) })}
+            maxLength={200}
             placeholder="e.g. Next.js SaaS billing flow with Stripe"
             className="w-full px-3 py-2.5 rounded text-sm outline-none"
             style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
           />
+          <CharCount value={form.title} max={200} />
         </div>
 
         <div>
           <label className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Description — what it is and what it includes</label>
           <textarea
             value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            onChange={(e) => setForm({ ...form, description: e.target.value.slice(0, 2000) })}
+            maxLength={2000}
             placeholder="e.g. A billing UI with Stripe checkout and webhook handling, generated end-to-end."
             rows={3}
             className="w-full px-3 py-2.5 rounded text-sm outline-none resize-none"
             style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
           />
+          <CharCount value={form.description} max={2000} />
+        </div>
+
+        <div>
+          <label className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>What is in the zip?</label>
+          <textarea
+            value={form.zipContents}
+            onChange={(e) => setForm({ ...form, zipContents: e.target.value.slice(0, 500) })}
+            maxLength={500}
+            placeholder="e.g. conversation.json, App.jsx, styles.css, a screenshot of the final result"
+            rows={2}
+            className="w-full px-3 py-2.5 rounded text-sm outline-none resize-none"
+            style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
+          />
+          <CharCount value={form.zipContents} max={500} />
         </div>
 
         <div>
@@ -1019,6 +1056,7 @@ export default function SellPage() {
     model: "",
     modelOther: "",
     description: "",
+    zipContents: "",
     messages: "",
     price: "",
     completion: 100,
@@ -1113,6 +1151,7 @@ export default function SellPage() {
     const redacted = redactListing({
       title: form.title,
       description: form.description || "",
+      zipContents: form.zipContents || "",
       messages: form.parsedMessages || [],
     });
     setScreeningFindings(redacted.findings);
@@ -1123,6 +1162,7 @@ export default function SellPage() {
       category,
       model,
       description: redacted.description,
+      zip_contents: redacted.zipContents,
       messages: Number(form.messages) || 0,
       completion: 100,
       price: Number(form.price),
@@ -1171,6 +1211,7 @@ export default function SellPage() {
       model: "",
       modelOther: "",
       description: "",
+      zipContents: "",
       messages: "",
       price: "",
       completion: 100,
