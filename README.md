@@ -23,6 +23,45 @@ Razorpay account.
 Running log of what's changed since the app first went live on real data,
 newest first.
 
+- **Business model pivot: AI conversations → AI-generated outputs/artifacts**
+  — a few connected changes:
+  - **Message count and "% complete" removed everywhere they were
+    displayed** — listing cards (Browse, home page mockup), the listing
+    page, checkout, Library (both the grid and detail view), and the admin
+    queue. The sell wizard's completion slider ("How far did you get?") is
+    removed too; `listings.completion` is now always inserted as `100`
+    (the column is still `not null` in the schema, so it needed some
+    value — just nothing sellers set or anyone sees anymore).
+    `listings.messages` is still computed and stored in the background
+    (kept as metadata, e.g. useful for future search/sorting) but is no
+    longer shown anywhere. The sell wizard's description field and
+    placeholder text changed from progress-framed ("what's done, what's
+    left") to output-framed ("what it is and what it includes").
+  - **"Copy for Claude/ChatGPT/Gemini" removed from the Library** — this
+    was for continuing a conversation live in a new AI chat, which doesn't
+    fit an "outputs" model the way it fit a "conversations" model. The
+    sidebar there is now just the zip download, retitled "Your files".
+  - This is a scoped, requested change — not a full site-wide rename of
+    "thread" terminology to "output"/"artifact". Copy on marketing pages
+    (`/how-it-works`, `/for-sellers`, home page sections) still generally
+    describes buying/selling "threads"/"conversations". Say so explicitly
+    if you want that broader rename done too — it's a bigger, separate
+    pass across most of the site's copy.
+- **Social icons: color, size, and where they actually show** — three real
+  bugs, not just polish:
+  - They weren't showing on the home page at all. Root cause: the home
+    page (`LandingClient.jsx`) has always used its own hand-built nav,
+    entirely separate from the shared `TopNav` component `SocialBar` was
+    added to last time — so it never rendered there. Added the same bar to
+    `LandingClient.jsx` directly (non-sticky, sits above the home page's
+    own sticky nav).
+  - They weren't showing on mobile anywhere — the wrapping bar was
+    `hidden` below the `sm` breakpoint on purpose, to avoid crowding the
+    header. Removed that restriction; the row now wraps (`flex-wrap`)
+    instead of hiding on narrow screens.
+  - Recolored from muted gray to the site's primary ink color (`#14213D`)
+    and sized up from 16px to 20px icons.
+
 - **Google sign-in added to `/login`** — a "Continue with Google" button
   above the existing email/password form (`supabase.auth.signInWithOAuth`),
   plus a new `app/auth/callback/route.js` that exchanges Google's auth code
