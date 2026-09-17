@@ -6,6 +6,16 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import SocialBar from "@/components/SocialBar";
+import ProductCard from "@/components/ProductCard";
+import { PRODUCT_TYPE_ORDER, productTypeMeta } from "@/lib/product-types";
+
+const EXAMPLE_PROMPTS = [
+  "Qualify my WhatsApp leads",
+  "Create 30 days of social content",
+  "Summarize contracts",
+  "Screen applicants",
+  "Generate product listings",
+];
 
 const LANDING_STYLES = `
 .landing-wrap{ overflow-x:hidden; }
@@ -49,6 +59,9 @@ const LANDING_STYLES = `
 .lbtn-primary:hover{ transform:translateY(-2px); box-shadow:0 6px 16px rgba(226,168,62,.35); }
 .lbtn-outline{ border:1.5px solid var(--ink); padding:13px 24px; border-radius:6px; font-weight:500; font-size:15px; transition:background .2s ease; }
 .lbtn-outline:hover{ background:var(--paper-white); }
+.lprompt-row{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:28px; }
+.lprompt-chip{ font-size:12.5px; padding:7px 13px; border-radius:100px; border:1px dashed var(--rule); color:var(--muted); background:var(--paper-white); transition:border-color .15s ease, color .15s ease; }
+.lprompt-chip:hover{ border-color:var(--ink); color:var(--ink); }
 
 .lthread-card{ background:var(--paper-card); border:1px solid var(--rule); border-radius:10px; padding:22px; position:relative; overflow:hidden; box-shadow:0 10px 30px rgba(20,33,61,.08); }
 .lthread-tag{ display:inline-flex; align-items:center; gap:6px; font-size:11px; letter-spacing:.05em; text-transform:uppercase; background:var(--paper-white); border:1px solid var(--rule); padding:4px 10px; border-radius:4px; margin-bottom:16px; }
@@ -79,11 +92,20 @@ const LANDING_STYLES = `
 .lstep .lnum{ font-family:'IBM Plex Mono', monospace; color:var(--amber-deep); font-size:13px; margin-bottom:14px; }
 .lstep h3{ font-family:'Fraunces', serif; font-weight:600; font-size:19px; margin-bottom:10px; }
 .lstep p{ color:var(--muted); font-size:14px; line-height:1.6; }
+.ltype-step{ background:var(--paper-card); padding:34px 28px; }
+.ltype-step .ltype-icon{ display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:8px; margin-bottom:16px; }
+.ltype-step h3{ font-family:'Fraunces', serif; font-weight:600; font-size:19px; margin-bottom:6px; }
+.ltype-step .lverb{ font-family:'IBM Plex Mono', monospace; font-size:11px; text-transform:uppercase; letter-spacing:.06em; margin-bottom:10px; display:block; }
+.ltype-step p{ color:var(--muted); font-size:14px; line-height:1.6; margin-bottom:14px; }
+.ltype-step a.llink{ font-size:13px; font-weight:500; }
 
 .lcat-strip{ display:flex; gap:14px; overflow-x:auto; padding-bottom:8px; }
 .lcat-pill{ flex:0 0 auto; background:var(--paper-card); border:1px solid var(--rule); border-radius:8px; padding:20px 22px; min-width:180px; transition:transform .2s ease, border-color .2s ease; }
 .lcat-pill:hover{ transform:translateY(-3px); border-color:var(--ink); }
 
+.lproduct-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+@media(max-width:900px){ .lproduct-grid{ grid-template-columns:repeat(2,1fr); } }
+@media(max-width:640px){ .lproduct-grid{ grid-template-columns:1fr; } }
 
 .lpay-row{ display:flex; flex-wrap:wrap; gap:12px; }
 .lpay-chip{ display:flex; align-items:center; gap:8px; background:var(--paper-white); border:1px solid var(--rule); padding:10px 16px; border-radius:100px; font-size:13.5px; }
@@ -94,7 +116,7 @@ const LANDING_STYLES = `
 .lfooter-cta p{ color:#B9BEC9; margin-bottom:30px; font-size:15px; }
 `;
 
-export default function LandingClient({ categoryCounts }) {
+export default function LandingClient({ categoryCounts, featuredProducts = [], popularProducts = [], newProducts = [] }) {
   const rootRef = useRef(null);
   const router = useRouter();
   const [user, setUser] = useState(undefined); // undefined = loading, null = logged out
@@ -126,6 +148,10 @@ export default function LandingClient({ categoryCounts }) {
     };
   }, []);
 
+  const runSearch = (q) => {
+    router.push(q ? `/browse?q=${encodeURIComponent(q)}` : "/browse");
+  };
+
   return (
     <div ref={rootRef} className="landing-wrap">
       <style>{LANDING_STYLES}</style>
@@ -137,7 +163,7 @@ export default function LandingClient({ categoryCounts }) {
       <nav className="lnav">
         <span className="llogo">chatmarket.</span>
         <div className="lnav-links">
-          <Link href="/how-it-works">How it works</Link>
+          <Link href="/browse">Explore</Link>
           <div className="lnav-cat" tabIndex={0}>
             <span>Categories</span>
             <div className="lnav-cat-dropdown">
@@ -149,7 +175,8 @@ export default function LandingClient({ categoryCounts }) {
               ))}
             </div>
           </div>
-          <Link href="/for-sellers">For sellers</Link>
+          <Link href="/how-it-works">How it works</Link>
+          <Link href="/for-sellers">Sell</Link>
         </div>
         <div className="lnav-auth">
           {user === undefined ? null : user ? (
@@ -165,36 +192,44 @@ export default function LandingClient({ categoryCounts }) {
 
       <section className="lhero" style={{ paddingBottom: 20 }}>
         <div>
+          <span className="leyebrow">Playbooks · Workflows · Agents</span>
+          <h1 className="lh1">AI workers for<br />real <em>business work.</em></h1>
+          <p className="lsub">Discover Playbooks, Workflows, and Agents that do specific jobs — reusable knowledge to learn from, automations that run themselves, and AI workers you can delegate to.</p>
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              const q = e.target.elements.heroSearch.value.trim();
-              router.push(q ? `/browse?q=${encodeURIComponent(q)}` : "/browse");
+              runSearch(e.target.elements.heroSearch.value.trim());
             }}
-            className="flex items-center gap-2 px-3 py-2 rounded-full mb-5"
-            style={{ background: "#FFFFFF", border: "1px solid #D8D5C9", maxWidth: 420 }}
+            className="flex items-center gap-2 px-3 py-2 rounded-full mb-4"
+            style={{ background: "#FFFFFF", border: "1px solid #D8D5C9", maxWidth: 460 }}
           >
             <Search size={14} color="#6B6F76" />
             <input
               name="heroSearch"
-              placeholder="Search threads — e.g. Stripe checkout, onboarding..."
+              placeholder="What do you want to get done?"
+              aria-label="What do you want to get done?"
               className="text-sm bg-transparent outline-none w-full"
               style={{ fontFamily: "'IBM Plex Sans', sans-serif", color: "#14213D" }}
             />
           </form>
-          <h1 className="lh1">Pick up a conversation.<br />Not a <em>blank page.</em></h1>
-          <p className="lsub">Buy and sell AI conversations. Someone already did the hard work in Claude, ChatGPT, Gemini, and more — a half-built app, a researched outline, a solved problem. Buy their thread and pick up where they left off. Or sell the one you never finished.</p>
+          <div className="lprompt-row">
+            {EXAMPLE_PROMPTS.map((prompt) => (
+              <button key={prompt} type="button" className="lprompt-chip" onClick={() => runSearch(prompt)}>
+                {prompt}
+              </button>
+            ))}
+          </div>
           <div className="lhero-ctas">
-            <Link href="/browse" className="lbtn-primary">Browse threads →</Link>
-            <Link href="/sell" className="lbtn-outline">Sell a thread</Link>
+            <Link href="/browse" className="lbtn-primary">Browse products →</Link>
+            <Link href="/sell" className="lbtn-outline">Become a creator</Link>
           </div>
         </div>
 
         <div className="lthread-card">
-          <span className="lthread-tag mono">Claude · Web Development</span>
-          <div className="lbubble user b1">Set up subscription tiers with Stripe in Next.js</div>
-          <div className="lbubble ai b2">Let's start by installing stripe and configuring webhooks...</div>
-          <div className="lbubble user b3">Now add a free trial with a card-required flow</div>
+          <span className="lthread-tag mono">Workflow · Sales</span>
+          <div className="lbubble user b1">Input: New WhatsApp lead arrives</div>
+          <div className="lbubble ai b2">Step: Qualify intent &amp; score fit</div>
+          <div className="lbubble user b3">Output: Hot leads routed to sales</div>
 
           <div className="lperforated">
             <div className="lline"></div>
@@ -211,36 +246,10 @@ export default function LandingClient({ categoryCounts }) {
         </div>
       </section>
 
-      <section id="how" className="lsection">
-        <div className="lreveal">
-          <div className="lsection-eyebrow">How it works — for buyers</div>
-          <h2 className="lsection-title">Three steps from someone else's stalled chat to your head start.</h2>
-          <p className="lsection-sub">A thread is a real AI conversation someone already had — with the messages, the code, the drafts, all of it. Here's exactly what you get and what to do with it.</p>
-        </div>
-
-        <div className="lsteps lreveal">
-          <div className="lstep">
-            <div className="lnum">01</div>
-            <h3>Find a thread already like yours</h3>
-            <p>Browse by category and preview the real opening messages for free, before you pay — an actual conversation someone had with Claude, ChatGPT, or Gemini, already partway (or all the way) through the same kind of problem you're facing.</p>
-          </div>
-          <div className="lstep">
-            <div className="lnum">02</div>
-            <h3>Unlock the whole conversation</h3>
-            <p>Pay once and the complete package lands instantly in your Library — every message, in full, plus whatever the seller bundled in. Not a summary, not a screenshot: the real back-and-forth, ready to copy or download as a zip file.</p>
-          </div>
-          <div className="lstep">
-            <div className="lnum">03</div>
-            <h3>Pick it up in your own AI chat</h3>
-            <p>Copy the thread and paste it as your first message in a new Claude, ChatGPT, or Gemini conversation — the AI picks up the full context instantly and you continue right where it left off. Or unzip the download directly: read the conversation for the answer, or pull the code, outline, or draft straight into your own project.</p>
-          </div>
-        </div>
-      </section>
-
       <section id="categories" className="lsection">
         <div className="lreveal">
           <div className="lsection-eyebrow">Browse by category</div>
-          <h2 className="lsection-title">Every thread, sorted the way you'd shop for anything else.</h2>
+          <h2 className="lsection-title">Every product, sorted the way you'd shop for anything else.</h2>
         </div>
         <div className="lcat-strip lreveal">
           {categoryCounts.filter((c) => c.count > 0).map((c) => (
@@ -268,28 +277,98 @@ export default function LandingClient({ categoryCounts }) {
         </div>
       </section>
 
+      {featuredProducts.length > 0 && (
+        <section className="lsection" style={{ paddingTop: 0 }}>
+          <div className="lreveal">
+            <div className="lsection-eyebrow">Featured</div>
+            <h2 className="lsection-title">Start with a few of the best on chatmarket.</h2>
+          </div>
+          <div className="lproduct-grid lreveal">
+            {featuredProducts.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="lsection">
+        <div className="lreveal">
+          <div className="lsection-eyebrow">Three ways to put AI to work</div>
+          <h2 className="lsection-title">Playbooks, Workflows, and Agents aren't the same kind of product.</h2>
+          <p className="lsection-sub">Each one asks something different of you — from reading a guide, to configuring a repeatable process, to handing off a job entirely.</p>
+        </div>
+
+        <div className="lsteps lreveal">
+          {PRODUCT_TYPE_ORDER.map((type) => {
+            const meta = productTypeMeta(type);
+            const Icon = meta.icon;
+            return (
+              <div key={type} className="ltype-step">
+                <div className="ltype-icon" style={{ background: `color-mix(in srgb, var(${meta.colorVar}) 14%, transparent)` }}>
+                  <Icon size={19} color={`var(${meta.colorVar})`} strokeWidth={2.25} />
+                </div>
+                <span className="lverb" style={{ color: `var(${meta.colorVar})` }}>{meta.verb}</span>
+                <h3>{meta.label}</h3>
+                <p>{meta.description}</p>
+                <Link href={`/browse?type=${type}`} className="llink" style={{ color: "#14213D" }}>
+                  Browse {meta.label.toLowerCase()}s →
+                </Link>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {popularProducts.length > 0 && (
+        <section className="lsection">
+          <div className="lreveal">
+            <div className="lsection-eyebrow">Popular</div>
+            <h2 className="lsection-title">What people are unlocking most.</h2>
+          </div>
+          <div className="lproduct-grid lreveal">
+            {popularProducts.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {newProducts.length > 0 && (
+        <section className="lsection">
+          <div className="lreveal">
+            <div className="lsection-eyebrow">New</div>
+            <h2 className="lsection-title">Just added to the marketplace.</h2>
+          </div>
+          <div className="lproduct-grid lreveal">
+            {newProducts.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </section>
+      )}
+
       <section className="lsection">
         <div className="lreveal">
           <div className="lsection-eyebrow">How it works — for sellers</div>
           <h2 className="lsection-title">You already did the work. Here's how to get paid for it.</h2>
-          <p className="lsection-sub">If you've never sold a conversation before, here's exactly what's involved — from the file you need to how and when the money actually reaches you.</p>
+          <p className="lsection-sub">If you've never sold on chatmarket before, here's exactly what's involved — from what you need to how and when the money actually reaches you.</p>
         </div>
 
         <div className="lsteps lreveal">
           <div className="lstep">
             <div className="lnum">01</div>
-            <h3>Export the conversation</h3>
-            <p>Open the chat in Claude, ChatGPT, or Gemini and use its export/download option to save it as a JSON file — or just select and copy the whole conversation into a plain text (.txt) file if export isn't available. Then zip that file together with anything it produced (code, documents, images) — that zip is what you'll upload.</p>
+            <h3>Pick a product type</h3>
+            <p>A Playbook (an exported conversation and whatever it produced), a Workflow, or an Agent — each has its own quick setup, but they all start from the same "List a product" button.</p>
           </div>
           <div className="lstep">
             <div className="lnum">02</div>
             <h3>Verify your identity — once</h3>
-            <p>Before you can list anything, you'll complete a one-time identity check: your name, PAN, and address, so we know who to pay. An admin reviews it, usually quickly. You can't upload a thread until this is approved — it's what makes payouts possible in the first place.</p>
+            <p>Before you can list anything, you'll complete a one-time identity check: your name, PAN, and address, so we know who to pay. An admin reviews it, usually quickly. You can't publish until this is approved — it's what makes payouts possible in the first place.</p>
           </div>
           <div className="lstep">
             <div className="lnum">03</div>
             <h3>List it, get approved, get paid</h3>
-            <p>Upload your file, pick a category and price, and tell buyers what it covers. An admin briefly reviews the listing too, then it goes live. When someone buys it, that payment is held for 48 hours (in case of a dispute), then released to your account.</p>
+            <p>Fill in the details, pick a category and price, and tell buyers what it covers. An admin briefly reviews the listing too, then it goes live. When someone buys it, that payment is held for 48 hours (in case of a dispute), then released to your account.</p>
           </div>
         </div>
       </section>
@@ -310,9 +389,9 @@ export default function LandingClient({ categoryCounts }) {
       </section>
 
       <div className="lfooter-cta lreveal">
-        <h2>Your last chat could be<br />someone else's shortcut.</h2>
-        <p>List it in under five minutes. Get paid when it's put to use.</p>
-        <Link href="/sell" className="lbtn-primary">Sell your first thread →</Link>
+        <h2>Built something useful with AI?<br />Put it to work for someone else.</h2>
+        <p>List a Playbook, Workflow, or Agent in minutes. Get paid when it's put to use.</p>
+        <Link href="/sell" className="lbtn-primary">List your first product →</Link>
       </div>
     </div>
   );

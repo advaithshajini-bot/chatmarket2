@@ -71,9 +71,11 @@ export default function MobileTabBar() {
           <Link href="/purchases" className="flex items-center gap-2.5 px-3 py-2.5 rounded text-sm" style={{ color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif" }}>
             <Receipt size={15} /> Purchases
           </Link>
-          <Link href="/admin" className="flex items-center gap-2.5 px-3 py-2.5 rounded text-sm" style={{ color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-            <ShieldCheck size={15} /> Admin
-          </Link>
+          {user.isAdmin && (
+            <Link href="/admin" className="flex items-center gap-2.5 px-3 py-2.5 rounded text-sm" style={{ color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+              <ShieldCheck size={15} /> Admin
+            </Link>
+          )}
           <button onClick={handleLogout} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded text-sm text-left" style={{ color: "#B33A2E", fontFamily: "'IBM Plex Sans', sans-serif" }}>
             <LogOut size={15} /> Log out
           </button>

@@ -34,11 +34,20 @@ export default function TopNav({ hideAuthLinks = false }) {
             chatmarket.
           </Link>
           <div className="hidden sm:flex items-center gap-6 text-sm" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
-            <Link href="/browse" style={{ color: "#14213D" }}>Browse</Link>
+            <Link href="/browse" style={{ color: "#14213D" }}>Explore</Link>
+            <Link href="/#categories" style={{ color: "#14213D" }}>Categories</Link>
+            <Link href="/how-it-works" style={{ color: "#14213D" }}>How it works</Link>
             <Link href="/sell" style={{ color: "#14213D" }}>Sell</Link>
-            <Link href="/library" style={{ color: "#14213D" }}>Library</Link>
-            <Link href="/purchases" style={{ color: "#14213D" }}>Purchases</Link>
-            <Link href="/admin" style={{ color: "#14213D" }}>Admin</Link>
+            {user && (
+              <>
+                <Link href="/library" style={{ color: "#14213D" }}>My Library</Link>
+                <Link href="/sell" style={{ color: "#14213D" }}>My Products</Link>
+                <Link href="/purchases" style={{ color: "#14213D" }}>Dashboard</Link>
+              </>
+            )}
+            {user?.isAdmin && (
+              <Link href="/admin" style={{ color: "#14213D" }}>Admin</Link>
+            )}
           </div>
         </div>
 
@@ -70,7 +79,7 @@ export default function TopNav({ hideAuthLinks = false }) {
                 className="px-4 py-2 rounded text-sm"
                 style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Sans', sans-serif" }}
               >
-                Sell a thread
+                Sell on chatmarket
               </Link>
             </>
           )}
