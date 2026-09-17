@@ -1,3 +1,11 @@
+> **DEPRECATED / HISTORICAL.** This document is an early planning draft
+> (references Stripe, `password_hash`, and an escrow `transactions` table) that
+> was never implemented and conflicts with the real, live schema. Do not use it
+> as a reference. The authoritative schema is `docs/supabase-schema.sql`; the
+> Chatmarket 2.0 product/permission model built on top of it is documented in
+> `docs/product-domain-model.md`. Kept here only for historical context on the
+> original category-taxonomy thinking.
+
 # ChatMarket — Data Model & Category Taxonomy
 
 ## 1. Category Taxonomy (Amazon-style departments)
