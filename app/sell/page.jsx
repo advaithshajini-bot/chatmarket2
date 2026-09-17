@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import StatusPill from "@/components/StatusPill";
+import ProductTypePicker from "@/components/ProductTypePicker";
+import WorkflowAgentListingForm from "@/components/WorkflowAgentListingForm";
 import { CATEGORIES, MODELS } from "@/lib/categories";
 import { parseThreadExport } from "@/lib/parse-thread-export";
 import { redactListing } from "@/lib/redact-pii";
@@ -1048,6 +1050,7 @@ export default function SellPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [wizardStep, setWizardStep] = useState(1);
+  const [productType, setProductType] = useState(null);
   const [form, setForm] = useState({
     listingId: "",
     title: "",
@@ -1198,6 +1201,19 @@ export default function SellPage() {
     setStep(3);
   };
 
+  // Workflow/Agent listings skip ReviewStep entirely (that step is a PII
+  // scan over conversation content, which doesn't apply here -- there's no
+  // conversation) and go straight to the same pending_review lifecycle
+  // every listing already goes through, shown via the existing dashboard/
+  // awaiting-approval views.
+  const handleWorkflowAgentSubmitted = async () => {
+    setDashboardRefreshKey((k) => k + 1);
+    const supabase = createClient();
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData.user) await refreshSellerState(supabase, userData.user.id);
+    setStep(3);
+  };
+
   const startNewListing = () => {
     // Without this, "List another thread" would reopen the wizard still
     // holding the previous listing's title/description/price/screenshots
@@ -1224,6 +1240,7 @@ export default function SellPage() {
     });
     setSubmitError("");
     setWizardStep(1);
+    setProductType(null);
     setStep(1);
   };
 
@@ -1258,7 +1275,10 @@ export default function SellPage() {
           </button>
         )}
         <Stepper step={step} />
-        {step === 1 && (
+        {step === 1 && !productType && (
+          <ProductTypePicker onSelect={setProductType} />
+        )}
+        {step === 1 && productType === "playbook" && (
           <>
             <MiniStepper step={wizardStep} />
             {wizardStep === 1 && (
@@ -1278,6 +1298,13 @@ export default function SellPage() {
               />
             )}
           </>
+        )}
+        {step === 1 && (productType === "workflow" || productType === "agent") && (
+          <WorkflowAgentListingForm
+            type={productType}
+            onBack={() => setProductType(null)}
+            onSubmitted={handleWorkflowAgentSubmitted}
+          />
         )}
         {step === 2 && <ReviewStep onDone={handleReviewDone} findings={screeningFindings} />}
         {step === 3 && (
