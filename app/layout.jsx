@@ -4,8 +4,9 @@ import SiteFooter from "@/components/SiteFooter";
 import OfflineScreen from "@/components/OfflineScreen";
 
 export const metadata = {
-  title: "chatmarket — continue where they left off",
-  description: "Buy and sell working AI chat threads from Claude, ChatGPT, and Gemini.",
+  title: "chatmarket — AI workers for real business work",
+  description:
+    "Discover Playbooks, Workflows, and Agents that do specific jobs — reusable AI knowledge, repeatable automations, and AI workers you can delegate to.",
 };
 
 export default function RootLayout({ children }) {

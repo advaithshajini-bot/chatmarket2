@@ -14,6 +14,14 @@
   --teal: #2F6F62;
   --rule: #D8D5C9;
   --muted: #6B6F76;
+
+  /* Phase 2 — product-type accents (see tailwind.config.js for the same
+     values as Tailwind color utilities). Playbook and Agent intentionally
+     reuse --teal and --amber-deep rather than introducing new colors for
+     them. */
+  --playbook: #2F6F62;
+  --workflow: #5B5FA0;
+  --agent: #C68F2A;
 }
 
 html, body {
