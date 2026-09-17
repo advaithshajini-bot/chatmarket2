@@ -2,23 +2,42 @@ import Link from "next/link";
 import { ArrowLeft, Lock, MessageSquare, Star } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import ModelTag from "@/components/ModelTag";
+import ProductTypeBadge from "@/components/ProductTypeBadge";
 import ListingCheckout from "@/components/ListingCheckout";
 import ScreenshotGallery from "@/components/ScreenshotGallery";
 import ReviewsSection from "@/components/ReviewsSection";
 import ListingReviewForm from "@/components/ListingReviewForm";
+import WorkflowAgentDetail from "@/components/WorkflowAgentDetail";
 import { createClient } from "@/lib/supabase/server";
+import { getProduct } from "@/lib/domain/products";
+import { listProductTools } from "@/lib/domain/productTools";
+import { listProductPermissions } from "@/lib/domain/productPermissions";
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({ params }) {
+  const supabase = createClient();
+  const product = await getProduct(supabase, params.id);
+  if (!product) return { title: "Listing not found — chatmarket" };
+
+  const typeLabel = product.type ? product.type[0].toUpperCase() + product.type.slice(1) : "Playbook";
+  const description = (product.description || "").slice(0, 155);
+
+  return {
+    title: `${product.title} — chatmarket`,
+    description,
+    openGraph: {
+      title: `${product.title} · ${typeLabel} — chatmarket`,
+      description,
+    },
+  };
+}
+
 export default async function ListingDetailPage({ params }) {
   const supabase = createClient();
-  const { data: listingRow } = await supabase
-    .from("listings")
-    .select("*")
-    .eq("id", params.id)
-    .single();
+  const product = await getProduct(supabase, params.id);
 
-  if (!listingRow) {
+  if (!product) {
     return (
       <div style={{ minHeight: "100vh" }}>
         <TopNav />
@@ -30,16 +49,10 @@ export default async function ListingDetailPage({ params }) {
     );
   }
 
-  const listing = {
-    ...listingRow,
-    price: Number(listingRow.price),
-    rating: listingRow.rating !== null ? Number(listingRow.rating) : null,
-  };
-  // Always exactly the seller's first 2 uploaded messages — .slice(0, 2)
-  // here is a safety net so the locked box never shows more than that,
-  // even if a listing's stored `preview` ever ends up longer.
-  const preview = (listing.preview && listing.preview.length ? listing.preview : (listing.thread || [])).slice(0, 2);
-
+  // Reviews and the current user's own review are the same, generic,
+  // product-type-independent logic for every listing -- unchanged from
+  // before Phase 2, just fetched once here rather than duplicated in both
+  // the Playbook body below and WorkflowAgentDetail.
   const { data: reviewRows } = await supabase
     .from("reviews")
     .select("id, rating, comment, created_at, user_id, purchase_id")
@@ -60,6 +73,57 @@ export default async function ListingDetailPage({ params }) {
 
   const { data: userData } = await supabase.auth.getUser();
   const existingReview = userData.user ? reviews.find((r) => r.user_id === userData.user.id) : null;
+
+  // Workflow/Agent: new, display-only layout. No execute/run button
+  // anywhere -- the purchase CTA is the only action, same as a Playbook.
+  if (!product.isPlaybook) {
+    const [tools, permissions] = await Promise.all([
+      listProductTools(supabase, product.id),
+      listProductPermissions(supabase, product.id),
+    ]);
+
+    return (
+      <WorkflowAgentDetail
+        product={product}
+        tools={tools}
+        permissions={permissions}
+        reviews={reviews}
+        isLoggedIn={!!userData.user}
+        existingReview={existingReview}
+      />
+    );
+  }
+
+  // Playbook: the existing, working, tested experience -- rendered
+  // unchanged below. `listing` is reconstructed here in the exact shape
+  // that JSX already expects (lib/domain's toProduct() deliberately nests
+  // these fields under legacyPlaybookFields rather than flattening them;
+  // rebuilding the flat shape here means the render logic itself doesn't
+  // need to change at all).
+  const listing = {
+    id: product.id,
+    title: product.title,
+    description: product.description,
+    category: product.category,
+    price: Number(product.price),
+    status: product.status,
+    rating: product.rating !== null && product.rating !== undefined ? Number(product.rating) : null,
+    reviews: product.reviewCount,
+    seller_id: product.sellerId,
+    seller_name: product.sellerName,
+    thread: product.legacyPlaybookFields.thread,
+    preview: product.legacyPlaybookFields.preview,
+    screenshots: product.legacyPlaybookFields.screenshots,
+    output_zip_path: product.legacyPlaybookFields.outputZipPath,
+    zip_contents: product.legacyPlaybookFields.zipContentsNote,
+    messages: product.legacyPlaybookFields.messages,
+    completion: product.legacyPlaybookFields.completion,
+    model: product.legacyPlaybookFields.model,
+  };
+  // Always exactly the seller's first 2 uploaded messages — .slice(0, 2)
+  // here is a safety net so the locked box never shows more than that,
+  // even if a listing's stored `preview` ever ends up longer.
+  const preview = (listing.preview && listing.preview.length ? listing.preview : (listing.thread || [])).slice(0, 2);
 
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -85,8 +149,11 @@ export default async function ListingDetailPage({ params }) {
               than duplicating them per breakpoint. */}
 
           <div className="order-1 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-1">
-            <ModelTag model={listing.model} />
-            <h1 className="text-3xl mt-3 mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
+            <div className="flex items-center gap-2 mb-3">
+              <ProductTypeBadge type={product.type} />
+              <ModelTag model={listing.model} />
+            </div>
+            <h1 className="text-3xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
               {listing.title}
             </h1>
             <div className="flex items-center gap-3 mb-6 text-sm" style={{ color: "#6B6F76" }}>
@@ -100,10 +167,6 @@ export default async function ListingDetailPage({ params }) {
                   <span>{listing.rating ?? "New"}</span>
                 )}
               </span>
-              <span>·</span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{listing.messages} messages</span>
-              <span>·</span>
-              <span style={{ fontFamily: "'IBM Plex Mono', monospace" }}>{listing.completion}% complete</span>
             </div>
           </div>
 
@@ -157,7 +220,7 @@ export default async function ListingDetailPage({ params }) {
           </div>
 
           <div className="order-5 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-3">
-            <h2 className="text-lg mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>Thread details</h2>
+            <h2 className="text-lg mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>What's included</h2>
             <div className="rounded-md p-4" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
               <p className="text-sm" style={{ color: "#3A3D42" }}>{listing.description}</p>
             </div>
