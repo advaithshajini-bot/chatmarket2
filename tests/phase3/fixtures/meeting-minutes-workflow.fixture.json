@@ -1,0 +1,14 @@
+{
+  "_comment": "TEST FIXTURE ONLY. Demonstrates a validate -> ai_process -> transform, zero-tool configuration that sits at or below every system ceiling (v10 test 42). It is not the product definition (that is Phase 3.2) and it is never inserted into any real database.",
+  "goal": "Turn raw meeting minutes into a structured list of action items",
+  "inputs": [{ "name": "minutes", "type": "string", "required": true }],
+  "outputs": [{ "name": "action_items", "type": "json" }],
+  "steps": [
+    { "id": "validate_input", "kind": "validate", "config": {}, "timeoutSeconds": 30, "retryLimit": 0 },
+    { "id": "extract_actions", "kind": "ai_process", "config": {}, "timeoutSeconds": 90, "retryLimit": 1 },
+    { "id": "format_output", "kind": "transform", "config": {}, "timeoutSeconds": 30, "retryLimit": 0 }
+  ],
+  "tools": [],
+  "modelPolicy": { "provider": "anthropic" },
+  "limits": { "maxSteps": 3, "maxCostInr": 20, "timeoutSeconds": 300 }
+}
