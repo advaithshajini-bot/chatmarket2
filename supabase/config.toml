@@ -1,0 +1,10 @@
+# supabase/config.toml
+#
+# Minimal config -- this repo didn't have one yet. project_id links CLI
+# commands (migration list/push, functions deploy, etc.) to this specific
+# project without needing --project-ref every time.
+
+project_id = "uolfnbheigxnzelqtodw"
+
+[functions.execution-worker]
+verify_jwt = false
