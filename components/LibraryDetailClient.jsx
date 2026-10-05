@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Unlock, Check, MessageSquare, FileArchive } from "lucide-react";
 import ModelTag from "@/components/ModelTag";
 import StarRating from "@/components/StarRating";
+import BlueprintDownloadCard from "@/components/BlueprintDownloadCard";
 import { createClient } from "@/lib/supabase/client";
 
 const LIBRARY_DISPLAY_LIMIT = 6;
@@ -21,6 +22,9 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
   const [downloadError, setDownloadError] = useState("");
   const [downloading, setDownloading] = useState(false);
 
+  // Workflow / agent purchases are a downloadable blueprint, not a conversation thread: they get the blueprint
+  // card instead of the thread preview and the ZIP card. Playbook purchases render exactly as before.
+  const isBlueprintProduct = listing.product_type === "workflow" || listing.product_type === "agent";
   const thread = listing.thread && listing.thread.length ? listing.thread : listing.preview || [];
   // Display is capped for readability only -- Download below always uses
   // the full uploaded zip, never this truncated preview.
@@ -83,10 +87,15 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
 
         {purchase.status === "refunded" && (
           <div className="rounded-md p-3 mb-4 text-xs" style={{ background: "#FBEAE8", color: "#B33A2E" }}>
-            This purchase was refunded. You can still view the thread below.
+            This purchase was refunded. {isBlueprintProduct ? "Blueprint downloads are no longer available." : "You can still view the thread below."}
           </div>
         )}
 
+        {isBlueprintProduct ? (
+          <div className="rounded-md p-5 text-sm" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9", color: "#3A3D42" }}>
+            {listing.description}
+          </div>
+        ) : (
         <div className="rounded-md p-5" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
           <div className="space-y-3">
             {displayThread.map((m, i) => (
@@ -113,11 +122,12 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
               : "Full thread — nothing hidden"}
           </div>
         </div>
+        )}
 
         {!submitted ? (
           <div className="rounded-md p-5 mt-5" style={{ background: "#FFFFFF", border: "1px solid #D8D5C9" }}>
             <p className="text-sm mb-3" style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600, color: "#14213D" }}>
-              How was this thread?
+              How was this {isBlueprintProduct ? "blueprint" : "thread"}?
             </p>
             <StarRating value={rating} onChange={setRating} />
             <textarea
@@ -151,6 +161,9 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
       </div>
 
       <div>
+        {isBlueprintProduct ? (
+          <BlueprintDownloadCard listing={listing} refunded={purchase.status === "refunded"} />
+        ) : (
         <div className="rounded-md p-5 sticky top-20" style={{ background: "#FFFFFF", border: "1px solid #D8D5C9" }}>
           <div className="flex items-center gap-2 mb-3">
             <FileArchive size={15} color="#E2A83E" />
@@ -171,6 +184,7 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
           </button>
           {downloadError && <p className="text-xs mt-2" style={{ color: "#B33A2E" }}>{downloadError}</p>}
         </div>
+        )}
       </div>
     </div>
   );
