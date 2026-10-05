@@ -1,0 +1,273 @@
+{
+  "_note": "Generated from the live DB by gen-fixtures.mjs. Do not hand-edit.",
+  "payloads": {
+    "claim_rejected_execution_disabled": {
+      "reason": "execution_disabled",
+      "outcome": "rejected"
+    },
+    "claim_claimed": {
+      "outcome": "claimed",
+      "step_id": "f9ad225e-331b-4a82-b7d4-e7312dcbe1f6",
+      "step_index": 0,
+      "retry_count": 0
+    },
+    "claim_rejected_step_already_running": {
+      "reason": "step_already_running",
+      "outcome": "rejected"
+    },
+    "claim_rejected_run_not_claimable": {
+      "reason": "run_not_claimable",
+      "outcome": "rejected"
+    },
+    "checkpoint_succeeded": {
+      "outcome": "succeeded"
+    },
+    "claim_waiting_for_approval": {
+      "outcome": "waiting_for_approval",
+      "step_id": "2ac975a8-dc54-4a7f-abb2-df44cbf5bebf",
+      "expires_at": "2026-10-05T04:44:06.235868+00:00",
+      "permission": "SEND",
+      "step_index": 0,
+      "approval_id": "0bff7428-5227-440a-8198-40cd72873406"
+    },
+    "checkpoint_checkpointed": {
+      "outcome": "checkpointed",
+      "next_step_index": 1
+    },
+    "checkpoint_failed_cost_limit": {
+      "reason": "cost_limit_exceeded",
+      "outcome": "failed"
+    },
+    "checkpoint_rejected_fencing": {
+      "reason": "fencing_mismatch",
+      "outcome": "rejected"
+    },
+    "retry_retried": {
+      "outcome": "retried",
+      "step_id": "0d46af48-1773-4c37-b0e1-6490de387780",
+      "step_index": 0,
+      "retry_count": 1
+    },
+    "retry_failed": {
+      "reason": "retry_limit_reached",
+      "outcome": "failed",
+      "step_id": "bb87f2e4-c7c9-4065-94ac-3399264d9d81",
+      "step_index": 0
+    },
+    "ctx_stub": {
+      "mode": "stub",
+      "outcome": "ok"
+    },
+    "ctx_rejected_fencing": {
+      "reason": "fencing_mismatch",
+      "outcome": "rejected"
+    },
+    "ctx_demo": {
+      "mode": "demo",
+      "model": "claude-haiku-4-5-20251001",
+      "price": {
+        "input_inr_per_mtok": 90.3,
+        "output_inr_per_mtok": 451.5
+      },
+      "system": "Fixture system prompt.",
+      "outcome": "ok",
+      "input_text": "Fixture input text",
+      "timeout_seconds": 20,
+      "max_output_tokens": 256,
+      "budget_remaining_inr": 3,
+      "previous_output_text": null
+    }
+  },
+  "signatures": {
+    "worker_checkpoint_step": [
+      {
+        "name": "p_run_id",
+        "type": "uuid"
+      },
+      {
+        "name": "p_step_id",
+        "type": "uuid"
+      },
+      {
+        "name": "p_expected_retry_count",
+        "type": "integer"
+      },
+      {
+        "name": "p_output",
+        "type": "jsonb"
+      },
+      {
+        "name": "p_cost_delta",
+        "type": "numeric"
+      }
+    ],
+    "worker_claim_next_step": [
+      {
+        "name": "p_run_id",
+        "type": "uuid"
+      }
+    ],
+    "worker_get_step_context": [
+      {
+        "name": "p_run_id",
+        "type": "uuid"
+      },
+      {
+        "name": "p_step_id",
+        "type": "uuid"
+      },
+      {
+        "name": "p_expected_retry_count",
+        "type": "integer"
+      }
+    ],
+    "worker_retry_or_fail_step": [
+      {
+        "name": "p_run_id",
+        "type": "uuid"
+      },
+      {
+        "name": "p_step_id",
+        "type": "uuid"
+      },
+      {
+        "name": "p_expected_retry_count",
+        "type": "integer"
+      },
+      {
+        "name": "p_error",
+        "type": "text"
+      }
+    ]
+  },
+  "cost_vectors": [
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "input_inr_per_mtok": 90.3,
+      "output_inr_per_mtok": 451.5,
+      "cost_inr": 0
+    },
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 1,
+      "output_tokens": 0,
+      "input_inr_per_mtok": 90.3,
+      "output_inr_per_mtok": 451.5,
+      "cost_inr": 0.0001
+    },
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 0,
+      "output_tokens": 1,
+      "input_inr_per_mtok": 90.3,
+      "output_inr_per_mtok": 451.5,
+      "cost_inr": 0.0005
+    },
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 1000,
+      "output_tokens": 500,
+      "input_inr_per_mtok": 90.3,
+      "output_inr_per_mtok": 451.5,
+      "cost_inr": 0.3161
+    },
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 7,
+      "output_tokens": 3,
+      "input_inr_per_mtok": 90.3,
+      "output_inr_per_mtok": 451.5,
+      "cost_inr": 0.002
+    },
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 123456,
+      "output_tokens": 789,
+      "input_inr_per_mtok": 90.3,
+      "output_inr_per_mtok": 451.5,
+      "cost_inr": 11.5044
+    },
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 200000,
+      "output_tokens": 1024,
+      "input_inr_per_mtok": 90.3,
+      "output_inr_per_mtok": 451.5,
+      "cost_inr": 18.5224
+    },
+    {
+      "model": "claude-haiku-4-5-20251001",
+      "input_tokens": 999999,
+      "output_tokens": 999999,
+      "input_inr_per_mtok": 90.3,
+      "output_inr_per_mtok": 451.5,
+      "cost_inr": 541.7995
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "input_inr_per_mtok": 270.9,
+      "output_inr_per_mtok": 1354.5,
+      "cost_inr": 0
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 1,
+      "output_tokens": 0,
+      "input_inr_per_mtok": 270.9,
+      "output_inr_per_mtok": 1354.5,
+      "cost_inr": 0.0003
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 0,
+      "output_tokens": 1,
+      "input_inr_per_mtok": 270.9,
+      "output_inr_per_mtok": 1354.5,
+      "cost_inr": 0.0014
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 1000,
+      "output_tokens": 500,
+      "input_inr_per_mtok": 270.9,
+      "output_inr_per_mtok": 1354.5,
+      "cost_inr": 0.9482
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 7,
+      "output_tokens": 3,
+      "input_inr_per_mtok": 270.9,
+      "output_inr_per_mtok": 1354.5,
+      "cost_inr": 0.006
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 123456,
+      "output_tokens": 789,
+      "input_inr_per_mtok": 270.9,
+      "output_inr_per_mtok": 1354.5,
+      "cost_inr": 34.513
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 200000,
+      "output_tokens": 1024,
+      "input_inr_per_mtok": 270.9,
+      "output_inr_per_mtok": 1354.5,
+      "cost_inr": 55.5671
+    },
+    {
+      "model": "claude-sonnet-4-6",
+      "input_tokens": 999999,
+      "output_tokens": 999999,
+      "input_inr_per_mtok": 270.9,
+      "output_inr_per_mtok": 1354.5,
+      "cost_inr": 1625.3984
+    }
+  ]
+}
