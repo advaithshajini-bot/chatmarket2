@@ -1,11 +1,10 @@
 // L1 — client/server input validation, mirroring the L2 database ceilings
 // so bad configs are rejected before ever reaching a write.
 //
-// STATUS: ALL 12 TESTS BLOCKED. `lib/execution/validation.js` does not
-// exist yet (confirmed: no lib/execution/ directory anywhere in the repo
-// as of this writing). This file is written against the module Part 3
-// needs to create — it is meant to fail with a module-not-found error
-// today, and turn green once that module exists with this shape:
+// STATUS: lib/execution/validation.js now exists and is real (ported
+// directly from private.assert_execution_config_within_ceilings' actual
+// logic, not re-derived from the architecture doc) -- confirmed via a
+// real run of this exact file: 12/12 passed.
 //
 //   export function validateExecutionConfig(cfg) -> { success: boolean, error?: { code, path } }
 //
@@ -76,4 +75,5 @@ check(
   }).success === true
 );
 
-console.log(`\nL1: ${pass} passed, ${fail} failed (expected: import error until lib/execution/validation.js exists)`);
+console.log(`\nL1: ${pass} passed, ${fail} failed`);
+process.exitCode = fail > 0 ? 1 : 0;

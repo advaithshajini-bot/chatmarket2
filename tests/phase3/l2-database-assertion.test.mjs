@@ -57,7 +57,14 @@ const validStep = { retryLimit: 0, timeoutSeconds: 30 };
 const validCfg = { steps: [validStep], limits: { maxSteps: 1, maxCostInr: 10, timeoutSeconds: 60 } };
 
 await checkRaises("L2-01 NULL config raises CM002", null, "CM002");
-await checkRaises("L2-02 non-object config raises CM002", "not-an-object", "CM002"); // note: cast will fail differently if not valid jsonb; adjust if needed
+// FIXED after a real run: the original test passed the raw JS string
+// "not-an-object", which pg sends as plain text -- cast to ::jsonb, that's
+// invalid JSON syntax (needs quotes to be a JSON string), so Postgres
+// rejected it at the cast step (22P02) before the function under test
+// ever ran. Using a JSON number instead: valid JSON, still not an object,
+// so jsonb_typeof() inside the function actually returns 'number' and
+// CM002 fires for the real reason.
+await checkRaises("L2-02 non-object config raises CM002", 42, "CM002");
 await checkRaises("L2-03 missing steps raises CM002", { limits: validCfg.limits }, "CM002");
 await checkRaises("L2-04 empty steps array raises CM002", { ...validCfg, steps: [] }, "CM002");
 await checkRaises("L2-05 missing limits raises CM002", { steps: [validStep] }, "CM002");
@@ -132,3 +139,4 @@ await withFixture(async ({ uid, productId }) => {
 
 console.log(`\nL2: ${pass} passed, ${fail} failed`);
 await client.end();
+process.exitCode = fail > 0 ? 1 : 0;

@@ -94,11 +94,85 @@ reviewed before that code is written.
 | W1-07 | Retry ceiling: after `max_retries`, next failure goes `running→failed` and finalizes the run in the same transaction | RUNNABLE NOW |
 | W1-08 | Lock ordering: concurrent `retry_or_fail_step` calls on the same run serialize without deadlock (runs locked first) | **BLOCKED — needs a real concurrency harness** (a single-connection script, which is all this file is, structurally cannot exercise or detect a race/deadlock; writing a fake-passing version of this test would be worse than leaving it honestly blocked) |
 
-## Totals (corrected after actually writing the files, not just planning the matrix)
+## How to run everything
 
-- **20 RUNNABLE NOW** — 14 L2 + 2 L3 (flag fail-closed) + 3 L3 (RLS/grants) + 1... see each file; exact per-file pass/fail is what running them will report, this count is what the tests are *written* to be able to prove, not a guarantee they'll pass
-- **1 discovered while writing, not while planning**: W1-08 moved from "RUNNABLE NOW" (in the original plan) to BLOCKED once I actually tried to write it — a real reminder that a test spec looking reasonable on paper isn't the same as it being honestly implementable
-- **24 BLOCKED** pending Part 2 (routes) or Part 3 (worker/validation module)
-- **3 KNOWN GAPS** — ceilings with no enforcement anywhere yet, not a test-writing problem
+    node tests/phase3/run-all.mjs            # full gate, SKIPPED = not passed
+    node tests/phase3/run-all.mjs --verbose  # print every line
+    node tests/phase3/run-all.mjs --allow-skip  # deliberately partial (no credentials)
 
-None of the RUNNABLE NOW tests were actually executed by me in this environment — I have `execute_sql` (Supabase MCP), not a raw `DATABASE_URL`/`pg` connection, which these files are written against (matching this project's established Phase 1/2 rolled-back-transaction methodology). Everything they assert is grounded in what Gate 6 already directly verified, but running the files themselves is on you.
+Env vars for a full run: DATABASE_URL (owner-level, session-mode connection),
+EXECUTION_WORKER_URL, WORKER_SHARED_SECRET. Each file also runs on its own
+(`node tests/phase3/<file>`) and exits non-zero if any check fails.
+
+`node --test tests/phase3/*.test.mjs` is deliberately not used: cmd.exe does not
+expand the glob, and these are plain scripts (not node:test suites), so it could
+only report per-file pass/fail, not per-check results.
+
+## Coverage of the 48 matrix IDs, by evidence (2026-09-28)
+
+| IDs | Covered by | Evidence |
+|---|---|---|
+| L1-01..12 | l1-validation | executed 12/12 (sandbox + your run) |
+| L2-01..14 (+boundary check) | l2-database-assertion | executed 15/15 (your run; also 15/15 against a local copy of the real SQL, sandbox) |
+| L3-01, L3-02, L3-06, L3-07, L3-08/09/10, L3-11 | l3-runtime-failclosed | executed 7/7 (your run; also 7/7 locally) -- L3-07 (run_steps RLS) is included in this count now |
+| L3-03, L3-04, L3-05 | l3-route-handlers (mocked client) | executed 20/20 (sandbox) |
+| **L3-12, L3-13, L3-14** | **l3-ceilings** | **executed 21/21 against a local copy of the real, unmodified migration SQL (sandbox) -- see method below. Not yet run against your live DB.** |
+| W1-01..04, W1-06, W1-07, W1-08 | w1-worker-boundary | executed 8/8 (your run; also locally) |
+| W1-05 | w1-worker-boundary | executed against your live worker once you set EXECUTION_WORKER_URL + WORKER_SHARED_SECRET (not in the "8 passed" run) |
+
+**48/48 IDs now have a test that has executed and passed, in at least one
+environment.** L3-12/13/14 are the exception: proven against a faithful local
+copy of your real SQL, not yet against your actual live database -- that's the
+one thing still worth running for real before calling this closed.
+
+### How l3-ceilings.test.mjs was actually verified (not just written)
+
+1. Installed a disposable local Postgres and loaded ALL of `supabase/migrations/`
+   in order, unmodified byte-for-byte -- the same baseline, the same 5 Phase 3.1
+   files, the same wrappers, the same dispatch trigger.
+2. Ran the three existing DB-backed suites (L2, L3-runtime, W1) against that
+   local copy first, as a calibration -- they reproduced your exact live
+   numbers (15/15, 7/7, 8/8-with-W1-05-skipped), which is what made the local
+   copy trustworthy enough to test new code against.
+3. Wrote l3-ceilings.test.mjs, ran it: 21/21 real passes against the real,
+   unmodified `create_run` / `checkpoint_step` logic.
+4. **Mutation-tested it**: temporarily broke the real local functions 6
+   different ways (each system ceiling off by one in both directions, an
+   off-by-one in create_run's own comparison, and an injected exception after
+   the flag is switched on) and re-ran the file after each. All 6 broke the
+   test with a clear FAIL naming the exact wrong ceiling -- confirming the
+   test would actually catch a real regression, not just pass by construction.
+   One of the 6 mutations (M1, the quota ceiling) initially only produced 1
+   failing assertion instead of 2, because the row-count check ran after a
+   `ROLLBACK TO SAVEPOINT` that had already erased the wrongly-created row --
+   a vacuous check. Fixed by moving the count to before the rollback; re-ran
+   mutation M1 and confirmed it now fails both assertions as it should.
+   Original code restored and reverted to 21/21 after every mutation.
+5. Local Postgres crashed once between the mutation run and the final
+   calibration (a sandbox resource limit, unrelated to the tests) -- restarted
+   it and re-verified the database state (flag, fixture rows, trigger) was
+   intact before re-running, rather than assuming it was fine.
+6. Final full-suite run against the local copy: **83 individual assertions,
+   0 failures**, only W1-05 skipped (needs a real network call this sandbox
+   can't make). Confirmed no leaked fixture data or flag state afterward.
+
+### Safety design specific to this file
+- The ONLY flag write in the whole test suite lives in the L3-12 section, and
+  it's inside that section's own `BEGIN...ROLLBACK`.
+- `section()` wraps every block in try/catch/finally with the ROLLBACK in
+  `finally`, so a throwing assertion cannot skip it -- proven by mutation M6,
+  which injects an exception specifically after the flag is turned on.
+- MVCC isolation is verified with a **second, independent connection**
+  reading the flag while the first has it ON in an uncommitted transaction --
+  not just assumed.
+- The file refuses to even start if the flag isn't already OFF, and re-checks
+  with a brand-new connection at the end that the COMMITTED flag is still OFF.
+- The dispatch trigger fires during the L3-12a case (a real INSERT into
+  `run_steps`); the file checks afterward that no `pg_net` request actually
+  escaped the rolled-back transaction, rather than assuming pg_net's queue
+  insert is transactional.
+
+
+Note: l2/l3-runtime/w1 were edited after their last live run (exit-code fix;
+L3-07 added; pass/fail scoping in l3). They are syntax-checked but need a re-run
+against the live DB to confirm no regression.
