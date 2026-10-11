@@ -12,6 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getProduct } from "@/lib/domain/products";
 import { listProductTools } from "@/lib/domain/productTools";
 import { listProductPermissions } from "@/lib/domain/productPermissions";
+import { getListingDemoInfo } from "@/lib/domain/demos";
 
 export const dynamic = "force-dynamic";
 
@@ -74,12 +75,14 @@ export default async function ListingDetailPage({ params }) {
   const { data: userData } = await supabase.auth.getUser();
   const existingReview = userData.user ? reviews.find((r) => r.user_id === userData.user.id) : null;
 
-  // Workflow/Agent: new, display-only layout. No execute/run button
-  // anywhere -- the purchase CTA is the only action, same as a Playbook.
+  // Workflow/Agent: the purchase CTA is the main action, same as a Playbook. Since Milestone 4.3 the page also
+  // offers a capped "Try it live" demo; whether one exists comes from the PUBLIC availability function
+  // (never from the private demo config), and getListingDemoInfo can never throw -- the page always renders.
   if (!product.isPlaybook) {
-    const [tools, permissions] = await Promise.all([
+    const [tools, permissions, demoInfo] = await Promise.all([
       listProductTools(supabase, product.id),
       listProductPermissions(supabase, product.id),
+      getListingDemoInfo(supabase, product.id),
     ]);
 
     return (
@@ -87,6 +90,7 @@ export default async function ListingDetailPage({ params }) {
         product={product}
         tools={tools}
         permissions={permissions}
+        demoInfo={demoInfo}
         reviews={reviews}
         isLoggedIn={!!userData.user}
         existingReview={existingReview}
