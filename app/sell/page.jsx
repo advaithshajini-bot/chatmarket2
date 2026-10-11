@@ -818,7 +818,7 @@ function DashboardStep({ refreshKey, onAddAnother }) {
 
       const { data: myListings, error: listingsError } = await supabase
         .from("listings")
-        .select("id, title, price, status, removal_reason")
+        .select("id, title, price, status, removal_reason, product_type")
         .eq("seller_id", uid)
         .order("created_at", { ascending: false });
 
@@ -957,6 +957,15 @@ function DashboardStep({ refreshKey, onAddAnother }) {
                       <AlertCircle size={13} /> needs edits
                     </span>
                   )}
+                  {(l.product_type === "workflow" || l.product_type === "agent") && l.status !== "removed" && (
+    <Link
+      href={`/sell/studio/${l.id}`}
+      className="text-xs px-3 py-1 rounded-full whitespace-nowrap"
+      style={{ border: "1px solid #D8D5C9", color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif" }}
+    >
+      Demo & blueprint
+    </Link>
+  )}
                   <span className="text-xs hidden sm:inline" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>{l.sales} sold</span>
                   <span className="text-sm" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>₹{l.price}</span>
                   <StatusPill status={l.status} />
