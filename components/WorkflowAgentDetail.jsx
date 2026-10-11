@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { ArrowLeft, ShieldCheck, Wrench } from "lucide-react";
+import { ArrowLeft, FileJson, ShieldCheck, Wrench } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import ProductTypeBadge from "@/components/ProductTypeBadge";
 import ListingCheckout from "@/components/ListingCheckout";
 import ReviewsSection from "@/components/ReviewsSection";
 import ListingReviewForm from "@/components/ListingReviewForm";
+import TryDemo from "@/components/TryDemo";
+import { formatBytes, formatLabel } from "@/lib/blueprints/format";
 
 const STEP_KIND_LABELS = {
   validate: "Validate input",
@@ -26,11 +28,11 @@ function Section({ title, children }) {
   );
 }
 
-// Display-only detail page for product_type = 'workflow' | 'agent'. No
-// execution, no run button -- the purchase CTA (ListingCheckout, unchanged
-// from the Playbook path) is the only action available, identical in kind
-// to a Playbook purchase: it unlocks access, it does not run anything.
-export default function WorkflowAgentDetail({ product, tools, permissions, reviews, isLoggedIn, existingReview }) {
+// Detail page for product_type = 'workflow' | 'agent'. This file stays free of execution logic: the purchase CTA
+// (ListingCheckout, unchanged from the Playbook path) unlocks access, and the only thing that can run is the
+// capped "Try it live" demo, which lives entirely in <TryDemo /> and lib/demo/*. Nothing in this file calls any
+// endpoint.
+export default function WorkflowAgentDetail({ product, tools, permissions, demoInfo, reviews, isLoggedIn, existingReview }) {
   const config = product.configuration || {};
   const inputs = Array.isArray(config.inputs) ? config.inputs : [];
   const outputs = Array.isArray(config.outputs) ? config.outputs : [];
@@ -68,6 +70,8 @@ export default function WorkflowAgentDetail({ product, tools, permissions, revie
                 </p>
               )}
             </Section>
+
+            <TryDemo listingId={product.id} info={demoInfo ?? { available: false }} isLoggedIn={isLoggedIn} />
 
             {(inputs.length > 0 || outputs.length > 0) && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
@@ -171,6 +175,18 @@ export default function WorkflowAgentDetail({ product, tools, permissions, revie
 
           <div className="lg:col-start-3">
             <ListingCheckout listing={{ id: product.id, price: Number(product.price) }} />
+            {product.blueprint && (
+              <div className="rounded-md p-4 mt-4" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
+                <p className="flex items-center gap-2 text-sm mb-1" style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600, color: "#14213D" }}>
+                  <FileJson size={14} color="#E2A83E" aria-hidden="true" /> What you get
+                </p>
+                <p className="text-xs" style={{ color: "#3A3D42" }}>
+                  A downloadable {formatLabel(product.blueprint.format)}
+                  {product.blueprint.sizeBytes ? ` (${formatBytes(product.blueprint.sizeBytes)})` : ""} to run on your own setup with your own API keys.
+                  Available in your library right after purchase.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </main>
