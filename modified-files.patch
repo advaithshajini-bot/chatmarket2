@@ -1,0 +1,87 @@
+--- a/lib/domain/demos.js	2026-10-05 09:53:17.000000000 +0000
++++ b/lib/domain/demos.js	2026-10-11 03:46:16.345218947 +0000
+@@ -20,6 +20,9 @@
+     runsPerDay: int(raw.runsPerDay, 3),
+     remainingToday: raw.remainingToday === null || raw.remainingToday === undefined ? null : int(raw.remainingToday, 0),
+     budgetExhausted: raw.budgetExhausted === true,
++    // Phase 4.4: the admin-approved example input. Present only when the seller supplied one (and it fits).
++    ...(typeof raw.sampleInput === "string" && raw.sampleInput.trim() !== "" && [...raw.sampleInput].length <= 2000
++      ? { sampleInput: raw.sampleInput } : {}),
+   };
+ }
+ 
+--- a/components/TryDemo.jsx	2026-10-05 09:53:17.000000000 +0000
++++ b/components/TryDemo.jsx	2026-10-11 03:46:16.345532490 +0000
+@@ -100,6 +100,16 @@
+                 <label htmlFor="try-demo-input" className="block text-xs uppercase tracking-wide mb-1" style={{ fontFamily: MONO, color: MUTED }}>
+                   Your input
+                 </label>
++                {info.sampleInput && !isBusy(state) && state.text !== info.sampleInput && (
++                  <button
++                    type="button"
++                    onClick={() => dispatch({ type: "EDIT", text: info.sampleInput })}
++                    className="text-xs mb-2"
++                    style={{ color: MUTED, fontFamily: SANS, textDecoration: "underline" }}
++                  >
++                    Use the seller&apos;s example input
++                  </button>
++                )}
+                 <textarea
+                   id="try-demo-input"
+                   value={state.text}
+--- a/tests/phase4/m42-blueprints.test.mjs	2026-10-04 04:44:10.000000000 +0000
++++ b/tests/phase4/m42-blueprints.test.mjs	2026-10-11 03:51:29.810243514 +0000
+@@ -46,7 +46,11 @@
+   try { await q(sql, params); await q("RELEASE SAVEPOINT e"); return null; }
+   catch (e) { await q("ROLLBACK TO SAVEPOINT e"); return e; }
+ }
+-async function inTxn(fn) { await q("BEGIN"); try { await fn(); } finally { await q("ROLLBACK"); } }
++// M4.4: buyers may read only the listing's CURRENT (admin-approved) blueprint object, never an unreviewed upload in the same folder.
++const makeCurrent = (lid, name) => q(`update public.listings set blueprint_path=$2, blueprint_format='n8n', blueprint_sha256=$3, blueprint_size_bytes=10 where id=$1`, [lid, name, "a".repeat(64)]);
++// M4.4: listings.blueprint_* is writable only through public.review_listing_blueprint (guard trigger). These tests exercise the 4.2
++// CHECK constraints and storage policies as the table OWNER, so they switch the review path's setting on, exactly as the RPC does.
++async function inTxn(fn) { await q("BEGIN"); try { await q(`select set_config('chatmarket.blueprint_write','on',true)`); await fn(); } finally { await q("ROLLBACK"); } }
+ const put = (name, owner = null) => q(`insert into storage.objects (bucket_id, name, owner) values ($1,$2,$3)`, [B, name, owner]);
+ 
+ // =================================================================== columns + constraints
+@@ -118,6 +122,7 @@
+   const lid = await mkListing(U.sellerA);
+   const name = `${U.sellerA}/${lid}/blueprint.json`;
+   await put(name, U.sellerA);
++  await makeCurrent(lid, name);
+   await put(`${U.sellerB}/${(await mkListing(U.sellerB))}/blueprint.json`, U.sellerB);
+   await q(`insert into public.purchases (user_id, listing_id, amount, status) values ($1,$2,100,'paid')`, [U.buyer, lid]);
+   await q(`insert into public.purchases (user_id, listing_id, amount, status) values ($1,$2,100,'refunded')`, [U.refunded, lid]);
+@@ -144,14 +149,20 @@
+   check("A42-S27 the buyer's LIST sees only the blueprint they paid for, not another seller's", !all.err && all.rows.length === 1 && all.rows[0].name === name, all);
+   const del = await as("authenticated", U.buyer, null, `delete from storage.objects where bucket_id=$1 and name=$2`, [B, name]);
+   check("A42-S28 a buyer cannot delete it", (!del.err && del.rows.length === 0) && (await val(`select count(*)::int as v from storage.objects where bucket_id=$1 and name=$2`, [B, name])) === 1, del.err?.message);
++  // M4.4: the live (current) blueprint object can no longer be deleted by the seller; any other object under their folder still can
+   const del2 = await as("authenticated", U.sellerA, null, `delete from storage.objects where bucket_id=$1 and name=$2`, [B, name]);
+-  check("A42-S29 the seller can delete their own", !del2.err && (await val(`select count(*)::int as v from storage.objects where bucket_id=$1 and name=$2`, [B, name])) === 0, del2.err?.message);
++  check("A42-S29 the seller can NOT delete the LIVE blueprint object (M4.4: it is what buyers download)", !del2.err && (await val(`select count(*)::int as v from storage.objects where bucket_id=$1 and name=$2`, [B, name])) === 1, del2.err?.message);
++  const spare = `${U.sellerA}/${lid}/spare.json`;
++  await put(spare, U.sellerA);
++  const del3 = await as("authenticated", U.sellerA, null, `delete from storage.objects where bucket_id=$1 and name=$2`, [B, spare]);
++  check("A42-S29b ...but can delete any other object of theirs (e.g. an unused upload)", !del3.err && (await val(`select count(*)::int as v from storage.objects where bucket_id=$1 and name=$2`, [B, spare])) === 0, del3.err?.message);
+ });
+ await inTxn(async () => {
+   // a malformed object sitting in the bucket must not break anyone else's reads (no uuid casts in policies)
+   const lid = await mkListing(U.sellerA);
+   const good = `${U.sellerA}/${lid}/blueprint.json`;
+   await put(good, U.sellerA);
++  await makeCurrent(lid, good);
+   await put(`${U.sellerA}/notauuid/poison.json`, U.sellerA);   // inserted as owner, bypassing RLS
+   await put(`${U.sellerA}/12345/other.json`, U.sellerA);
+   await put(`not-even-a-path.json`, U.sellerA);
+--- a/tests/phase4/m43-db.test.mjs	2026-10-05 09:53:17.000000000 +0000
++++ b/tests/phase4/m43-db.test.mjs	2026-10-11 03:50:47.288377876 +0000
+@@ -67,7 +67,7 @@
+   const lid = await mkListing({ demo: DEMO([step({ name: "Draft the answer" }), step({ id: "s2", model: SONNET, name: "  " })]) });
+   const a = await info("anon", null, lid);
+   check("A43-I03 anon sees an available demo: exact public keys, step names (blank name -> 'Step N'), 2000-char cap, per-day limit, remainingToday NULL",
+-    Object.keys(a).sort().join() === "available,budgetExhausted,maxInputChars,remainingToday,runsPerDay,stepNames"
++    Object.keys(a).sort().join() === "available,budgetExhausted,maxInputChars,remainingToday,runsPerDay,sampleInput,stepNames"
+       && a.available === true && JSON.stringify(a.stepNames) === JSON.stringify(["Draft the answer", "Step 2"]) && a.maxInputChars === 2000
+       && a.runsPerDay === 3 && a.remainingToday === null && a.budgetExhausted === false, a);
+   check("A43-I04 the public payload never contains prompt text, model names or rupee figures",
