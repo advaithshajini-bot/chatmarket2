@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createPaymentsDb } from "@/lib/payments/db";
+import { createServiceClient } from "@/lib/payments/service-client";
 
 // Phase 1 of real Razorpay integration: standard Orders API for buyer
 // checkout. This doesn't need Route/seller payouts to work — funds land in
@@ -66,6 +68,23 @@ export async function POST(request) {
   const razorpayData = await razorpayRes.json();
   if (!razorpayRes.ok) {
     return NextResponse.json({ error: razorpayData.error?.description || "Razorpay order creation failed." }, { status: 502 });
+  }
+
+  // Record who is paying for what BEFORE handing the order id to the browser. The webhook (and verify-payment)
+  // resolve a payment through this row, so an order we cannot record must not be payable.
+  const service = createServiceClient();
+  if (!service) {
+    return NextResponse.json({ error: "Checkout isn't fully configured on this deployment yet." }, { status: 500 });
+  }
+  try {
+    await createPaymentsDb(service).recordPaymentOrder({
+      orderId: razorpayData.id,
+      userId: userData.user.id,
+      listingId: listing.id,
+      amountPaise,
+    });
+  } catch {
+    return NextResponse.json({ error: "Couldn't start checkout. Please try again." }, { status: 502 });
   }
 
   return NextResponse.json({
