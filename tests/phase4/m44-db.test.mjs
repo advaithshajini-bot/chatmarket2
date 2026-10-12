@@ -353,13 +353,15 @@ await inTxn(async () => {
 await inTxn(async () => {
   const lid = await mkListing();
   const upd = (role, uid, claims) => as(role, uid, claims, `update public.listings set blueprint_path=$2, blueprint_format='n8n', blueprint_sha256=$3, blueprint_size_bytes=5 where id=$1`, [lid, path(lid), SHA]);
-  check("A44-G01 a seller cannot set blueprint_* on their own listing (42501)", code(await upd("authenticated", U.seller)) === "42501");
+  // "Refused" = the guard raises 42501, OR the seller has no UPDATE policy at all (the real schema: 0 rows change, no error).
+  const refused = async (r) => code(r) === "42501" || (!r.err && r.rowCount === 0 && (await val(`select blueprint_path as v from public.listings where id=$1`, [lid])) === null);
+  check("A44-G01 a seller cannot set blueprint_* on their own listing (guard 42501, or no UPDATE policy: nothing written)", await refused(await upd("authenticated", U.seller)));
   check("A44-G02 an admin (aal2) cannot either, outside the review RPC", code(await upd("authenticated", U.admin, AAL2)) === "42501");
   const ins = await as("authenticated", U.seller, null, `insert into public.listings (title, model, category, price, seller_name, seller_id, status, product_type, blueprint_path, blueprint_format, blueprint_sha256, blueprint_size_bytes)
      values ('x','n','n',0,'x',$1,'pending_review','workflow',$2,'n8n',$3,5)`, [U.seller, path(lid), SHA]);
   check("A44-G03 a seller cannot INSERT a listing with blueprint_* pre-filled", code(ins) === "42501", ins.err?.message);
   await q(`select set_config('chatmarket.blueprint_write','on',true)`);
-  check("A44-G04 the setting alone is not enough: as an API role with the GUC on it is still refused", code(await upd("authenticated", U.seller)) === "42501" && code(await upd("service_role", null)) === "42501");
+  check("A44-G04 the setting alone is not enough: as an API role with the GUC on it is still refused", await refused(await upd("authenticated", U.seller)) && code(await upd("service_role", null)) === "42501");
   await q(`select set_config('chatmarket.blueprint_write','off',true)`);
   await q("SAVEPOINT g");
   const raw = await q(`update public.listings set blueprint_path=$2, blueprint_format='n8n', blueprint_sha256=$3, blueprint_size_bytes=5 where id=$1`, [lid, path(lid), SHA]).then(() => null, (e) => e);
@@ -380,7 +382,7 @@ await inTxn(async () => {
   const s2 = (await seller("submit_listing_blueprint", lid, rej, "n8n", SHA2, 100, "{}")).rows[0].v;
   await admin("review_listing_blueprint", s2, "reject", null, "Not acceptable, sorry.");
   await seller("submit_listing_blueprint", lid, pend, "n8n", SHA2, 100, "{}");
-  await q(`insert into public.purchases (listing_id, user_id, status) values ($1,$2,'paid'),($1,$3,'refunded')`, [lid, U.buyer, U.refunded]);
+  await q(`insert into public.purchases (listing_id, user_id, amount, status) values ($1,$2,100,'paid'),($1,$3,100,'refunded')`, [lid, U.buyer, U.refunded]);
   const sel = (uid, claims, name) => as("authenticated", uid, claims, `select name from storage.objects where bucket_id='listing-blueprints' and name=$1`, [name]).then(r => r.rows.length);
   check("A44-T01 a paid buyer can read the CURRENT blueprint", (await sel(U.buyer, null, cur)) === 1);
   check("A44-T02 ...but NOT a pending or a rejected upload under the same listing", (await sel(U.buyer, null, pend)) === 0 && (await sel(U.buyer, null, rej)) === 0);
