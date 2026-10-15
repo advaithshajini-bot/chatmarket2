@@ -96,6 +96,8 @@ function DisputeSection({ order, onDisputeFiled }) {
     }
 
     setReporting(false);
+    // best effort: ask the server to hold the seller's payout right away (the periodic sweep is the safety net)
+    fetch("/api/payments/disputes/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ purchaseId: order.id }) }).catch(() => {});
     onDisputeFiled(order.id, data);
   };
 

@@ -153,6 +153,9 @@ export default function AdminDisputesClient({ initialDisputes }) {
 
     if (error) return { error: error.message };
 
+    // best effort: release / reverse / refund right away (the periodic sweep is the safety net)
+    fetch("/api/payments/disputes/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ purchaseId: data.purchase_id }) }).catch(() => {});
+
     setDisputes((prev) =>
       prev.map((d) => (d.id === id ? { ...d, status: data.status, resolutionNote: data.resolution_note } : d))
     );
