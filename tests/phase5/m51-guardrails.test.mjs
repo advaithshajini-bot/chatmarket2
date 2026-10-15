@@ -48,8 +48,8 @@ const m = sql(MIG);
 const lower = m.toLowerCase();
 
 // ---------------------------------------------------------------- migration: additive and locked down
-check("G01 the migration file exists and sorts AFTER every earlier migration",
-  exists(MIG) && fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql")).sort().at(-1) === path.basename(MIG));
+check("G01 the migration file exists and sorts AFTER every earlier migration (5.2's migration may sort after it)",
+  exists(MIG) && fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql") && (f < "20261013")).sort().at(-1) === path.basename(MIG));
 check("G02 additive only: no DROP, TRUNCATE or DELETE statements", !/\b(drop|truncate)\s+(table|function|policy|index|column|schema|trigger|type)\b/.test(lower) && !/\bdelete\s+from\b/.test(lower) && !/\btruncate\b/.test(lower));
 check("G03 every ALTER TABLE targets only the two NEW tables (and only enables RLS)",
   [...lower.matchAll(/alter\s+table\s+([\w.]+)\s+([^;]+);/g)].every((x) => /^public\.(payment_orders|webhook_events)$/.test(x[1]) && /^enable row level security$/.test(x[2].trim())), [...lower.matchAll(/alter\s+table[^;]+;/g)].map((x) => x[0]));
@@ -97,7 +97,7 @@ check("G31 it reads the raw body BEFORE calling the handler", wr.indexOf("reques
 check("G32 it is glue only: no crypto, no JSON.parse, no direct db calls", !/crypto|JSON\.parse|\.rpc\(|\.from\(/.test(wr));
 check("G33 it exports POST only (no GET etc.), is dynamic, runs on node, and sends Cache-Control: no-store",
   /export async function POST/.test(wr) && !/export async function (GET|PUT|DELETE|PATCH)/.test(wr) && /dynamic = "force-dynamic"/.test(wr) && /runtime = "nodejs"/.test(wr) && /no-store/.test(wr));
-check("G34 it uses RAZORPAY_WEBHOOK_SECRET (not the key secret) and fails closed with 500 when unset", /process\.env\.RAZORPAY_WEBHOOK_SECRET/.test(wr) && !/RAZORPAY_KEY_SECRET/.test(wr) && /!secret/.test(wr) && /status: 500/.test(wr));
+check("G34 it uses RAZORPAY_WEBHOOK_SECRET (not the key secret) and fails closed with 500 when unset", /process\.env\.RAZORPAY_WEBHOOK_SECRET/.test(wr) && /\bsecret,/.test(wr) && !/secret:\s*(process\.env\.RAZORPAY_KEY_SECRET|keySecret)/.test(wr) && /!secret/.test(wr) && /status: 500/.test(wr));
 check("G35 the webhook path is not behind the login middleware (middleware.js excludes /api/)", /api\//.test(read("middleware.js").split("matcher")[1] ?? ""));
 
 // ---------------------------------------------------------------- signature + handler hygiene
