@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Wallet, TrendingDown, TrendingUp, Info } from "lucide-react";
+import { Wallet, TrendingDown, TrendingUp } from "lucide-react";
+import SellerPayoutPanel from "@/components/SellerPayoutPanel";
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -105,23 +106,7 @@ function TransactionsTab({ transactions }) {
   );
 }
 
-function PayoutsPlaceholder() {
-  return (
-    <div className="rounded-md p-8 text-center" style={{ border: "1px dashed #D8D5C9" }}>
-      <Info size={18} color="#6B6F76" className="mx-auto mb-2" />
-      <p className="text-sm mb-1" style={{ color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}>
-        No real payouts yet
-      </p>
-      <p className="text-xs max-w-sm mx-auto" style={{ color: "#6B6F76" }}>
-        This section will show real bank settlements once Razorpay Route is connected —
-        see docs/razorpay-integration.md for the intended flow. Sale transactions above
-        are real; batched payouts to your bank aren't wired up yet.
-      </p>
-    </div>
-  );
-}
-
-export default function SellerEarningsClient({ grossEarnings, netEarnings, refundedTotal, weeklyEarnings, transactions }) {
+export default function SellerEarningsClient({ grossEarnings, netEarnings, refundedTotal, weeklyEarnings, transactions, payouts }) {
   const [tab, setTab] = useState("transactions");
 
   return (
@@ -166,11 +151,11 @@ export default function SellerEarningsClient({ grossEarnings, netEarnings, refun
             fontFamily: "'IBM Plex Sans', sans-serif",
           }}
         >
-          Payout history
+          Payout status
         </button>
       </div>
 
-      {tab === "transactions" ? <TransactionsTab transactions={transactions} /> : <PayoutsPlaceholder />}
+      {tab === "transactions" ? <TransactionsTab transactions={transactions} /> : <SellerPayoutPanel payouts={payouts} />}
     </div>
   );
 }
