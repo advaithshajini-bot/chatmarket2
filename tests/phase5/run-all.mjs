@@ -1,4 +1,4 @@
-// tests/phase5/run-all.mjs -- single command for the Milestone 5.1 + 5.2 + 5.2c gate:
+// tests/phase5/run-all.mjs -- single command for the Milestone 5.1 + 5.2 + 5.2c + 5.3 gate:
 //     DATABASE_URL=... node tests/phase5/run-all.mjs
 // SKIPPED counts as NOT passed unless --allow-skip.
 //   PHASE5_CONCURRENCY_TESTS=1  also runs the multi-connection race tests (they COMMIT then delete rows: scratch DB only)
@@ -31,5 +31,8 @@ suite("M52c disputes -> hold / release / reverse / refund (live DB, real schema)
 suite("M52c integration: real DB + dispute orchestration + fake Razorpay + races (commits then deletes)", "m52c-integration.test.mjs");
 suite("M52c client, orchestration, sync handler, refund webhook (no DB)", "m52c-logic.test.mjs");
 suite("M52c source + migration guardrails (static)", "m52c-guardrails.test.mjs");
+suite("M53  admin payout reporting (live DB, real schema)", "m53-db.test.mjs");
+suite("M53  admin payments desk helpers (no DB)", "m53-logic.test.mjs");
+suite("M53  source + migration guardrails (static)", "m53-guardrails.test.mjs");
 console.log(`\nTOTAL: ${totalPass} passed, ${totalFail} failed${notPassed ? ", with skipped suites (NOT a pass)" : ""}`);
 process.exit(totalFail || notPassed ? 1 : 0);
