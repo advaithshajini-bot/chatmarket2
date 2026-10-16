@@ -20,11 +20,14 @@
 | `m53-db.test.mjs` | Postgres with ALL real migrations incl. 20261015100000 | admin payout reporting: every function refuses anon / service_role / non-admin / admin without aal2, the attention rules (parked, failed, stuck, refunds, disputes, webhook events), ledger buckets + filters + paging, disputes/refunds list, purchase timeline, seller balances in integer paise, and that nothing is written. Rolled-back transactions. |
 | `m53-logic.test.mjs` | nothing | the desk helpers: paise/age formatting, RPC argument mapping, fail-soft loaders, the badge count, the two admin action wrappers. |
 | `m53-guardrails.test.mjs` | nothing | static: 5.3 migration additive + read-only + admin/MFA first statement + grants, the page gates on admin and aal2 before loading, no service client, no Razorpay call or reconcile button, only known RPCs. |
+| `m53b-db.test.mjs` | Postgres with ALL real migrations incl. 20261016100000 | seller payout status: anon/service_role refused, a seller sees only their own sales, every status mapping (needs_account … paid, reversed, dispute, under_review), amounts in integer paise, and that NO id, error, review reason, dispute text or buyer detail ever appears in the response. Rolled-back transactions. |
+| `m53b-logic.test.mjs` | nothing | the plain-English wording (no internal terms) and the fail-soft loader. |
+| `m53b-guardrails.test.mjs` | nothing | static: read-only, no seller-id parameter, auth.uid() only, allow-list response, seller UI uses no admin code / ledger tables / service client. |
 
 `fake-razorpay.mjs` is the mock Razorpay Route API (a `fetch` replacement; no network). `run-mutations-52.mjs` / `run-mutations-52c.mjs` break 5.2 / 5.2c on
 purpose (64 mutations; one equivalent mutant -- the unreachable 6h backoff cap -- is deliberately not mutated); needs a template
 DB `m52tpl` = stub + every migration except the 5.2 one.
-`run-mutations-53.mjs` does the same for 5.3 (58 mutations, all killed); template DB `m53tpl` = stub + every migration except the 5.3 one.
+`run-mutations-53.mjs` / `run-mutations-53b.mjs` do the same for 5.3 part 1 / 2 (58 + 41 mutations, all killed); template DBs `m53tpl` / `m53btpl` = stub + every migration except the 5.3 part 1 / part 2 one.
 
 Scratch DB: `tests/phase5/scratch/build-real.sh <db> <migrations-dir> [extra.sql]` builds a database from a minimal
 Supabase stub (`min-stub.sql`: roles incl. service_role BYPASSRLS, default grants, auth/storage/vault/pg_net stand-ins)

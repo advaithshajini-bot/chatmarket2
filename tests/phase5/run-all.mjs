@@ -34,5 +34,8 @@ suite("M52c source + migration guardrails (static)", "m52c-guardrails.test.mjs")
 suite("M53  admin payout reporting (live DB, real schema)", "m53-db.test.mjs");
 suite("M53  admin payments desk helpers (no DB)", "m53-logic.test.mjs");
 suite("M53  source + migration guardrails (static)", "m53-guardrails.test.mjs");
+suite("M53b seller payout status (live DB, real schema)", "m53b-db.test.mjs");
+suite("M53b seller payout wording + loader (no DB)", "m53b-logic.test.mjs");
+suite("M53b source + migration guardrails (static)", "m53b-guardrails.test.mjs");
 console.log(`\nTOTAL: ${totalPass} passed, ${totalFail} failed${notPassed ? ", with skipped suites (NOT a pass)" : ""}`);
 process.exit(totalFail || notPassed ? 1 : 0);

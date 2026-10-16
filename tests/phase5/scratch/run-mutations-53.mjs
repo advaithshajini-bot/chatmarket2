@@ -60,8 +60,8 @@ for (const fn of ["admin_payment_attention_count()", "admin_payment_attention(p_
   SQLM.push([`MFA check removed: ${fn.split("(")[0]}`, `create function public.${fn}`, `create function public.${fn}`, "mfa"]);
 }
 const JSM = [
-  ["formatPaise uses floats", "lib/domain/admin-payments.js", "if (!Number.isInteger(paise)) return \"—\";", "if (typeof paise !== \"number\") return \"—\";"],
-  ["formatPaise drops the paise padding", "lib/domain/admin-payments.js", "String(abs % 100).padStart(2, \"0\")", "String(abs % 100)"],
+  ["formatPaise uses floats", "lib/domain/paise.js", "if (!Number.isInteger(paise)) return \"—\";", "if (typeof paise !== \"number\") return \"—\";"],
+  ["formatPaise drops the paise padding", "lib/domain/paise.js", "String(abs % 100).padStart(2, \"0\")", "String(abs % 100)"],
   ["ledger 'all' not mapped to null", "lib/domain/admin-payments.js", "p_bucket: bucket === \"all\" ? null : bucket", "p_bucket: bucket"],
   ["loader errors thrown, not soft", "lib/domain/admin-payments.js", "if (error || data == null) return { ...fallback, error: true };", "if (data == null) return { ...fallback, error: true };"],
   ["count trusts a non-integer", "lib/domain/admin-payments.js", "return error || !Number.isInteger(data) ? null : data;", "return error ? null : data;"],

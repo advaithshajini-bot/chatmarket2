@@ -48,7 +48,7 @@ const m = sql(MIG), lower = m.toLowerCase();
 const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql"));
 
 // ---------------------------------------------------------------- migration
-check("G01 the 5.2 migration exists and only the 5.2c and 5.3 migrations sort after it", exists(MIG) && migs.filter((f) => f > path.basename(MIG)).every((f) => f.startsWith("20261014") || f.startsWith("20261015")));
+check("G01 the 5.2 migration exists and only the 5.2c and 5.3 migrations sort after it", exists(MIG) && migs.filter((f) => f > path.basename(MIG)).every((f) => /^2026101[456]/.test(f)));
 check("G02 additive only: no DROP / TRUNCATE / DELETE statements", !/\b(drop|truncate)\s+(table|function|policy|index|column|schema|trigger|type)\b/.test(lower) && !/\bdelete\s+from\b/.test(lower) && !/\btruncate\b/.test(lower));
 check("G03 every ALTER TABLE targets only the two NEW tables and only enables RLS",
   [...lower.matchAll(/alter\s+table\s+([\w.]+)\s+([^;]+);/g)].every((x) => /^public\.(seller_payout_accounts|transfers)$/.test(x[1]) && /^enable row level security$/.test(x[2].trim())), [...lower.matchAll(/alter\s+table[^;]+;/g)].map((x) => x[0]));
