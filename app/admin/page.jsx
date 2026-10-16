@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldAlert, Clock, Lock, Users, Flag, ShieldCheck, Trash2, FileCheck } from "lucide-react";
+import { ShieldAlert, Clock, Lock, Users, Flag, ShieldCheck, Trash2, FileCheck, IndianRupee } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import AdminQueueClient from "@/components/AdminQueueClient";
 import AdminUsersClient from "@/components/AdminUsersClient";
@@ -9,6 +9,7 @@ import AdminKycReviewClient from "@/components/AdminKycReviewClient";
 import PermissionDenied from "@/components/PermissionDenied";
 import { createClient } from "@/lib/supabase/server";
 import { getVerifiedUser } from "@/lib/supabase/get-verified-user";
+import { getAttentionCount } from "@/lib/domain/admin-payments";
 
 export const dynamic = "force-dynamic";
 
@@ -124,15 +125,26 @@ export default async function AdminPage() {
     }))
   );
 
+  // null when this session is not aal2 (the RPC refuses) -- the link is still shown, just without a count
+  const paymentAttention = await getAttentionCount(supabase);
+
   return (
     <div style={{ minHeight: "100vh" }}>
       <TopNav />
       <main className="px-6 py-8 max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>Admin</h1>
+          <div className="flex items-center gap-2">
+          <Link href="/admin/payments" className="text-xs inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ border: "1px solid #D8D5C9", color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+            <IndianRupee size={12} /> Payments
+            {paymentAttention > 0 && (
+              <span aria-label={`${paymentAttention} payment items need attention`} className="px-1.5 rounded-full" style={{ background: "#B33A2E", color: "#fff", fontSize: 11 }}>{paymentAttention}</span>
+            )}
+          </Link>
           <Link href="/admin/security" className="text-xs inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full" style={{ border: "1px solid #D8D5C9", color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
             <ShieldCheck size={12} /> Two-factor authentication
           </Link>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-2 gap-4 mb-8">
