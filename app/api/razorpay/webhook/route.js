@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/payments/service-client";
 import { PLATFORM_FEE_PCT } from "@/lib/constants";
 import { createRazorpayClient } from "@/lib/payments/razorpay-client";
 import { createTransferForPurchase } from "@/lib/payments/transfers";
+import { payoutPurchase } from "@/lib/payments/vpa-payouts";
 
 // Razorpay -> us. Configure in the Razorpay dashboard (Settings -> Webhooks) with events
 // `payment.captured` and `order.paid` (+ the `transfer.*` events once Route is activated), and the same secret as
@@ -25,8 +26,12 @@ export async function POST(request) {
   // 5.2: after a successful fulfilment, best-effort start the Route transfer. A no-op while the
   // phase5_route_transfers flag is OFF; any failure is left to the reconciliation sweep.
   const keyId = process.env.RAZORPAY_KEY_ID, keySecret = process.env.RAZORPAY_KEY_SECRET;
-  const rzp = keyId && keySecret ? createRazorpayClient({ keyId, keySecret }) : null;
-  const afterFulfil = rzp ? ({ purchaseId }) => createTransferForPurchase({ db, rzp, purchaseId }) : undefined;
+  const rzp = keyId && keySecret ? createRazorpayClient({ keyId, keySecret, accountNumber: process.env.RAZORPAYX_ACCOUNT_NUMBER || null }) : null;
+  // 5.4: and best-effort start the instant UPI payout (also a no-op while phase6_vpa_payouts is OFF; the two are mutually exclusive in the database).
+  const afterFulfil = rzp ? async ({ purchaseId }) => {
+    try { await createTransferForPurchase({ db, rzp, purchaseId }); } catch { /* left to the sweep */ }
+    await payoutPurchase({ db, rzp, purchaseId });
+  } : undefined;
   const r = await handleRazorpayWebhook({
     rawBody,
     headers: request.headers,

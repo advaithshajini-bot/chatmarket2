@@ -20,7 +20,7 @@ async function run(request) {
     secret: process.env.CRON_SECRET,
     sweep: async () => {
       if (!service || !keyId || !keySecret) throw new Error("not configured");
-      return runReconciliation({ db: createPaymentsDb(service), rzp: createRazorpayClient({ keyId, keySecret }), limit: 20, budgetMs: 20000 });
+      return runReconciliation({ db: createPaymentsDb(service), rzp: createRazorpayClient({ keyId, keySecret, accountNumber: process.env.RAZORPAYX_ACCOUNT_NUMBER || null }), limit: 20, budgetMs: 20000 });
     },
   });
   return NextResponse.json(r.json, { status: r.status, headers: { "Cache-Control": "no-store" } });

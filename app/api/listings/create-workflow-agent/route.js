@@ -19,16 +19,15 @@ export async function POST(request) {
     return NextResponse.json({ error: "You need to be logged in to list a product." }, { status: 401 });
   }
 
-  // Mirrors the client-side gate in app/sell/page.jsx (selling is gated on
-  // KYC approval) -- checked again here so this route can't be used to
-  // bypass that gate directly.
-  const { data: kyc } = await supabase
-    .from("seller_kyc")
-    .select("status")
+  // Mirrors the client-side gate in app/sell/page.jsx (selling needs a saved UPI ID to be paid at, 5.4) --
+  // checked again here so this route can't be used to bypass that gate directly.
+  const { data: payoutAccount } = await supabase
+    .from("seller_payout_accounts")
+    .select("vpa_address")
     .eq("user_id", user.id)
     .maybeSingle();
-  if (kyc?.status !== "approved") {
-    return NextResponse.json({ error: "Your seller identity verification must be approved first." }, { status: 403 });
+  if (!payoutAccount?.vpa_address) {
+    return NextResponse.json({ error: "Add your UPI ID before listing a product." }, { status: 403 });
   }
 
   let body;

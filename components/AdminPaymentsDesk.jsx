@@ -3,20 +3,21 @@
 import { useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
-  ATTENTION_LABELS, BUCKET_LABELS, LEDGER_FILTERS, DISPUTE_FILTERS,
+  ATTENTION_LABELS, BUCKET_LABELS, LEDGER_FILTERS, DISPUTE_FILTERS, PAYOUT_FILTERS, RETRYABLE_PAYOUT_STATUSES,
   formatPaise, formatAge, getAttention, getLedger, getDisputes, getBalances, getTimeline,
-  clearTransferReview, setSellerPayoutAccount,
+  clearTransferReview, setSellerPayoutAccount, getPayouts, retryPayout, setSellerPayoutStatus,
 } from "@/lib/domain/admin-payments";
 
 const MONO = { fontFamily: "'IBM Plex Mono', monospace" };
 const card = { background: "#F7F7F4", border: "1px solid #D8D5C9" };
-const TABS = [["attention", "Needs attention"], ["transfers", "Transfers"], ["disputes", "Refunds / Disputes"], ["balances", "Seller balances"]];
+const TABS = [["attention", "Needs attention"], ["payouts", "UPI payouts"], ["transfers", "Route transfers (legacy)"], ["disputes", "Disputes (support tickets)"], ["balances", "Seller balances"]];
 const when = (iso) => (iso ? new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "—");
 
 function Pill({ children, tone = "grey" }) {
   const t = { grey: ["#E8E7E2", "#6B6F76"], amber: ["#FBF1DD", "#8A6A18"], red: ["#F6E3E0", "#B33A2E"], green: ["#EAF2EF", "#2F6F62"] }[tone];
   return <span className="text-[11px] px-2 py-0.5 rounded-full uppercase tracking-wide whitespace-nowrap" style={{ background: t[0], color: t[1], ...MONO }}>{children}</span>;
 }
+const payoutTone = { creating: "amber", queued: "amber", processing: "amber", processed: "green", failed: "red", reversed: "red", cancelled: "red" };
 const bucketTone = { held: "amber", releasing: "amber", settled: "green", reversed: "grey", failed: "red", parked: "red", creating: "amber" };
 
 function Filters({ options, value, onChange, label }) {
@@ -54,7 +55,7 @@ function Timeline({ data }) {
   );
 }
 
-export default function AdminPaymentsDesk({ initialAttention, initialLedger, initialDisputes, initialBalances }) {
+export default function AdminPaymentsDesk({ initialAttention, initialLedger, initialDisputes, initialBalances, initialPayouts = { total: 0, items: [] } }) {
   const supabase = createClient();
   const [tab, setTab] = useState("attention");
   const [attention, setAttention] = useState(initialAttention);
@@ -63,15 +64,17 @@ export default function AdminPaymentsDesk({ initialAttention, initialLedger, ini
   const [disputes, setDisputes] = useState(initialDisputes);
   const [disputeFilter, setDisputeFilter] = useState("all");
   const [balances, setBalances] = useState(initialBalances);
+  const [payouts, setPayouts] = useState(initialPayouts);
+  const [payoutFilter, setPayoutFilter] = useState("all");
   const [timelines, setTimelines] = useState({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [form, setForm] = useState({ userId: "", accountId: "", status: "active" });
 
   const refreshAll = useCallback(async () => {
-    const [a, l, d, b] = await Promise.all([getAttention(supabase), getLedger(supabase, ledgerFilter, 0), getDisputes(supabase, disputeFilter, 0), getBalances(supabase)]);
-    setAttention(a); setLedger(l); setDisputes(d); setBalances(b);
-  }, [supabase, ledgerFilter, disputeFilter]);
+    const [a, l, d, b, po] = await Promise.all([getAttention(supabase), getLedger(supabase, ledgerFilter, 0), getDisputes(supabase, disputeFilter, 0), getBalances(supabase), getPayouts(supabase, payoutFilter, 0)]);
+    setAttention(a); setLedger(l); setDisputes(d); setBalances(b); setPayouts(po);
+  }, [supabase, ledgerFilter, disputeFilter, payoutFilter]);
 
   const toggleTimeline = async (pid) => {
     if (!pid) return;
@@ -90,6 +93,25 @@ export default function AdminPaymentsDesk({ initialAttention, initialLedger, ini
     setBusy(false);
   };
 
+  const doRetry = async (pid) => {
+    if (busy) return;
+    if (typeof window !== "undefined" && !window.confirm("Retry this payout? Check the RazorpayX dashboard first: only retry if the money did NOT leave.")) return;
+    setBusy(true); setMsg("");
+    const r = await retryPayout(supabase, pid);
+    setMsg(r.error ? r.error : "Payout re-queued. The next sweep sends it.");
+    if (!r.error) await refreshAll();
+    setBusy(false);
+  };
+
+  const changeSellerStatus = async (userId, status) => {
+    if (busy) return;
+    setBusy(true); setMsg("");
+    const r = await setSellerPayoutStatus(supabase, userId, status);
+    setMsg(r.error ? r.error : status === "suspended" ? "Payouts to this seller are paused." : "Payouts to this seller are on again.");
+    if (!r.error) await refreshAll();
+    setBusy(false);
+  };
+
   const savePayout = async (e) => {
     e.preventDefault();
     if (busy) return;
@@ -100,6 +122,7 @@ export default function AdminPaymentsDesk({ initialAttention, initialLedger, ini
     setBusy(false);
   };
 
+  const changePayouts = async (f) => { setPayoutFilter(f); setPayouts(await getPayouts(supabase, f, 0)); };
   const changeLedger = async (f) => { setLedgerFilter(f); setLedger(await getLedger(supabase, f, 0)); };
   const changeDisputes = async (f) => { setDisputeFilter(f); setDisputes(await getDisputes(supabase, f, 0)); };
 
@@ -110,7 +133,7 @@ export default function AdminPaymentsDesk({ initialAttention, initialLedger, ini
     </>
   );
 
-  const failed = attention?.error || ledger?.error || disputes?.error || balances?.error;
+  const failed = attention?.error || ledger?.error || disputes?.error || balances?.error || payouts?.error;
 
   return (
     <div>
@@ -141,7 +164,7 @@ export default function AdminPaymentsDesk({ initialAttention, initialLedger, ini
               <div key={`${i.kind}-${i.purchase_id || i.event_id}-${n}`} className="rounded-md p-4" style={card}>
                 <div className="flex flex-wrap items-center gap-3 justify-between">
                   <div className="flex items-center gap-3">
-                    <Pill tone={i.kind === "parked_transfer" || i.kind.endsWith("failed") ? "red" : "amber"}>{ATTENTION_LABELS[i.kind] || i.kind}</Pill>
+                    <Pill tone={i.kind === "parked_transfer" || i.kind.endsWith("failed") || i.kind === "payout_parked" || i.kind === "payout_returned" ? "red" : "amber"}>{ATTENTION_LABELS[i.kind] || i.kind}</Pill>
                     <span className="text-xs" style={{ color: "#6B6F76", ...MONO }}>{formatAge(i.age_seconds)} ago</span>
                   </div>
                   <span className="text-sm" style={{ color: "#14213D", fontWeight: 500 }}>{i.amount_paise != null ? formatPaise(i.amount_paise) : ""}</span>
@@ -154,12 +177,49 @@ export default function AdminPaymentsDesk({ initialAttention, initialLedger, ini
                   {i.kind === "parked_transfer" && (
                     <button disabled={busy} onClick={() => clearReview(i.purchase_id)} className="text-xs px-3 py-1.5 rounded-md" style={{ background: "#14213D", color: "#fff", opacity: busy ? 0.6 : 1 }}>Clear review</button>
                   )}
+                  {["payout_failed", "payout_parked", "payout_returned"].includes(i.kind) && (
+                    <button disabled={busy} onClick={() => doRetry(i.purchase_id)} className="text-xs px-3 py-1.5 rounded-md" style={{ background: "#14213D", color: "#fff", opacity: busy ? 0.6 : 1 }}>Retry payout</button>
+                  )}
                   {i.purchase_id && <Expand pid={i.purchase_id} />}
                 </div>
               </div>
             ))}
           </div>
           {attention.total > attention.items.length && <p className="text-xs mt-3" style={{ color: "#6B6F76" }}>Showing the oldest {attention.items.length} of {attention.total}.</p>}
+        </div>
+      )}
+
+      {tab === "payouts" && (
+        <div>
+          <Filters options={PAYOUT_FILTERS} value={payoutFilter} onChange={changePayouts} label="Filter UPI payouts" />
+          {payouts.items.length === 0 && <p className="text-sm" style={{ color: "#6B6F76" }}>No UPI payouts.</p>}
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+              <thead>
+                <tr className="text-left text-xs uppercase" style={{ color: "#6B6F76", ...MONO }}>
+                  <th className="py-2 pr-3">When</th><th className="pr-3">Seller</th><th className="pr-3">UPI ID</th><th className="pr-3">Status</th><th className="pr-3 text-right">Paid out</th><th className="pr-3 text-right">Fee</th><th className="pr-3">UTR</th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {payouts.items.map((t) => (
+                  <tr key={t.purchase_id} style={{ borderTop: "1px solid #EAE8DE", verticalAlign: "top" }}>
+                    <td className="py-2 pr-3 text-xs">{when(t.created_at)}</td>
+                    <td className="pr-3">{t.seller_name || "—"}</td>
+                    <td className="pr-3 text-xs" style={MONO}>{t.vpa_address}</td>
+                    <td className="pr-3"><Pill tone={payoutTone[t.status]}>{t.status}</Pill>{t.review_reason && <div className="text-xs mt-1" style={{ color: "#B33A2E" }}>{t.review_reason}</div>}{t.error && <div className="text-xs mt-1" style={{ color: "#B33A2E" }}>{t.error}</div>}</td>
+                    <td className="pr-3 text-right">{formatPaise(t.amount_paise)}</td>
+                    <td className="pr-3 text-right">{formatPaise(t.platform_fee_paise)}</td>
+                    <td className="pr-3 text-xs" style={MONO}>{t.utr || "—"}</td>
+                    <td className="py-2">
+                      {RETRYABLE_PAYOUT_STATUSES.includes(t.status) && <button disabled={busy} onClick={() => doRetry(t.purchase_id)} className="text-xs px-3 py-1.5 rounded-md mr-2" style={{ background: "#14213D", color: "#fff", opacity: busy ? 0.6 : 1 }}>Retry</button>}
+                      <Expand pid={t.purchase_id} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs mt-3" style={{ color: "#6B6F76" }}>{payouts.total} payout{payouts.total === 1 ? "" : "s"}{payouts.total > payouts.items.length ? ` · showing the newest ${payouts.items.length}` : ""}. Payouts are final once processed; a retry is only for payouts that failed or were returned.</p>
         </div>
       )}
 
@@ -196,6 +256,7 @@ export default function AdminPaymentsDesk({ initialAttention, initialLedger, ini
       {tab === "disputes" && (
         <div>
           <Filters options={DISPUTE_FILTERS} value={disputeFilter} onChange={changeDisputes} label="Filter disputes" />
+          <p className="text-xs mb-3" style={{ color: "#6B6F76" }}>Disputes are customer-support tickets. They never move money and are never charged to a seller.</p>
           {disputes.items.length === 0 && <p className="text-sm" style={{ color: "#6B6F76" }}>No disputes.</p>}
           <div className="space-y-3">
             {disputes.items.map((d) => (
@@ -225,7 +286,7 @@ export default function AdminPaymentsDesk({ initialAttention, initialLedger, ini
             <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
               <thead>
                 <tr className="text-left text-xs uppercase" style={{ color: "#6B6F76", ...MONO }}>
-                  <th className="py-2 pr-3">Seller</th><th className="pr-3">Payout account</th><th className="pr-3 text-right">Held</th><th className="pr-3 text-right">Releasing</th>
+                  <th className="py-2 pr-3">Seller</th><th className="pr-3">UPI ID</th><th className="pr-3 text-right">UPI paid</th><th className="pr-3 text-right">UPI in progress</th><th className="pr-3 text-right">UPI needs attention</th><th className="pr-3">Payout account</th><th className="pr-3 text-right">Held</th><th className="pr-3 text-right">Releasing</th>
                   <th className="pr-3 text-right">Settled</th><th className="pr-3 text-right">Reversed</th><th className="pr-3 text-right">Needs attention</th><th className="text-right">Awaiting transfer</th>
                 </tr>
               </thead>
@@ -233,7 +294,11 @@ export default function AdminPaymentsDesk({ initialAttention, initialLedger, ini
                 {balances.items.map((s) => (
                   <tr key={s.seller_id} style={{ borderTop: "1px solid #EAE8DE" }}>
                     <td className="py-2 pr-3">{s.seller_name || s.seller_id.slice(0, 8)}</td>
-                    <td className="pr-3">{s.account_status ? <Pill tone={s.account_status === "active" ? "green" : "amber"}>{s.account_status}</Pill> : <Pill tone="red">none</Pill>}</td>
+                    <td className="pr-3 text-xs" style={MONO}>{s.vpa_address || "—"}</td>
+                    <td className="pr-3 text-right">{formatPaise(s.upi_paid_paise)}</td>
+                    <td className="pr-3 text-right">{formatPaise(s.upi_in_progress_paise)}</td>
+                    <td className="pr-3 text-right" style={{ color: s.upi_attention_paise > 0 ? "#B33A2E" : undefined }}>{formatPaise(s.upi_attention_paise)}</td>
+                    <td className="pr-3">{s.account_status ? <Pill tone={s.account_status === "active" ? "green" : "amber"}>{s.account_status}</Pill> : <Pill tone="red">none</Pill>}{s.account_status && <button disabled={busy} onClick={() => changeSellerStatus(s.seller_id, s.account_status === "suspended" ? "active" : "suspended")} className="text-xs underline ml-2" style={{ color: "#14213D" }}>{s.account_status === "suspended" ? "Resume" : "Pause"}</button>}</td>
                     <td className="pr-3 text-right">{formatPaise(s.held_paise)}</td>
                     <td className="pr-3 text-right">{formatPaise(s.releasing_paise)}</td>
                     <td className="pr-3 text-right">{formatPaise(s.settled_paise)}</td>

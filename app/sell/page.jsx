@@ -702,62 +702,26 @@ function ReviewStep({ onDone, findings }) {
   );
 }
 
-function KycGate({ status, note }) {
+// 5.4: selling is gated on one thing only -- a saved UPI ID to be paid at. No identity documents, no bank details, no review.
+function UpiGate() {
   return (
     <div style={{ minHeight: "100vh" }}>
       <TopNav />
       <main className="px-6 py-16 max-w-md mx-auto text-center">
-        {status === "submitted" ? (
-          <>
-            <Clock size={28} color="#8A6A18" className="mx-auto mb-4" />
-            <h1 className="text-2xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
-              Verification submitted
-            </h1>
-            <p className="text-sm" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-              Your identity verification is awaiting admin review. Once it's approved, you'll be able to list threads for sale.
-            </p>
-          </>
-        ) : status === "needs_changes" || status === "rejected" ? (
-          <>
-            <AlertCircle size={28} color="#B33A2E" className="mx-auto mb-4" />
-            <h1 className="text-2xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
-              {status === "rejected" ? "Verification rejected" : "Changes needed"}
-            </h1>
-            {note && (
-              <p className="text-sm mb-4 text-left rounded-md p-3" style={{ color: "#8A342B", background: "#FBEAE8", border: "1px solid #F0C4BE" }}>
-                <span style={{ fontWeight: 500 }}>Admin note:</span> {note}
-              </p>
-            )}
-            <p className="text-sm mb-6" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-              Review and resubmit your details to continue.
-            </p>
-            <Link
-              href="/sell/payout"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded text-sm"
-              style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}
-            >
-              Review and resubmit <ArrowRight size={15} />
-            </Link>
-          </>
-        ) : (
-          <>
-            <ShieldCheck size={28} color="#14213D" className="mx-auto mb-4" />
-            <h1 className="text-2xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
-              Verify your identity to start selling
-            </h1>
-            <p className="text-sm mb-6" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-              Before you can list a thread, we need to verify who you are and where to pay you — a one-time step
-              that an admin then reviews.
-            </p>
-            <Link
-              href="/sell/payout"
-              className="inline-flex items-center gap-2 px-6 py-3 rounded text-sm"
-              style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}
-            >
-              Start verification <ArrowRight size={15} />
-            </Link>
-          </>
-        )}
+        <ShieldCheck size={28} color="#14213D" className="mx-auto mb-4" />
+        <h1 className="text-2xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
+          Add your UPI ID to start selling
+        </h1>
+        <p className="text-sm mb-6" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+          Tell us where to pay you. Add your UPI ID and your share of every sale is sent to it instantly. It takes a few seconds, with no documents.
+        </p>
+        <Link
+          href="/sell/payout"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded text-sm"
+          style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}
+        >
+          Add your UPI ID <ArrowRight size={15} />
+        </Link>
       </main>
     </div>
   );
@@ -1087,8 +1051,7 @@ export default function SellPage() {
   const [screeningFindings, setScreeningFindings] = useState([]);
   const [statusListings, setStatusListings] = useState([]);
   const [checkingAuth, setCheckingAuth] = useState(true);
-  const [kycStatus, setKycStatus] = useState(null);
-  const [kycNote, setKycNote] = useState(null);
+  const [hasUpi, setHasUpi] = useState(false);
 
   useEffect(() => {
     // Generated up front (not at final submit) so screenshots can be
@@ -1099,13 +1062,12 @@ export default function SellPage() {
   }, []);
 
   const refreshSellerState = async (supabase, userId) => {
-    const { data: kyc } = await supabase
-      .from("seller_kyc")
-      .select("status, admin_note")
+    const { data: payoutAccount } = await supabase
+      .from("seller_payout_accounts")
+      .select("vpa_address, status")
       .eq("user_id", userId)
       .maybeSingle();
-    setKycStatus(kyc?.status || null);
-    setKycNote(kyc?.admin_note || null);
+    setHasUpi(!!payoutAccount?.vpa_address);
 
     const { data: myListings } = await supabase
       .from("listings")
@@ -1264,10 +1226,9 @@ export default function SellPage() {
     );
   }
 
-  // Selling is gated on identity verification being admin-approved first --
-  // no access to the upload wizard or the dashboard until then.
-  if (kycStatus !== "approved") {
-    return <KycGate status={kycStatus} note={kycNote} />;
+  // Selling is gated on a saved UPI ID (5.4) -- no access to the upload wizard or the dashboard until then.
+  if (!hasUpi) {
+    return <UpiGate />;
   }
 
   return (

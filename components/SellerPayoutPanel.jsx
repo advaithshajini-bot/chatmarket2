@@ -34,18 +34,22 @@ export default function SellerPayoutPanel({ payouts }) {
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <Pill tone={account.tone}>{account.label}</Pill>
         {account.needsAction && (
-          <Link href="/sell/payout" className="text-sm underline" style={{ color: "#14213D" }}>Link your payout account →</Link>
+          <Link href="/sell/payout" className="text-sm underline" style={{ color: "#14213D" }}>Add your UPI ID →</Link>
         )}
       </div>
 
+      {payouts?.upi_masked && <p className="text-sm mb-4" style={{ color: "#3A3D42" }}>Payouts go to <span style={MONO}>{payouts.upi_masked}</span>. <Link href="/sell/payout" className="underline">Change</Link></p>}
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <Stat label="Held" paise={s.held_paise} hint="in the 48-hour window or on hold" />
-        <Stat label="On its way" paise={s.releasing_paise} />
-        <Stat label="Paid" paise={s.paid_paise} />
-        <Stat label="Refunded" paise={s.reversed_paise} />
+        <Stat label="Paid" paise={s.paid_paise} hint="instant payout sent" />
+        <Stat label="In progress" paise={s.in_progress_paise} />
+        {s.action_needed_paise > 0 && <Stat label="Action needed" paise={s.action_needed_paise} hint="check your UPI ID" />}
+        {s.held_paise > 0 && <Stat label="Held" paise={s.held_paise} hint="earlier sales on hold" />}
+        {s.releasing_paise > 0 && <Stat label="On its way" paise={s.releasing_paise} />}
+        {s.reversed_paise > 0 && <Stat label="Refunded before payout" paise={s.reversed_paise} />}
       </div>
       {s.waiting_paise > 0 && (
-        <p className="text-sm mb-4" style={{ color: "#3A3D42" }}>{formatPaise(s.waiting_paise)} is waiting on your payout account or a quick check by our team.</p>
+        <p className="text-sm mb-4" style={{ color: "#3A3D42" }}>{formatPaise(s.waiting_paise)} is waiting on a quick check by our team.</p>
       )}
 
       {items.length === 0 ? (
@@ -69,7 +73,7 @@ export default function SellerPayoutPanel({ payouts }) {
           })}
         </div>
       )}
-      <p className="text-xs mt-3" style={{ color: "#6B6F76" }}>Amounts are your share after the platform fee. Status is updated as payment updates arrive, so it can trail your bank by a little.</p>
+      <p className="text-xs mt-3" style={{ color: "#6B6F76" }}>Amounts are your share after the platform fee. All sales are final: once a payout is sent it is yours, and it is never taken back. Status updates as your bank confirms, so it can trail your UPI app by a little.</p>
     </div>
   );
 }

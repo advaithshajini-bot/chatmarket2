@@ -4,7 +4,7 @@ import AdminPaymentsDesk from "@/components/AdminPaymentsDesk";
 import { createClient } from "@/lib/supabase/server";
 import { getVerifiedUser } from "@/lib/supabase/get-verified-user";
 import { getAdminGate } from "@/lib/domain/admin-reviews";
-import { getAttention, getBalances, getDisputes, getLedger } from "@/lib/domain/admin-payments";
+import { getAttention, getBalances, getDisputes, getLedger, getPayouts } from "@/lib/domain/admin-payments";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Payments desk — chatmarket" };
@@ -35,8 +35,8 @@ export default async function AdminPaymentsPage() {
       </p>
     );
   }
-  const [attention, ledger, disputes, balances] = await Promise.all([
-    getAttention(supabase), getLedger(supabase, "all", 0), getDisputes(supabase, "all", 0), getBalances(supabase),
+  const [attention, ledger, disputes, balances, payouts] = await Promise.all([
+    getAttention(supabase), getLedger(supabase, "all", 0), getDisputes(supabase, "all", 0), getBalances(supabase), getPayouts(supabase, "all", 0),
   ]);
-  return shell(<AdminPaymentsDesk initialAttention={attention} initialLedger={ledger} initialDisputes={disputes} initialBalances={balances} />);
+  return shell(<AdminPaymentsDesk initialAttention={attention} initialLedger={ledger} initialDisputes={disputes} initialBalances={balances} initialPayouts={payouts} />);
 }

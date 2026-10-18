@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Wallet, TrendingDown, TrendingUp } from "lucide-react";
+import { Wallet, Zap, TrendingUp } from "lucide-react";
 import SellerPayoutPanel from "@/components/SellerPayoutPanel";
 
 function formatDate(iso) {
@@ -115,13 +115,13 @@ export default function SellerEarningsClient({ grossEarnings, netEarnings, refun
         Earnings & payouts
       </h2>
       <p className="text-sm mb-6" style={{ color: "#6B6F76" }}>
-        Figures reflect an 18% platform fee, applied here for display — no real payment has moved yet.
+        Payouts are sent instantly to your UPI ID after each sale, less an 18% platform fee. All sales are final: a payout is never taken back.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <SummaryCard icon={Wallet} label="Net earnings" value={netEarnings} hint="after 18% platform fee" />
         <SummaryCard icon={TrendingUp} label="Gross sales" value={grossEarnings} hint="before fee" />
-        <SummaryCard icon={TrendingDown} label="Refunded" value={refundedTotal} tint="#B33A2E" />
+        <SummaryCard icon={Zap} label="Instant payouts sent" value={(payouts?.summary?.paid_paise || 0) / 100} hint="paid to your UPI ID" />
       </div>
 
       <div className="mb-6">
