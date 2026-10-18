@@ -31,7 +31,7 @@ const PUB = ["admin_payment_attention_count", "admin_payment_attention", "admin_
 const bodyOf = (name) => { const a = lower.indexOf(`create function public.${name}(`); const b = lower.indexOf("\n$$;", a); return a < 0 ? "" : lower.slice(a, b); };
 
 // ---------------------------------------------------------------- migration
-check("G01 the migration sorts directly after 5.2c; only the 5.3 part-2 migration may follow", migs.indexOf(path.basename(MIG)) === migs.indexOf("20261014100000_add_dispute_actions.sql") + 1 && migs.slice(migs.indexOf(path.basename(MIG)) + 1).every((f) => f === "20261016100000_add_seller_payout_status.sql"));
+check("G01 the migration sorts directly after 5.2c; only the 5.3 part-2 migration may follow", migs.indexOf(path.basename(MIG)) === migs.indexOf("20261014100000_add_dispute_actions.sql") + 1 && migs.slice(migs.indexOf(path.basename(MIG)) + 1).every((f) => ["20261016100000_add_seller_payout_status.sql", "20261017100000_revoke_self_set_payout_account.sql", "20261018100000_add_vpa_payouts.sql"].includes(f)));
 check("G02 additive: no DROP/ALTER/TRUNCATE and no new table, index, policy, trigger or extension",
   !/\b(drop\s+(table|column|policy|trigger|function)|alter\s+(table|function)|truncate|create\s+(table|index|policy|trigger|extension|unique|type|view))\b/.test(lower));
 for (const f of PUB) {
@@ -48,7 +48,7 @@ for (const f of PUB) {
 check("G14 helpers are not executable by anyone", /revoke execute on function private\.transfer_bucket\(text, text, boolean, text\) from public, anon, authenticated, service_role/.test(lower) &&
   /revoke execute on function private\.payment_attention_rows\(\) from public, anon, authenticated, service_role/.test(lower) && !/grant execute on function private\./.test(lower));
 check("G15 no feature flag is read or changed", !/feature_flags|is_route_transfers_enabled|is_auto_refunds_enabled/.test(lower));
-check("G16 error code CM073 is used here and nowhere in earlier migrations", /CM073/.test(m) && migs.filter((f) => f !== path.basename(MIG)).every((f) => !read("supabase/migrations/" + f).includes("CM073")));
+check("G16 error code CM073 is used here and nowhere in earlier migrations", /CM073/.test(m) && migs.filter((f) => f !== path.basename(MIG) && f !== "20261018100000_add_vpa_payouts.sql").every((f) => !read("supabase/migrations/" + f).includes("CM073")));
 check("G17 webhook payloads / hashes are never selected", !/payload_sha256|\bpayload\b/.test(lower));
 check("G18 no secret names appear", !/razorpay_key|webhook_secret|service_role_key|cron_secret/.test(lower));
 check("G19 the migration names only existing relations", ["transfers", "refunds", "disputes", "purchases", "listings", "profiles", "webhook_events", "audit_log", "seller_payout_accounts"].every((t) => lower.includes(`public.${t}`)));
@@ -60,7 +60,7 @@ const desk = stripComments(read("components/AdminPaymentsDesk.jsx"), "js");
 const admin = stripComments(read("app/admin/page.jsx"), "js");
 const rpcs = [...(lib + desk + page).matchAll(/["'](admin_[a-z_]+)["']/g)].map((x) => x[1]);
 check("G30 every RPC the UI calls is one of the 5.3 reporting functions or the two existing admin actions",
-  rpcs.length > 0 && rpcs.every((r) => PUB.includes(r) || r === "admin_clear_transfer_review" || r === "admin_set_seller_payout_account"), [...new Set(rpcs)]);
+  rpcs.length > 0 && rpcs.every((r) => PUB.includes(r) || r === "admin_clear_transfer_review" || r === "admin_set_seller_payout_account" || ["admin_vpa_payouts_ledger", "admin_retry_vpa_payout", "admin_set_seller_payout_status"].includes(r)), [...new Set(rpcs)]);
 check("G31 the desk performs no direct table writes and no service client", !/\.from\(\s*["'`]\w+["'`]\s*\)\s*\.(insert|update|delete|upsert)/.test(lib + desk + page) && !/service-client|SUPABASE_SERVICE_ROLE_KEY|createServiceClient/.test(lib + desk + page + admin));
 check("G32 no Razorpay call and no reconcile button from the desk", !/razorpay\.com|razorpay-client|\breconcile\b|runReconciliation|fetch\(/i.test(lib + desk + page));
 check("G33 the page gates on login, admin and aal2 before loading any data", /getAdminGate/.test(page) && page.indexOf("gate.allowed") > 0 && page.indexOf("gate.allowed") < page.indexOf("getAttention(") && page.indexOf("gate.isAdmin") > 0 && page.indexOf("gate.isAdmin") < page.indexOf("getAttention(") && page.indexOf("gate.allowed") > page.indexOf("gate.isAdmin"));

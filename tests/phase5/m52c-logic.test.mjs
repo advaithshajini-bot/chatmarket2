@@ -87,7 +87,7 @@ function scriptedDb(script = {}) {
     claimDisputeAction: rec("claim", { outcome: "not_needed" }), finishDisputeAction: rec("finish", (a) => ({ outcome: a.ok ? "ok" : a.retryable ? "retry_scheduled" : "needs_review" })),
     planRefund: rec("plan", { outcome: "not_needed" }), applyRefundEvent: rec("applyRefund", { outcome: "applied" }), recordRefundFailure: rec("refundFail", (a) => ({ outcome: a.retryable ? "retry_scheduled" : "failed" })),
     applyTransferEvent: rec("applyTransfer", { outcome: "applied" }), listDisputeWork: rec("list", []),
-    listTransferWork: async () => [], planTransfer: async () => ({ outcome: "not_needed" }), recordTransferFailure: async () => ({}),
+    listTransferWork: async () => [], listVpaPayoutWork: async () => [], planTransfer: async () => ({ outcome: "not_needed" }), recordTransferFailure: async () => ({}),
   };
 }
 const trfEntity = (o = {}) => ({ id: "trf_ABCDEF123456", entity: "transfer", source: "pay_1", recipient: "acc_TestSeller001", amount: 40918, currency: "INR", notes: { purchase_id: PID }, on_hold: true, transfer_status: "created", settlement_status: "on_hold", amount_reversed: 0, ...o });

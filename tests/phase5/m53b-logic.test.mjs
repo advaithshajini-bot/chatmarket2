@@ -15,11 +15,11 @@ check("L03 held without a date still reads sensibly", describeStatus({ status: "
 check("L04 dispute wording", L.dispute.label === "On hold: dispute raised");
 check("L05 paid / reversed wording", L.paid.label === "Paid" && L.reversed.label === "Refunded");
 check("L06 needs_account tells the seller what to do", /Action needed.*payout account/i.test(L.needs_account.label));
-check("L07 only needs_account and reversed are red", STATUS_CODES.filter((c) => L[c].tone === "red").sort().join() === "needs_account,reversed");
+check("L07 only needs_account, reversed and action_needed are red", STATUS_CODES.filter((c) => L[c].tone === "red").sort().join() === "action_needed,needs_account,reversed");
 check("L08 wording never mentions internals", STATUS_CODES.every((c) => !/razorpay|route|transfer|webhook|error|fail|parked|review_reason|acc_|trf_|pay_|sweep|ledger/i.test(L[c].label + " " + L[c].detail)), STATUS_CODES.filter((c) => /razorpay|route|transfer|webhook|error|fail|parked|ledger/i.test(L[c].label + L[c].detail)));
 check("L09 under_review is calm and gives no reason", /Being reviewed by our team/.test(L.under_review.label) && /don't need to do anything/.test(L.under_review.detail));
 check("L10 unknown status degrades safely", describeStatus({ status: "weird" }).label === "Status unavailable" && describeStatus(null).label === "Status unavailable");
-check("L11 account banner", describeAccount("active").needsAction === false && describeAccount("pending").needsAction === false && describeAccount("suspended").needsAction === true && describeAccount("none").needsAction === true && describeAccount(undefined).label === "No payout account linked");
+check("L11 account banner", describeAccount("active").needsAction === false && describeAccount("pending").needsAction === false && describeAccount("suspended").needsAction === true && describeAccount("none").needsAction === true && describeAccount(undefined).label === "No UPI ID saved");
 
 const ok = { account_status: "active", summary: {}, items: [{ a: 1 }] };
 const sb = (impl) => { const calls = []; return { calls, rpc: async (fn, a) => { calls.push([fn, a]); return impl(); } }; };

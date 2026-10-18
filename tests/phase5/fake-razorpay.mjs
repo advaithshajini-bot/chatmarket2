@@ -1,5 +1,5 @@
 // A fake Razorpay Route API for tests: a fetch() replacement with fault injection. No network.
-let globalN = 0, rn = 0;   // ids are unique across instances, like real ones
+let globalN = 0, rn = 0, pn = 0;   // ids are unique across instances, like real ones
 export function createFakeRazorpay() {
   const transfers = new Map();   // id -> entity
   const log = [];                // every request: { method, path, body }
@@ -8,8 +8,13 @@ export function createFakeRazorpay() {
   const refaults = [];           // next refund POST
   const pfaults = [];            // next transfer PATCH
   const faults = [];             // queue consumed by the next POST create: 'timeout_after' | 'timeout_before' | '500' | '429' | '400' | 'amount_mismatch' | 'garbage' | 'network'
+  const payouts = new Map(), idem = new Map(), contacts = new Map(), fundAccounts = new Map();  // 5.4: RazorpayX
+  const payoutFaults = [], contactFaults = [], fundFaults = [];
   let n = 0;
   const fake = {
+    payouts, idem, contacts, fundAccounts, payoutFaults, contactFaults, fundFaults,
+    get createdPayouts() { return [...payouts.values()]; },
+    seedPayout(e) { payouts.set(e.id, e); return e; },
     transfers, log, faults, refunds, rfaults, refaults, pfaults,
     get createdRefunds() { return [...refunds.values()]; },
     seedRefund(e) { refunds.set(e.id, e); return e; },
@@ -23,7 +28,7 @@ export function createFakeRazorpay() {
     const u = new URL(url);
     const method = init.method ?? "GET";
     const body = init.body ? JSON.parse(init.body) : undefined;
-    log.push({ method, path: u.pathname, body, auth: init.headers?.Authorization });
+    log.push({ method, path: u.pathname, search: u.search, body, auth: init.headers?.Authorization, headers: init.headers });
     if (init.signal?.aborted) throw Object.assign(new Error("aborted"), { name: "AbortError" });
     let m;
     if (method === "POST" && (m = u.pathname.match(/^\/v1\/payments\/([^/]+)\/transfers$/))) {
@@ -59,6 +64,44 @@ export function createFakeRazorpay() {
       if (fault === "garbage") return json(200, { hello: "world" });
       return null;
     };
+    // ---- 5.4 RazorpayX (contacts, fund accounts, payouts)
+    if (method === "POST" && u.pathname === "/v1/contacts") {
+      const early = injected(contactFaults.shift()); if (early) return early;
+      const e = { id: `cont_Fake${String(++pn + 100000)}`, entity: "contact", name: body.name, reference_id: body.reference_id ?? null };
+      contacts.set(e.id, e); return json(200, e);
+    }
+    if (method === "POST" && u.pathname === "/v1/fund_accounts") {
+      const early = injected(fundFaults.shift()); if (early) return early;
+      if (!contacts.has(body.contact_id)) return err(400, "BAD_REQUEST_ERROR", "contact does not exist");
+      const e = { id: `fa_Fake${String(++pn + 100000)}`, entity: "fund_account", contact_id: body.contact_id, account_type: body.account_type, vpa: body.vpa };
+      fundAccounts.set(e.id, e); return json(200, e);
+    }
+    if (method === "POST" && u.pathname === "/v1/payouts") {
+      const fault = payoutFaults.shift();
+      const key = init.headers?.["X-Payout-Idempotency"];
+      if (!key) return err(400, "BAD_REQUEST_ERROR", "X-Payout-Idempotency header is required");
+      const early = injected(fault); if (early) return early;
+      if (idem.has(key)) { const prior = payouts.get(idem.get(key)); if (fault === "timeout_after") throw Object.assign(new Error("aborted"), { name: "AbortError" }); return json(200, prior); }
+      if (!fundAccounts.has(body.fund_account_id)) return err(400, "BAD_REQUEST_ERROR", "fund account does not exist");
+      if (body.mode !== "UPI" || !body.account_number || !Number.isInteger(body.amount) || body.amount < 100) return err(400, "BAD_REQUEST_ERROR", "invalid payout request");
+      const status = fault?.startsWith("status:") ? fault.slice(7) : "queued";
+      const e = {
+        id: `pout_Fake${String(++pn + 100000)}`, entity: "payout", fund_account_id: body.fund_account_id, amount: fault === "amount_mismatch" ? body.amount + 1 : body.amount,
+        currency: "INR", status, mode: body.mode, purpose: body.purpose, reference_id: body.reference_id, utr: null, notes: body.notes ?? {},
+      };
+      payouts.set(e.id, e); idem.set(key, e.id);
+      if (fault === "timeout_after") throw Object.assign(new Error("aborted"), { name: "AbortError" });
+      return json(200, e);
+    }
+    if (method === "GET" && u.pathname === "/v1/payouts") {
+      const ref = u.searchParams.get("reference_id");
+      const items = [...payouts.values()].filter((p) => !ref || p.reference_id === ref);
+      return json(200, { entity: "collection", count: items.length, items });
+    }
+    if (method === "GET" && (m = u.pathname.match(/^\/v1\/payouts\/([^/]+)$/))) {
+      const p = payouts.get(decodeURIComponent(m[1]));
+      return p ? json(200, p) : err(400, "BAD_REQUEST_ERROR", "The id provided does not exist");
+    }
     if (method === "POST" && (m = u.pathname.match(/^\/v1\/transfers\/([^/]+)\/reversals$/))) {
       const fault = rfaults.shift(); const early = injected(fault); if (early) return early;
       const t = transfers.get(decodeURIComponent(m[1]));

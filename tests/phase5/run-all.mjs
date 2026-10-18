@@ -1,4 +1,4 @@
-// tests/phase5/run-all.mjs -- single command for the Milestone 5.1 + 5.2 + 5.2c + 5.3 gate:
+// tests/phase5/run-all.mjs -- single command for the Milestone 5.1 + 5.2 + 5.2c + 5.3 + 5.4 (UPI payouts) gate:
 //     DATABASE_URL=... node tests/phase5/run-all.mjs
 // SKIPPED counts as NOT passed unless --allow-skip.
 //   PHASE5_CONCURRENCY_TESTS=1  also runs the multi-connection race tests (they COMMIT then delete rows: scratch DB only)
@@ -19,6 +19,22 @@ function suite(label, file) {
   console.log(`${label}: ${pass} passed, ${fail} failed${r.status ? ` (exit ${r.status})` : ""}`);
   if (fail || r.status) console.log(out.split("\n").filter((l) => /FAIL|rror/.test(l)).join("\n"));
 }
+// PREFLIGHT: these suites create and delete their own rows (the concurrency/integration ones COMMIT first). Refuse to touch a database that
+// already holds real purchases -- that is almost certainly production or a populated branch. Override only on purpose.
+if (process.env.DATABASE_URL && process.env.PHASE5_ALLOW_NONEMPTY !== "1") {
+  const { default: pg } = await import("pg");
+  const c = new pg.Client({ connectionString: process.env.DATABASE_URL });
+  try {
+    await c.connect();
+    const { rows } = await c.query("select (select count(*) from public.purchases)::int as purchases, (select count(*) from public.listings)::int as listings");
+    if (rows[0].purchases > 0 || rows[0].listings > 0) {
+      console.log(`REFUSING TO RUN: this database already has ${rows[0].purchases} purchases and ${rows[0].listings} listings. Point DATABASE_URL at an EMPTY scratch database or branch, or set PHASE5_ALLOW_NONEMPTY=1 if you are certain it is a throwaway.`);
+      process.exit(2);
+    }
+  } catch (e) {
+    console.log(`PREFLIGHT: could not inspect the database (${e.code || e.message}); continuing -- the suites will report their own connection errors.`);
+  } finally { await c.end().catch(() => {}); }
+}
 suite("M51  payment fulfilment (live DB, real schema)", "m51-db.test.mjs");
 suite("M51  concurrency (live DB, commits then deletes)", "m51-concurrency.test.mjs");
 suite("M51  signature, webhook handler, outcomes (no DB)", "m51-logic.test.mjs");
@@ -37,5 +53,11 @@ suite("M53  source + migration guardrails (static)", "m53-guardrails.test.mjs");
 suite("M53b seller payout status (live DB, real schema)", "m53b-db.test.mjs");
 suite("M53b seller payout wording + loader (no DB)", "m53b-logic.test.mjs");
 suite("M53b source + migration guardrails (static)", "m53b-guardrails.test.mjs");
+suite("M54  revoke self-service payout account (live DB, real schema)", "m54-db.test.mjs");
+suite("M54  revoke migration + preflight guardrails (static)", "m54-guardrails.test.mjs");
+suite("M55  instant UPI payouts: ledger, events, reporting, non-recourse (live DB, real schema)", "m55-db.test.mjs");
+suite("M55  integration: real DB + payout orchestration + fake RazorpayX + races (commits then deletes)", "m55-integration.test.mjs");
+suite("M55  payout client, orchestration, sweep, webhook branch (no DB)", "m55-logic.test.mjs");
+suite("M55  source + migration guardrails (static)", "m55-guardrails.test.mjs");
 console.log(`\nTOTAL: ${totalPass} passed, ${totalFail} failed${notPassed ? ", with skipped suites (NOT a pass)" : ""}`);
 process.exit(totalFail || notPassed ? 1 : 0);
