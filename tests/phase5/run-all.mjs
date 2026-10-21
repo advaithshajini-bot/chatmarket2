@@ -59,5 +59,8 @@ suite("M55  instant UPI payouts: ledger, events, reporting, non-recourse (live D
 suite("M55  integration: real DB + payout orchestration + fake RazorpayX + races (commits then deletes)", "m55-integration.test.mjs");
 suite("M55  payout client, orchestration, sweep, webhook branch (no DB)", "m55-logic.test.mjs");
 suite("M55  source + migration guardrails (static)", "m55-guardrails.test.mjs");
+suite("M56  monthly settlement: ledger, batches, seller view, non-recourse (live DB, real schema)", "m56-db.test.mjs");
+suite("M56  settlement helpers: CSV safety, IST periods, wording, loaders (no DB)", "m56-logic.test.mjs");
+suite("M56  source + migration guardrails (static)", "m56-guardrails.test.mjs");
 console.log(`\nTOTAL: ${totalPass} passed, ${totalFail} failed${notPassed ? ", with skipped suites (NOT a pass)" : ""}`);
 process.exit(totalFail || notPassed ? 1 : 0);

@@ -31,7 +31,7 @@ const PUB = ["admin_payment_attention_count", "admin_payment_attention", "admin_
 const bodyOf = (name) => { const a = lower.indexOf(`create function public.${name}(`); const b = lower.indexOf("\n$$;", a); return a < 0 ? "" : lower.slice(a, b); };
 
 // ---------------------------------------------------------------- migration
-check("G01 the migration sorts directly after 5.2c; only the 5.3 part-2 migration may follow", migs.indexOf(path.basename(MIG)) === migs.indexOf("20261014100000_add_dispute_actions.sql") + 1 && migs.slice(migs.indexOf(path.basename(MIG)) + 1).every((f) => ["20261016100000_add_seller_payout_status.sql", "20261017100000_revoke_self_set_payout_account.sql", "20261018100000_add_vpa_payouts.sql"].includes(f)));
+check("G01 the migration sorts directly after 5.2c; only the 5.3 part-2 migration may follow", migs.indexOf(path.basename(MIG)) === migs.indexOf("20261014100000_add_dispute_actions.sql") + 1 && migs.slice(migs.indexOf(path.basename(MIG)) + 1).every((f) => ["20261016100000_add_seller_payout_status.sql", "20261017100000_revoke_self_set_payout_account.sql", "20261018100000_add_vpa_payouts.sql", "20261019100000_add_monthly_settlement.sql"].includes(f)));
 check("G02 additive: no DROP/ALTER/TRUNCATE and no new table, index, policy, trigger or extension",
   !/\b(drop\s+(table|column|policy|trigger|function)|alter\s+(table|function)|truncate|create\s+(table|index|policy|trigger|extension|unique|type|view))\b/.test(lower));
 for (const f of PUB) {

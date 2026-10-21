@@ -27,7 +27,7 @@ const MIG = "supabase/migrations/20261016100000_add_seller_payout_status.sql";
 const m = stripComments(read(MIG), "sql"), lower = m.toLowerCase();
 const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql")).sort();
 
-check("G01 the migration sorts after 5.3 part 1; only the Phase 6 revoke may follow", migs.slice(migs.indexOf(path.basename(MIG)) + 1).every((f) => f === "20261017100000_revoke_self_set_payout_account.sql" || f === "20261018100000_add_vpa_payouts.sql"));
+check("G01 the migration sorts after 5.3 part 1; only the Phase 6 revoke may follow", migs.slice(migs.indexOf(path.basename(MIG)) + 1).every((f) => f === "20261017100000_revoke_self_set_payout_account.sql" || f === "20261018100000_add_vpa_payouts.sql" || f === "20261019100000_add_monthly_settlement.sql"));
 check("G02 additive and read-only: no DDL other than the one function, no writes", !/\b(drop\s|alter\s|truncate|insert\s+into|update\s+public|delete\s+from|create\s+(table|index|policy|trigger|extension|view|type))/.test(lower) && (lower.match(/create function/g) || []).length === 1);
 check("G03 SECURITY DEFINER, search_path '', STABLE", /security definer/.test(lower) && /set search_path = ''/.test(lower) && /\bstable\b/.test(lower));
 check("G04 one parameter only (a limit): no seller id can be passed", /create function public\.seller_payout_status\(p_limit integer default 100\)/.test(lower));
@@ -39,7 +39,7 @@ const out = lower.slice(lower.indexOf("select\n    coalesce((select jsonb_agg"))
 check("G08 the response is built from an allow-list: no ids, errors, review text, dispute text or names", !/razorpay_|\.error\b|review_reason\s*[,)]\s*c\./.test(out) && !/'(razorpay|error|review|reason|note|attempts|buyer|account_id)/.test(out.replace(/'account_status'/g, "")), out.slice(0, 80));
 check("G09 review_reason is only tested for NULL, never returned", !/'review_reason'/.test(lower) && /review_reason is not null/.test(lower));
 check("G10 the dispute reason/note columns are never selected", !/d\.reason|d\.resolution_note|resolution_note/.test(lower));
-check("G11 error code CM074 is new", /CM074/.test(m) && migs.filter((f) => f !== path.basename(MIG) && f !== "20261018100000_add_vpa_payouts.sql").every((f) => !read("supabase/migrations/" + f).includes("CM074")));
+check("G11 error code CM074 is new", /CM074/.test(m) && migs.filter((f) => f !== path.basename(MIG) && f !== "20261018100000_add_vpa_payouts.sql" && f !== "20261019100000_add_monthly_settlement.sql").every((f) => !read("supabase/migrations/" + f).includes("CM074")));
 check("G12 no flag or secret is referenced", !/feature_flags|is_route_transfers_enabled|razorpay_key|webhook_secret|service_role_key|cron_secret/.test(lower));
 
 const lib = stripComments(read("lib/domain/seller-payouts.js"), "js");
@@ -51,7 +51,7 @@ check("G21 no service client in the seller code", !/service-client|SUPABASE_SERV
 check("G22 the seller UI never imports admin code", !/admin-payments|AdminPayments/.test(lib + panel + client + page));
 check("G23 the panel renders only status codes' words, dates and amounts; no raw error/id fields", !/\.(error_text|review_reason|razorpay\w*|attempts|reason)\b/.test(panel) && !/dangerouslySetInnerHTML/.test(panel));
 check("G24 loader errors are never surfaced to the page (fixed message only)", !/error\.message|error\.details|\.message/.test(lib) && /couldn&apos;t load your payout status/.test(read("components/SellerPayoutPanel.jsx")));
-check("G25 the earnings page loads payout status through the loader and passes it on", /await getSellerPayoutStatus\(supabase\)/.test(page) && /payouts=\{payouts\}/.test(page) && /SellerPayoutPanel payouts=\{payouts\}/.test(client));
+check("G25 the earnings page loads settlement status through the loader and passes it on (5.5 replaced the instant-payout view)", /await getSellerSettlementStatus\(supabase\)/.test(page) && /settlement=\{settlement\}/.test(page) && /SellerPayoutPanel settlement=\{settlement\}/.test(client));
 check("G26 the old 'No real payouts yet' placeholder is gone", !/PayoutsPlaceholder|No real payouts yet/.test(client));
 check("G27 the needs-account state links to the payout setup page", /href="\/sell\/payout"/.test(panel));
 check("G28 money is formatted from integer paise only", /from "@\/lib\/domain\/paise"/.test(panel) && !/toFixed\(|toLocaleString\(/.test(panel + lib));

@@ -48,7 +48,7 @@ const m = sql(MIG), lower = m.toLowerCase();
 const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql"));
 
 // ---------------------------------------------------------------- migration
-check("G01 the 5.2c migration exists and only later read-only or hardening migrations sort after it", exists(MIG) && migs.sort().filter((f) => f > path.basename(MIG)).every((f) => /^2026101[5678]/.test(f)));
+check("G01 the 5.2c migration exists and only later read-only or hardening migrations sort after it", exists(MIG) && migs.sort().filter((f) => f > path.basename(MIG)).every((f) => /^2026101[56789]/.test(f)));
 check("G02 additive only: no DROP / TRUNCATE / DELETE statements", !/\b(drop|truncate)\s+(table|function|policy|index|column|schema|trigger|type)\b/.test(lower) && !/\bdelete\s+from\b/.test(lower) && !/\btruncate\b/.test(lower));
 const alters = [...lower.matchAll(/alter\s+table\s+([\w.]+)\s+([^;]+);/g)];
 check("G03 ALTER TABLE only enables RLS on the new refunds table or ADDS the four columns to public.transfers", alters.length === 2

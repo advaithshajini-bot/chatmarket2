@@ -31,7 +31,7 @@ const m = stripComments(read(MIG), "sql"), lower = m.toLowerCase();
 const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql")).sort();
 
 // ---------------------------------------------------------------- migration
-check("G01 the 5.4 migration is the newest and additive: no drop table / drop column / delete / truncate of existing data", migs.at(-1) === path.basename(MIG) && !/\bdrop\s+(table|column|schema)\b|\btruncate\b|\bdelete\s+from\b/.test(lower));
+check("G01 the 5.4 migration is additive (only the 5.5 settlement migration sorts after it): no drop table / drop column / delete / truncate of existing data", migs.filter((f) => f > path.basename(MIG)).every((f) => /^20261019/.test(f)) && !/\bdrop\s+(table|column|schema)\b|\btruncate\b|\bdelete\s+from\b/.test(lower));
 check("G02 the new flag is seeded OFF and nothing in the migration turns any flag on", /insert into private\.feature_flags \(name, enabled\) values \('phase6_vpa_payouts', false\)/.test(m) && !/set\s+enabled\s*=\s*true|enabled\s*\)?\s*values\s*\([^)]*true/.test(lower));
 check("G03 cutoff_at defaults to infinity (fail closed) and there is a per-payout cap", /cutoff_at\s+timestamptz not null default 'infinity'/.test(m) && /max_payout_paise\s+integer not null default 500000/.test(m));
 check("G04 Route and UPI payouts are mutually exclusive at flag level", /create or replace function private\.is_route_transfers_enabled[\s\S]*?phase6_vpa_payouts[\s\S]*?is not true/.test(m) && /create function private\.is_vpa_payouts_enabled[\s\S]*?phase5_route_transfers[\s\S]*?is not true/.test(m));

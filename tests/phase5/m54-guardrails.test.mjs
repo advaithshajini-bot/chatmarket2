@@ -13,7 +13,7 @@ const MIG = "supabase/migrations/20261017100000_revoke_self_set_payout_account.s
 const sql = read(MIG).split("\n").filter((l) => !l.trim().startsWith("--")).join("\n").toLowerCase();
 const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql")).sort();
 
-check("G01 the migration is the newest", migs.at(-1) === "20261018100000_add_vpa_payouts.sql" && migs.at(-2) === path.basename(MIG));
+check("G01 the migration sorts directly before the 5.4 UPI migration (only later additive milestones follow)", migs.indexOf("20261018100000_add_vpa_payouts.sql") === migs.indexOf(path.basename(MIG)) + 1 && migs.slice(migs.indexOf("20261018100000_add_vpa_payouts.sql") + 1).every((f) => /^20261019/.test(f)));
 check("G02 it contains exactly one statement: a REVOKE on that one function", sql.trim().split(";").filter((s) => s.trim()).length === 1 && /^revoke all on function public\.set_seller_payout_account\(text, text\) from public, anon, authenticated$/.test(sql.trim().replace(/;$/, "")), sql);
 check("G03 it never grants, drops, alters or creates", !/\b(grant|drop|alter|create|insert|update|delete)\b/.test(sql));
 check("G04 nothing in the app calls the revoked function (admin variant excluded)", ["app", "components", "lib"].every((d) => {
