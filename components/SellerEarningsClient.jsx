@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Wallet, Zap, TrendingUp } from "lucide-react";
+import { Wallet, CalendarClock, TrendingUp } from "lucide-react";
 import SellerPayoutPanel from "@/components/SellerPayoutPanel";
+import { formatPayoutDate } from "@/lib/domain/seller-settlement";
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
@@ -106,7 +107,7 @@ function TransactionsTab({ transactions }) {
   );
 }
 
-export default function SellerEarningsClient({ grossEarnings, netEarnings, refundedTotal, weeklyEarnings, transactions, payouts }) {
+export default function SellerEarningsClient({ grossEarnings, netEarnings, refundedTotal, weeklyEarnings, transactions, settlement }) {
   const [tab, setTab] = useState("transactions");
 
   return (
@@ -115,13 +116,18 @@ export default function SellerEarningsClient({ grossEarnings, netEarnings, refun
         Earnings & payouts
       </h2>
       <p className="text-sm mb-6" style={{ color: "#6B6F76" }}>
-        Payouts are sent instantly to your UPI ID after each sale, less an 18% platform fee. All sales are final: a payout is never taken back.
+        Your earnings are paid together once a month, to your saved UPI ID, less an 18% platform fee. All sales are final: a payout is never taken back.
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <SummaryCard icon={Wallet} label="Net earnings" value={netEarnings} hint="after 18% platform fee" />
         <SummaryCard icon={TrendingUp} label="Gross sales" value={grossEarnings} hint="before fee" />
-        <SummaryCard icon={Zap} label="Instant payouts sent" value={(payouts?.summary?.paid_paise || 0) / 100} hint="paid to your UPI ID" />
+        <SummaryCard
+          icon={CalendarClock}
+          label="Unsettled earnings"
+          value={((settlement?.summary?.unsettled_paise || 0) + (settlement?.summary?.in_batch_paise || 0)) / 100}
+          hint={settlement?.next_payout_date ? `Next payout: ${formatPayoutDate(settlement.next_payout_date)}` : "Paid once a month"}
+        />
       </div>
 
       <div className="mb-6">
@@ -151,11 +157,11 @@ export default function SellerEarningsClient({ grossEarnings, netEarnings, refun
             fontFamily: "'IBM Plex Sans', sans-serif",
           }}
         >
-          Payout status
+          Payouts
         </button>
       </div>
 
-      {tab === "transactions" ? <TransactionsTab transactions={transactions} /> : <SellerPayoutPanel payouts={payouts} />}
+      {tab === "transactions" ? <TransactionsTab transactions={transactions} /> : <SellerPayoutPanel settlement={settlement} />}
     </div>
   );
 }

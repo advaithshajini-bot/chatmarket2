@@ -5,7 +5,7 @@ import SellerEarningsClient from "@/components/SellerEarningsClient";
 import { createClient } from "@/lib/supabase/server";
 import { getVerifiedUser } from "@/lib/supabase/get-verified-user";
 import { PLATFORM_FEE_PCT } from "@/lib/constants";
-import { getSellerPayoutStatus } from "@/lib/domain/seller-payouts";
+import { getSellerSettlementStatus } from "@/lib/domain/seller-settlement";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +45,7 @@ export default async function EarningsPage() {
     .eq("listings.seller_id", user.id)
     .order("purchased_at", { ascending: false });
 
-  const payouts = await getSellerPayoutStatus(supabase);
+  const settlement = await getSellerSettlementStatus(supabase);
 
   const purchases = rows || [];
 
@@ -104,7 +104,7 @@ export default async function EarningsPage() {
           refundedTotal={refundedTotal}
           weeklyEarnings={weeklyEarnings}
           transactions={transactions}
-          payouts={payouts}
+          settlement={settlement}
         />
       </main>
     </div>

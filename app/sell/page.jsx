@@ -713,7 +713,7 @@ function UpiGate() {
           Add your UPI ID to start selling
         </h1>
         <p className="text-sm mb-6" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-          Tell us where to pay you. Add your UPI ID and your share of every sale is sent to it instantly. It takes a few seconds, with no documents.
+          Tell us where to pay you. Add your UPI ID and we pay your share of every sale to it once a month. It takes a few seconds, with no documents.
         </p>
         <Link
           href="/sell/payout"

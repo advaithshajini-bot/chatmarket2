@@ -4,13 +4,16 @@ import { useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   ATTENTION_LABELS, BUCKET_LABELS, LEDGER_FILTERS, DISPUTE_FILTERS, PAYOUT_FILTERS, RETRYABLE_PAYOUT_STATUSES,
-  formatPaise, formatAge, getAttention, getLedger, getDisputes, getBalances, getTimeline,
-  clearTransferReview, setSellerPayoutAccount, getPayouts, retryPayout, setSellerPayoutStatus,
+  formatPaise, formatAge, getAttention, getLedger, getDisputes, getTimeline,
+  clearTransferReview, getPayouts, retryPayout,
 } from "@/lib/domain/admin-payments";
+import AdminSettlementTab from "@/components/AdminSettlementTab";
 
 const MONO = { fontFamily: "'IBM Plex Mono', monospace" };
 const card = { background: "#F7F7F4", border: "1px solid #D8D5C9" };
-const TABS = [["attention", "Needs attention"], ["payouts", "UPI payouts"], ["transfers", "Route transfers (legacy)"], ["disputes", "Disputes (support tickets)"], ["balances", "Seller balances"]];
+// 5.5: payouts are a manual monthly settlement. The two retired automatic flows (instant UPI, Route) only show a tab when they hold history.
+const TABS = [["settlement", "Monthly settlement"], ["attention", "Needs attention"], ["disputes", "Disputes (support tickets)"]];
+const LEGACY_TABS = [["payouts", "UPI payouts (retired)"], ["transfers", "Route transfers (retired)"]];
 const when = (iso) => (iso ? new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "—");
 
 function Pill({ children, tone = "grey" }) {
@@ -55,25 +58,23 @@ function Timeline({ data }) {
   );
 }
 
-export default function AdminPaymentsDesk({ initialAttention, initialLedger, initialDisputes, initialBalances, initialPayouts = { total: 0, items: [] } }) {
+export default function AdminPaymentsDesk({ initialAttention, initialLedger, initialDisputes, initialPayouts = { total: 0, items: [] }, initialSettlement = { pending: { totals: {}, payable: [], blocked: [] }, batches: { items: [] } } }) {
   const supabase = createClient();
-  const [tab, setTab] = useState("attention");
+  const [tab, setTab] = useState("settlement");
   const [attention, setAttention] = useState(initialAttention);
   const [ledger, setLedger] = useState(initialLedger);
   const [ledgerFilter, setLedgerFilter] = useState("all");
   const [disputes, setDisputes] = useState(initialDisputes);
   const [disputeFilter, setDisputeFilter] = useState("all");
-  const [balances, setBalances] = useState(initialBalances);
   const [payouts, setPayouts] = useState(initialPayouts);
   const [payoutFilter, setPayoutFilter] = useState("all");
   const [timelines, setTimelines] = useState({});
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  const [form, setForm] = useState({ userId: "", accountId: "", status: "active" });
 
   const refreshAll = useCallback(async () => {
-    const [a, l, d, b, po] = await Promise.all([getAttention(supabase), getLedger(supabase, ledgerFilter, 0), getDisputes(supabase, disputeFilter, 0), getBalances(supabase), getPayouts(supabase, payoutFilter, 0)]);
-    setAttention(a); setLedger(l); setDisputes(d); setBalances(b); setPayouts(po);
+    const [a, l, d, po] = await Promise.all([getAttention(supabase), getLedger(supabase, ledgerFilter, 0), getDisputes(supabase, disputeFilter, 0), getPayouts(supabase, payoutFilter, 0)]);
+    setAttention(a); setLedger(l); setDisputes(d); setPayouts(po);
   }, [supabase, ledgerFilter, disputeFilter, payoutFilter]);
 
   const toggleTimeline = async (pid) => {
@@ -103,25 +104,6 @@ export default function AdminPaymentsDesk({ initialAttention, initialLedger, ini
     setBusy(false);
   };
 
-  const changeSellerStatus = async (userId, status) => {
-    if (busy) return;
-    setBusy(true); setMsg("");
-    const r = await setSellerPayoutStatus(supabase, userId, status);
-    setMsg(r.error ? r.error : status === "suspended" ? "Payouts to this seller are paused." : "Payouts to this seller are on again.");
-    if (!r.error) await refreshAll();
-    setBusy(false);
-  };
-
-  const savePayout = async (e) => {
-    e.preventDefault();
-    if (busy) return;
-    setBusy(true); setMsg("");
-    const r = await setSellerPayoutAccount(supabase, form.userId.trim(), form.accountId.trim(), form.status);
-    setMsg(r.error ? r.error : "Payout account saved.");
-    if (!r.error) { setForm({ userId: "", accountId: "", status: "active" }); await refreshAll(); }
-    setBusy(false);
-  };
-
   const changePayouts = async (f) => { setPayoutFilter(f); setPayouts(await getPayouts(supabase, f, 0)); };
   const changeLedger = async (f) => { setLedgerFilter(f); setLedger(await getLedger(supabase, f, 0)); };
   const changeDisputes = async (f) => { setDisputeFilter(f); setDisputes(await getDisputes(supabase, f, 0)); };
@@ -133,7 +115,8 @@ export default function AdminPaymentsDesk({ initialAttention, initialLedger, ini
     </>
   );
 
-  const failed = attention?.error || ledger?.error || disputes?.error || balances?.error || payouts?.error;
+  const failed = attention?.error || ledger?.error || disputes?.error || payouts?.error;
+  const tabs = [...TABS, ...LEGACY_TABS.filter(([k]) => (k === "payouts" ? payouts?.total > 0 : ledger?.total > 0))];
 
   return (
     <div>
@@ -142,19 +125,23 @@ export default function AdminPaymentsDesk({ initialAttention, initialLedger, ini
         <button onClick={refreshAll} className="text-xs px-3 py-1.5 rounded-full" style={{ border: "1px solid #D8D5C9", color: "#6B6F76" }}>Refresh</button>
       </div>
       <p className="text-xs mb-6" style={{ color: "#6B6F76" }}>
-        Figures come from the local ledger (webhook and poll updates), not from the bank. They are not reconciled against Razorpay.
+        Figures come from the local ledger (payment webhooks and your own settlement records), not from the bank. They are not reconciled against Razorpay or your bank statement.
       </p>
       {failed && <p className="text-sm mb-4" style={{ color: "#B33A2E" }} role="alert">Some data could not be loaded. Check your MFA session and refresh.</p>}
       {msg && <p className="text-sm mb-4" style={{ color: "#3A3D42" }} role="status">{msg}</p>}
 
       <div className="flex gap-1 mb-6" role="tablist" style={{ borderBottom: "1px solid #D8D5C9" }}>
-        {TABS.map(([k, label]) => (
+        {tabs.map(([k, label]) => (
           <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className="px-4 py-2 text-sm"
             style={{ color: tab === k ? "#14213D" : "#6B6F76", fontWeight: tab === k ? 600 : 400, borderBottom: tab === k ? "2px solid #14213D" : "2px solid transparent" }}>
             {label}{k === "attention" && attention?.total > 0 ? ` (${attention.total})` : ""}
           </button>
         ))}
       </div>
+
+      {tab === "settlement" && (
+        <AdminSettlementTab supabase={supabase} initialPending={initialSettlement.pending} initialBatches={initialSettlement.batches} />
+      )}
 
       {tab === "attention" && (
         <div>
@@ -277,53 +264,6 @@ export default function AdminPaymentsDesk({ initialAttention, initialLedger, ini
               </div>
             ))}
           </div>
-        </div>
-      )}
-
-      {tab === "balances" && (
-        <div>
-          <div className="overflow-x-auto mb-8">
-            <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
-              <thead>
-                <tr className="text-left text-xs uppercase" style={{ color: "#6B6F76", ...MONO }}>
-                  <th className="py-2 pr-3">Seller</th><th className="pr-3">UPI ID</th><th className="pr-3 text-right">UPI paid</th><th className="pr-3 text-right">UPI in progress</th><th className="pr-3 text-right">UPI needs attention</th><th className="pr-3">Payout account</th><th className="pr-3 text-right">Held</th><th className="pr-3 text-right">Releasing</th>
-                  <th className="pr-3 text-right">Settled</th><th className="pr-3 text-right">Reversed</th><th className="pr-3 text-right">Needs attention</th><th className="text-right">Awaiting transfer</th>
-                </tr>
-              </thead>
-              <tbody>
-                {balances.items.map((s) => (
-                  <tr key={s.seller_id} style={{ borderTop: "1px solid #EAE8DE" }}>
-                    <td className="py-2 pr-3">{s.seller_name || s.seller_id.slice(0, 8)}</td>
-                    <td className="pr-3 text-xs" style={MONO}>{s.vpa_address || "—"}</td>
-                    <td className="pr-3 text-right">{formatPaise(s.upi_paid_paise)}</td>
-                    <td className="pr-3 text-right">{formatPaise(s.upi_in_progress_paise)}</td>
-                    <td className="pr-3 text-right" style={{ color: s.upi_attention_paise > 0 ? "#B33A2E" : undefined }}>{formatPaise(s.upi_attention_paise)}</td>
-                    <td className="pr-3">{s.account_status ? <Pill tone={s.account_status === "active" ? "green" : "amber"}>{s.account_status}</Pill> : <Pill tone="red">none</Pill>}{s.account_status && <button disabled={busy} onClick={() => changeSellerStatus(s.seller_id, s.account_status === "suspended" ? "active" : "suspended")} className="text-xs underline ml-2" style={{ color: "#14213D" }}>{s.account_status === "suspended" ? "Resume" : "Pause"}</button>}</td>
-                    <td className="pr-3 text-right">{formatPaise(s.held_paise)}</td>
-                    <td className="pr-3 text-right">{formatPaise(s.releasing_paise)}</td>
-                    <td className="pr-3 text-right">{formatPaise(s.settled_paise)}</td>
-                    <td className="pr-3 text-right">{formatPaise(s.reversed_paise)}</td>
-                    <td className="pr-3 text-right" style={{ color: s.attention_paise > 0 ? "#B33A2E" : undefined }}>{formatPaise(s.attention_paise)}</td>
-                    <td className="text-right">{formatPaise(s.awaiting_transfer_paise)}{s.awaiting_transfer_count > 0 ? ` (${s.awaiting_transfer_count})` : ""}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {balances.items.length === 0 && <p className="text-sm mt-3" style={{ color: "#6B6F76" }}>No sellers yet.</p>}
-          </div>
-
-          <form onSubmit={savePayout} className="rounded-md p-4 max-w-xl" style={card}>
-            <p className="text-sm mb-3" style={{ fontWeight: 500, color: "#14213D" }}>Set a seller&apos;s Razorpay payout account</p>
-            <div className="space-y-3">
-              <input required value={form.userId} onChange={(e) => setForm({ ...form, userId: e.target.value })} placeholder="Seller user id (uuid)" className="w-full text-sm px-3 py-2 rounded-md" style={{ border: "1px solid #D8D5C9", ...MONO }} />
-              <input required value={form.accountId} onChange={(e) => setForm({ ...form, accountId: e.target.value })} placeholder="Linked account id (acc_…)" className="w-full text-sm px-3 py-2 rounded-md" style={{ border: "1px solid #D8D5C9", ...MONO }} />
-              <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="text-sm px-3 py-2 rounded-md" style={{ border: "1px solid #D8D5C9" }}>
-                <option value="active">active</option><option value="pending">pending</option><option value="suspended">suspended</option>
-              </select>
-              <div><button type="submit" disabled={busy} className="text-sm px-4 py-2 rounded-md" style={{ background: "#14213D", color: "#fff", opacity: busy ? 0.6 : 1 }}>Save</button></div>
-            </div>
-            <p className="text-xs mt-3" style={{ color: "#6B6F76" }}>Transfers are only created for accounts that are active, and only while the transfers flag is on.</p>
-          </form>
         </div>
       )}
     </div>

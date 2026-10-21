@@ -4,14 +4,15 @@ import AdminPaymentsDesk from "@/components/AdminPaymentsDesk";
 import { createClient } from "@/lib/supabase/server";
 import { getVerifiedUser } from "@/lib/supabase/get-verified-user";
 import { getAdminGate } from "@/lib/domain/admin-reviews";
-import { getAttention, getBalances, getDisputes, getLedger, getPayouts } from "@/lib/domain/admin-payments";
+import { getAttention, getDisputes, getLedger, getPayouts } from "@/lib/domain/admin-payments";
+import { getSettlementBatches, getSettlementPending } from "@/lib/domain/admin-settlement";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Payments desk — chatmarket" };
 
-// Milestone 5.3. Admin payments desk. Requires is_admin AND aal2 before it draws anything; every admin_* reporting RPC
-// re-checks both (private.is_admin_mfa), so this is UX, not the security boundary. Read-only apart from the two existing
-// admin actions (clear a parked review, set a seller's payout account), which are themselves admin + MFA RPCs.
+// Milestone 5.3 / 5.5. Admin payments desk. Requires is_admin AND aal2 before it draws anything; every admin_* RPC
+// re-checks both (private.is_admin_mfa), so this is UX, not the security boundary. 5.5 adds the Monthly settlement tab (manual UPI
+// payouts: preview, freeze a batch, CSV, record the bank reference); nothing on this page calls any outgoing payout API.
 export default async function AdminPaymentsPage() {
   const supabase = createClient();
   const user = await getVerifiedUser(supabase);
@@ -35,8 +36,9 @@ export default async function AdminPaymentsPage() {
       </p>
     );
   }
-  const [attention, ledger, disputes, balances, payouts] = await Promise.all([
-    getAttention(supabase), getLedger(supabase, "all", 0), getDisputes(supabase, "all", 0), getBalances(supabase), getPayouts(supabase, "all", 0),
+  const [attention, ledger, disputes, payouts, pending, batches] = await Promise.all([
+    getAttention(supabase), getLedger(supabase, "all", 0), getDisputes(supabase, "all", 0), getPayouts(supabase, "all", 0),
+    getSettlementPending(supabase, null), getSettlementBatches(supabase),
   ]);
-  return shell(<AdminPaymentsDesk initialAttention={attention} initialLedger={ledger} initialDisputes={disputes} initialBalances={balances} initialPayouts={payouts} />);
+  return shell(<AdminPaymentsDesk initialAttention={attention} initialLedger={ledger} initialDisputes={disputes} initialPayouts={payouts} initialSettlement={{ pending, batches }} />);
 }

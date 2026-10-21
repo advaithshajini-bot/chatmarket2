@@ -61,16 +61,16 @@ export default function PayoutPage() {
     if (error) { setMessage({ tone: "err", text: explain(error) }); return; }
     setSaved({ vpa_address: v.value, status: saved?.status ?? "active" });
     setInput(v.value);
-    setMessage({ tone: "ok", text: data?.outcome === "unchanged" ? "That UPI ID is already saved." : "UPI ID saved. Your sales will be paid to it instantly." });
+    setMessage({ tone: "ok", text: data?.outcome === "unchanged" ? "That UPI ID is already saved." : "UPI ID saved. Your earnings will be paid to it in the monthly payout." });
   }
 
   return (
     <div style={{ minHeight: "100vh" }}>
       <TopNav />
       <main className="px-6 py-10 max-w-xl mx-auto">
-        <h1 className="text-3xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>Get paid instantly</h1>
+        <h1 className="text-3xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>Get paid monthly</h1>
         <p className="text-sm mb-6" style={{ color: "#3A3D42" }}>
-          Add your UPI ID and we&apos;ll send your share of every sale straight to it, as soon as the sale is complete. No documents, no bank details, no waiting period.
+          Add your UPI ID and we&apos;ll pay your share of every sale to it in one monthly payout, around the 1st of each month. No documents and no bank details.
         </p>
 
         {loading ? (
@@ -123,7 +123,7 @@ export default function PayoutPage() {
           <Info size={16} color="#8A6A18" className="shrink-0 mt-0.5" />
           <div className="text-sm" style={{ color: "#3A3D42" }}>
             <p className="mb-1" style={{ fontWeight: 600, color: "#14213D" }}>All sales are final.</p>
-            <p>Payouts are sent the moment a sale is complete and can&apos;t be recalled. Please double-check your UPI ID: money sent to a wrong ID can&apos;t be brought back. We never take a payout back from you.</p>
+            <p>Earnings are paid together once a month and can&apos;t be recalled once sent. Please double-check your UPI ID: money sent to a wrong ID can&apos;t be brought back. If you change your UPI ID after a monthly payout has been prepared, the change applies from the next month. We never take a payout back from you.</p>
           </div>
         </div>
         <p className="text-sm mt-6"><Link href="/sell/earnings" className="underline" style={{ color: "#14213D" }}>See your earnings and payout status →</Link></p>
