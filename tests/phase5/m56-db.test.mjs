@@ -313,7 +313,7 @@ await inTxn(async () => {
   const item = (await sc(`select id from public.settlement_items limit 1`)).id;
   const text = JSON.stringify(v4);
   check("G14 no batch id, item id, seller id or admin id in the seller's JSON", !text.includes(r.batch_id) && !text.includes(item) && !text.includes(U.admin) && !text.includes(U.s1));
-  check("G15 only allow-listed keys at the top level and in a payout row", Object.keys(v4).sort().join() === "account_status,items,next_payout_date,payouts,summary,upi_masked" && Object.keys(v4.payouts[0]).sort().join() === "amount_paise,batch_label,paid_at,purchase_count,reference,upi_masked");
+  check("G15 only allow-listed keys at the top level and in a payout row", Object.keys(v4).sort().join() === "account_status,items,min_payout_paise,next_payout_date,payouts,summary,upi_cooldown_hours,upi_masked,upi_unlocks_at" && Object.keys(v4.payouts[0]).sort().join() === "amount_paise,batch_label,paid_at,purchase_count,reference,upi_masked");
 });
 await inTxn(async () => {
   await mkUsers();

@@ -31,7 +31,7 @@ const m = stripComments(read(MIG), "sql"), lower = m.toLowerCase();
 const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql")).sort();
 
 // ---------------------------------------------------------------- migration
-check("G01 the 5.4 migration is additive (only the 5.5 settlement migration sorts after it): no drop table / drop column / delete / truncate of existing data", migs.filter((f) => f > path.basename(MIG)).every((f) => /^20261019/.test(f)) && !/\bdrop\s+(table|column|schema)\b|\btruncate\b|\bdelete\s+from\b/.test(lower));
+check("G01 the 5.4 migration is additive (only later 5.5+ settlement migrations sort after it): no drop table / drop column / delete / truncate of existing data", migs.filter((f) => f > path.basename(MIG)).every((f) => /^(20261019|202610[23]\d)/.test(f)) && !/\bdrop\s+(table|column|schema)\b|\btruncate\b|\bdelete\s+from\b/.test(lower));
 check("G02 the new flag is seeded OFF and nothing in the migration turns any flag on", /insert into private\.feature_flags \(name, enabled\) values \('phase6_vpa_payouts', false\)/.test(m) && !/set\s+enabled\s*=\s*true|enabled\s*\)?\s*values\s*\([^)]*true/.test(lower));
 check("G03 cutoff_at defaults to infinity (fail closed) and there is a per-payout cap", /cutoff_at\s+timestamptz not null default 'infinity'/.test(m) && /max_payout_paise\s+integer not null default 500000/.test(m));
 check("G04 Route and UPI payouts are mutually exclusive at flag level", /create or replace function private\.is_route_transfers_enabled[\s\S]*?phase6_vpa_payouts[\s\S]*?is not true/.test(m) && /create function private\.is_vpa_payouts_enabled[\s\S]*?phase5_route_transfers[\s\S]*?is not true/.test(m));
@@ -52,7 +52,7 @@ check("G12 the seller can only read their own UPI id and status; Razorpay ids ar
 check("G13 the seller's own UPI write is a function with the UPI format check, a rate limit and a masked audit row", /set_my_payout_vpa/.test(m) && /too_many_changes/.test(m) && /private\.mask_vpa\(v_vpa\)/.test(m));
 check("G14 admin functions start with the admin + MFA check", ["admin_retry_vpa_payout", "admin_set_seller_payout_status", "admin_vpa_payouts_ledger"].every((f) => new RegExp(`function public\\.${f}[\\s\\S]*?begin\\s+if not \\(select private\\.is_admin_mfa\\(\\)\\)`).test(m)));
 check("G15 the UPI id is stored lower-cased and the regex in the DB equals the one in the browser", UPI_REGEX.source === "^[a-z0-9][a-z0-9._-]{1,63}@[a-z][a-z0-9.]{1,31}$" && m.includes("'^[a-z0-9][a-z0-9._-]{1,63}@[a-z][a-z0-9.]{1,31}$'"));
-check("G16 error code CM075 is new to this migration", /CM075/.test(m) && migs.filter((f) => f !== path.basename(MIG)).every((f) => !read("supabase/migrations/" + f).includes("CM075")));
+check("G16 error code CM075 is new to this migration (only later 5.7 re-states set_my_payout_vpa)", /CM075/.test(m) && migs.filter((f) => f !== path.basename(MIG) && !/^2026102\d/.test(f)).every((f) => !read("supabase/migrations/" + f).includes("CM075")));
 
 // ---------------------------------------------------------------- non-recourse: no seller debt anywhere
 const noDebt = /negative[_ -]?balance|chargeback[_ -]?debt|recovered[_ -]?loss|claw[_ -]?back|clawback|seller[_ -]?debt|owed to (us|platform)/i;
@@ -64,22 +64,11 @@ for (const f of uiFiles) {
 // comments may say "never": code and SQL must not CREATE any such concept
 check("G21 the migration has no negative-balance, debt, clawback or reversal-against-seller concept in SQL", !noDebt.test(m));
 check("G22 the seller status function never subtracts reversals from instant payouts (paid sum = share - amount_reversed only for legacy transfers, which are 0 for UPI)", /filter \(where c\.code in \('paid', 'instant_paid'\)\)/.test(m));
-check("G23 the payout libs never call a reverse / refund / hold API and never read disputes", (() => {
-  const t = ["lib/payments/vpa-payouts.js", "lib/payments/payout-events.js"].map((f) => stripComments(read(f), "js")).join("\n");
-  return !/reverseTransfer|createRefund|setTransferHold|dispute/i.test(t);
-})());
 check("G24 no dispute-driven code path touches vpa_payouts (disputes stay support tickets)", !/vpa_payouts/.test(stripComments(read("lib/payments/disputes.js"), "js")) && !/vpa_payouts/.test(stripComments(read("supabase/migrations/20261014100000_add_dispute_actions.sql"), "sql")));
 check("G25 the one place that mentions a dispute in the seller's status function cannot change a UPI payout (UPI branches come first)", (() => { const s = lower.indexOf("when s.vstatus = 'processed'"); const d = lower.indexOf("when s.dstatus = 'open'"); return s > 0 && d > s; })());
 
-// ---------------------------------------------------------------- libs / routes
-const razor = stripComments(read("lib/payments/razorpay-client.js"), "js");
-check("G30 the payout request sends X-Payout-Idempotency, mode UPI and the RazorpayX account number from config (never hard-coded)", /X-Payout-Idempotency/.test(razor) && /mode: "UPI"/.test(razor) && /account_number: accountNumber/.test(razor) && !/RAZORPAYX_ACCOUNT_NUMBER/.test(razor.replace(/description: "RAZORPAYX_ACCOUNT_NUMBER missing"/g, "")));
-check("G31 the account number is read from the env var NAME only, in the two routes", ["app/api/razorpay/webhook/route.js", "app/api/payments/transfers/sweep/route.js"].every((f) => /process\.env\.RAZORPAYX_ACCOUNT_NUMBER/.test(read(f))));
-check("G32 no secret value appears in the new files", !/rzp_(test|live)_[A-Za-z0-9]{6,}|whsec_[A-Za-z0-9]{6,}/.test(["lib/payments/vpa-payouts.js", "lib/payments/payout-events.js", "lib/domain/upi.js", "app/sell/payout/page.jsx"].map(read).join("")));
-check("G33 the webhook route runs the payout hook after the transfer hook, and each is a no-op while its flag is off (decided in the database)", /payoutPurchase\(\{ db, rzp, purchaseId \}\)/.test(read("app/api/razorpay/webhook/route.js")) && /payoutPurchase/.test(read("app/api/razorpay/webhook/route.js")));
-check("G34 the webhook handler routes payout.* events through apply_vpa_payout_event and never logs the payload", /isPayout/.test(read("lib/payments/webhook-handler.js")) && /applyVpaPayoutEvent/.test(read("lib/payments/webhook-handler.js")) && !/console\./.test(read("lib/payments/webhook-handler.js")));
-check("G35 the reconciliation pass runs the payout sweep", /runPayoutSweep/.test(read("lib/payments/reconcile.js")));
-check("G36 the payout orchestration claims in the database BEFORE calling Razorpay", (() => { const t = stripComments(read("lib/payments/vpa-payouts.js"), "js"); return t.indexOf("db.planVpaPayout") > 0 && t.indexOf("db.planVpaPayout") < t.indexOf("rzp.createVpaPayout") && t.indexOf("rzp.listPayoutsByReference") < t.indexOf("rzp.createVpaPayout"); })());
+// ---------------------------------------------------------------- libs / routes (the payout code itself was retired in the Tier 1 clean-up: see m58-tier1.test.mjs)
+check("G32 no secret value appears in the new files", !/rzp_(test|live)_[A-Za-z0-9]{6,}|whsec_[A-Za-z0-9]{6,}/.test(["lib/domain/upi.js", "app/sell/payout/page.jsx"].map(read).join("")));
 check("G37 the plan function is never called from browser code", !/planVpaPayout|plan_vpa_payout|apply_vpa_payout_event/.test(["app/sell/payout/page.jsx", "app/sell/page.jsx", "components/SellerPayoutPanel.jsx", "components/AdminPaymentsDesk.jsx", "lib/domain/admin-payments.js", "lib/domain/seller-payouts.js"].map((f) => stripComments(read(f), "js")).join("")));
 
 // ---------------------------------------------------------------- the seller's page

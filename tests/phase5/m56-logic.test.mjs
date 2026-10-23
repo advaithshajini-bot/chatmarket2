@@ -1,7 +1,7 @@
 // A56-L -- unit tests for monthly settlement helpers (no database, no network).
 import {
   csvCell, buildSettlementCsv, csvFilename, paiseToRupeesString, CSV_HEADER, defaultSettlementPeriod, startOfIstMonthIso, istDateToIso,
-  isValidReference, explainSettlementError, getSettlementPending, settleItems, createSettlementBatch, releaseSettlementItem, cancelSettlementBatch,
+  isValidReference, explainSettlementError, BLOCKED_LABELS, getSettlementPending, settleItems, createSettlementBatch, releaseSettlementItem, cancelSettlementBatch,
 } from "../../lib/domain/admin-settlement.js";
 import { describeSettlement, describeSettlementAccount, formatPayoutDate, getSellerSettlementStatus, SETTLEMENT_CODES } from "../../lib/domain/seller-settlement.js";
 
@@ -83,5 +83,6 @@ for (const [label, impl] of [["error", () => ({ data: okS, error: { message: "SE
   const r = await getSellerSettlementStatus(sb(impl));
   check(`L33 seller loader fails soft on ${label}`, r.error === true && r.items.length === 0 && r.payouts.length === 0 && r.summary.unsettled_paise === 0 && !JSON.stringify(r).includes("SECRET"));
 }
+check("L34 below_minimum has an admin label; the empty loaders carry min_payout_paise 0", /roll/i.test(BLOCKED_LABELS.below_minimum) && (await getSellerSettlementStatus(sb(() => ({ data: null, error: null })))).min_payout_paise === 0 && (await getSettlementPending(sb(() => ({ data: null, error: null })))).min_payout_paise === 0);
 console.log(`\nM56-LOGIC: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

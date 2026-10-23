@@ -1,0 +1,27 @@
+// A62-L -- generation type helper + form/source guardrails. No database, no network.
+import fs from "node:fs"; import path from "node:path"; import { fileURLToPath } from "node:url";
+import { GENERATION_TYPES, resolveGenerationType, generationTypeLabel } from "../../lib/generation-types.js";
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
+let pass = 0, fail = 0;
+const check = (n, ok, x) => { if (ok) { pass++; console.log("PASS:", n); } else { fail++; console.log("FAIL:", n, x === undefined ? "" : `-- ${JSON.stringify(x)}`); } };
+check("L01 the options are exactly Images, Text, Videos, Others in that order", GENERATION_TYPES.map((g) => g.label).join() === "Images,Text,Videos,Others");
+check("L02 a normal type resolves and drops any leftover other-text", JSON.stringify(resolveGenerationType("images", "stale")) === JSON.stringify({ generation_type: "images", generation_type_other: null }));
+check("L03 nothing chosen / unknown is an error", !!resolveGenerationType("", "").error && !!resolveGenerationType("audio", "").error && !!resolveGenerationType(undefined).error);
+check("L04 others needs text (blank and spaces refused)", !!resolveGenerationType("others", "").error && !!resolveGenerationType("others", "   ").error);
+check("L05 others trims and caps at 60 characters", resolveGenerationType("others", "  Music  ").generation_type_other === "Music" && resolveGenerationType("others", "x".repeat(90)).generation_type_other.length === 60);
+check("L06 labels: plain, others+text, others without text, unknown", generationTypeLabel("videos") === "Videos" && generationTypeLabel("others", "Music") === "Others: Music" && generationTypeLabel("others", "") === "Others" && generationTypeLabel("zzz") === null && generationTypeLabel(null) === null);
+const page = read("app/sell/page.jsx");
+check("L10 the Details step has a <select> labelled Generation type, with a disabled placeholder", /Generation type<\/label>/.test(page) && /<select[\s\S]{0,400}id="generation-type"/.test(page) && /<option value="" disabled>/.test(page));
+check("L11 the free-text box only renders when 'others' is chosen", /form\.generationType === "others" && \(/.test(page));
+check("L12 switching away from Others clears the typed text", /e\.target\.value === "others" \? form\.generationTypeOther : ""/.test(page));
+check("L13 Continue is blocked until the type (and the Others text) is valid", /canContinue = [^;]*resolveGenerationType\(form\.generationType, form\.generationTypeOther\)\.error/.test(page));
+check("L14 the insert sends both columns from the validated helper, and refuses on error before inserting", /generation_type: gen\.generation_type,\s*generation_type_other: gen\.generation_type_other/.test(page) && page.indexOf("resolveGenerationType(form.generationType") < page.indexOf('from("listings").insert('));
+check("L15 the form state and the reset for 'list another' both carry the two fields", (page.match(/generationTypeOther: ""/g) || []).length >= 2);
+const dom = read("lib/domain/products.js");
+check("L16 the product domain selects and exposes the fields", /generation_type, generation_type_other";/.test(dom) && /generationType: generation_type/.test(dom));
+const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql")).sort();
+const m = read("supabase/migrations/20261023100000_add_generation_type.sql").split("\n").filter((l) => !/^\s*--/.test(l)).join("\n").toLowerCase();
+check("L20 the migration sorts last and is additive only (no drop, delete, update, truncate, rename)", migs.at(-1) === "20261023100000_add_generation_type.sql" && !/\b(drop|delete|update|truncate|rename)\b/.test(m.replace(/comment on column[^;]*;/g, "")));
+check("L21 it touches no policy, grant, function or flag", !/\b(policy|grant|revoke|function|feature_flags)\b/.test(m.replace(/comment on column[^;]*;/g, "")));
+console.log(`\nA62-L: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

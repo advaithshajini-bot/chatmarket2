@@ -48,7 +48,7 @@ const m = sql(MIG), lower = m.toLowerCase();
 const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql"));
 
 // ---------------------------------------------------------------- migration
-check("G01 the 5.2 migration exists and only the 5.2c and 5.3 migrations sort after it", exists(MIG) && migs.filter((f) => f > path.basename(MIG)).every((f) => /^2026101[456789]/.test(f)));
+check("G01 the 5.2 migration exists and only the 5.2c and 5.3 migrations sort after it", exists(MIG) && migs.filter((f) => f > path.basename(MIG)).every((f) => /^(2026101[456789]|202610[23]\d)/.test(f)));
 check("G02 additive only: no DROP / TRUNCATE / DELETE statements", !/\b(drop|truncate)\s+(table|function|policy|index|column|schema|trigger|type)\b/.test(lower) && !/\bdelete\s+from\b/.test(lower) && !/\btruncate\b/.test(lower));
 check("G03 every ALTER TABLE targets only the two NEW tables and only enables RLS",
   [...lower.matchAll(/alter\s+table\s+([\w.]+)\s+([^;]+);/g)].every((x) => /^public\.(seller_payout_accounts|transfers)$/.test(x[1]) && /^enable row level security$/.test(x[2].trim())), [...lower.matchAll(/alter\s+table[^;]+;/g)].map((x) => x[0]));
@@ -88,35 +88,20 @@ check("G25 a settled transfer stays settled and released", /v_t\.settlement_stat
 const clientSrc = js("lib/payments/razorpay-client.js");
 const appFiles = [...walk("lib"), ...walk("app"), ...(exists("middleware.js") ? ["middleware.js"] : [])];
 const withRoute = appFiles.filter((f) => /\/v1\/transfers|\/v1\/payments\/[^`"']*\/transfers/.test(js(f)));
-check("G30 the Route API (/v1/payments/:id/transfers, /v1/transfers/:id) is spoken in exactly one file (razorpay-client.js)", withRoute.length === 1 && withRoute[0] === "lib/payments/razorpay-client.js", withRoute);
 check("G31 the Razorpay client takes an injectable fetch, never reads env vars, never logs", /fetchImpl/.test(clientSrc) && !/process\.env/.test(clientSrc) && !/console\./.test(clientSrc));
 check("G32 the Razorpay client authenticates with Basic auth built from the injected id/secret only", /Basic /.test(clientSrc) && /keyId\}:\$\{keySecret/.test(clientSrc));
-const newLibs = ["lib/payments/razorpay-client.js", "lib/payments/transfers.js", "lib/payments/transfer-events.js", "lib/payments/sweep-handler.js", "lib/payments/db.js", "lib/payments/webhook-handler.js"];
-check("G33 no console.* anywhere in the new payment code or routes", [...newLibs, "app/api/payments/transfers/sweep/route.js", "app/api/razorpay/webhook/route.js"].every((f) => !/console\./.test(js(f))));
-check("G34 transfers.js and sweep-handler.js never touch fetch, env vars, the service client or Supabase directly", ["lib/payments/transfers.js", "lib/payments/sweep-handler.js", "lib/payments/transfer-events.js"].every((f) => !/\bfetch\(|process\.env|service-client|supabase/i.test(js(f))));
-const sw = js("app/api/payments/transfers/sweep/route.js");
-check("G35 the sweep route is glue only: small, CRON_SECRET, GET and POST, nodejs, no raw SQL, no logging", sw.split("\n").length < 40 && /process\.env\.CRON_SECRET/.test(sw) && /export const GET/.test(sw) && /export const POST/.test(sw) && /runtime = "nodejs"/.test(sw) && !/\.from\(|\.sql|console\./.test(sw));
-check("G36 the sweep authenticates BEFORE it touches anything (handleSweepRequest wraps the sweep)", /handleSweepRequest\(/.test(sw) && sw.indexOf("handleSweepRequest(") < sw.indexOf("runReconciliation("));
-const sh = js("lib/payments/sweep-handler.js");
-check("G37 the bearer check hashes both sides and compares in constant time, and needs a >= 16 char secret", /timingSafeEqual/.test(sh) && /createHash\("sha256"\)/.test(sh) && /length < 16/.test(sh));
-check("G38 the sweep fails closed (500) when CRON_SECRET is not configured", /!secret \|\| secret\.length < 16\) return \{ status: 500/.test(sh));
+const newLibs = ["lib/payments/razorpay-client.js", "lib/payments/db.js", "lib/payments/webhook-handler.js"];
+check("G33 no console.* anywhere in the new payment code or routes", [...newLibs, "app/api/razorpay/webhook/route.js"].every((f) => !/console\./.test(js(f))));
 const users = appFiles.filter((f) => /service-client/.test(js(f)) && !f.endsWith("service-client.js"));
 check("G39 the service-role client is imported ONLY from app/api route handlers", users.length > 0 && users.every((f) => f.startsWith("app/api/") && /route\.js$/.test(f)), users);
-check("G40 the new routes are not in a client component and expose no NEXT_PUBLIC secret", !/NEXT_PUBLIC_[A-Z_]*(SECRET|SERVICE|KEY_SECRET)/.test([sw, js("app/api/razorpay/webhook/route.js")].join("\n")) && !/"use client"/.test(sw));
-check("G41 no key, secret or webhook secret literal in the new code", ![...newLibs, "app/api/payments/transfers/sweep/route.js"].some((f) => /rzp_(test|live)_[A-Za-z0-9]{6,}|whsec_|sk_(live|test)_/.test(read(f))));
+check("G40 the new routes are not in a client component and expose no NEXT_PUBLIC secret", !/NEXT_PUBLIC_[A-Z_]*(SECRET|SERVICE|KEY_SECRET)/.test([js("app/api/razorpay/webhook/route.js")].join("\n")));
+check("G41 no key, secret or webhook secret literal in the new code", ![...newLibs, "app/api/razorpay/webhook/route.js"].some((f) => /rzp_(test|live)_[A-Za-z0-9]{6,}|whsec_|sk_(live|test)_/.test(read(f))));
 check("G42 the feature flag is toggled nowhere in app code (it is a database kill switch only)", appFiles.every((f) => !/phase5_route_transfers/.test(js(f))));
 const wh = js("lib/payments/webhook-handler.js");
-check("G43 transfer webhooks use only ids / statuses / amounts (the handler never reads notes, email, contact, card, vpa)", !/email|contact|\bcard\b|\bvpa\b|\.notes|customer/i.test(wh));
-check("G44 transfer state is read from the entity, not from the event name", !/eventType\s*===\s*["']transfer\./.test(wh) && /TRANSFER_EVENT_RE\.test\(eventType\)/.test(wh));
-check("G45 the after-fulfilment hook runs only after fulfilled / already_fulfilled and its failure is swallowed", /result\?\.outcome === "fulfilled" \|\| result\?\.outcome === "already_fulfilled"/.test(wh) && /try \{ await afterFulfil\(\{ purchaseId: result\.purchase_id \}\); \} catch/.test(wh));
-const tr = js("lib/payments/transfers.js");
-check("G46 creating a transfer is only reachable through a claim: createTransfer is called after planTransfer returns 'claimed'", tr.indexOf("planTransfer(") > -1 && tr.indexOf('plan?.outcome !== "claimed"') > -1 && tr.indexOf('plan?.outcome !== "claimed"') < tr.indexOf("rzp.createTransfer("));
-check("G47 a possibly-reached attempt lists before it creates (lookup_first branch precedes createTransfer)", tr.indexOf("plan.lookup_first") > -1 && tr.indexOf("listPaymentTransfers(") < tr.indexOf("rzp.createTransfer("));
-check("G48 createTransfer is called from exactly one place", (tr.match(/\.createTransfer\(/g) ?? []).length === 1 && appFiles.filter((f) => f !== "lib/payments/transfers.js" && f !== "lib/payments/razorpay-client.js").every((f) => !/\.createTransfer\(/.test(js(f))));
-check("G49 the notes sent to Razorpay carry only the purchase id", /notes: \{ purchase_id: purchaseId \}/.test(tr));
+check("G43 webhook handling uses only ids / statuses / amounts (the handler never reads notes, email, contact, card, vpa)", !/email|contact|\bcard\b|\bvpa\b|\.notes|customer/i.test(wh));
+check("G45 the (now optional) after-fulfilment hook runs only after fulfilled / already_fulfilled and its failure is swallowed", /result\?\.outcome === "fulfilled" \|\| result\?\.outcome === "already_fulfilled"/.test(wh) && /try \{ await afterFulfil\(\{ purchaseId: result\.purchase_id \}\); \} catch/.test(wh));
 check("G51 payment amounts are integer paise end to end in the migration (round(... * 100))", /round\(v_p\.amount \* 100\)/.test(lower) && /round\(coalesce\(v_p\.platform_fee, 0\) \* 100\)/.test(lower));
 const wroute = js("app/api/razorpay/webhook/route.js");
-check("G53 the webhook route wires the transfer hook: afterFulfil -> createTransferForPurchase, passed to the handler", /createTransferForPurchase\(\{ db, rzp, purchaseId \}\)/.test(wroute) && /const afterFulfil = rzp \?/.test(wroute) && /\bafterFulfil,/.test(wroute));
 check("G54 BOTH new tables reject a malformed account id themselves (check constraint on razorpay_account_id)", (lower.match(/razorpay_account_id\s+text not null check \(razorpay_account_id ~ '\^acc_/g) ?? []).length === 2);
 
 console.log(`\nA52-G: ${pass} passed, ${fail} failed`);
