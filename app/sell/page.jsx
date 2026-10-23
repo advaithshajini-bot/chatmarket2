@@ -23,6 +23,7 @@ import StatusPill from "@/components/StatusPill";
 import ProductTypePicker from "@/components/ProductTypePicker";
 import WorkflowAgentListingForm from "@/components/WorkflowAgentListingForm";
 import { CATEGORIES, MODELS } from "@/lib/categories";
+import { GENERATION_TYPES, GENERATION_TYPE_OTHER_MAX, resolveGenerationType, generationTypeLabel } from "@/lib/generation-types";
 import { parseThreadExport } from "@/lib/parse-thread-export";
 import { redactListing } from "@/lib/redact-pii";
 import { createClient } from "@/lib/supabase/client";
@@ -136,6 +137,11 @@ function BuyerPreviewCard({ form }) {
         <h3 className="text-[16px] mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: form.title ? "#14213D" : "#B7BAC0" }}>
           {form.title || "Your listing title will appear here"}
         </h3>
+        {form.generationType && (
+          <p className="text-[11px] mb-2" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
+            Generates: {generationTypeLabel(form.generationType, form.generationTypeOther.trim()) || ""}
+          </p>
+        )}
         <p className="text-xs mb-4" style={{ color: "#6B6F76" }}>
           {form.description || "A short note on progress helps buyers trust the listing."}
         </p>
@@ -458,7 +464,7 @@ function UploadSubStep({ form, setForm, onContinue }) {
 
 // Step 2 of 3 — details.
 function DetailsSubStep({ form, setForm, onContinue, onBack }) {
-  const canContinue = form.title.trim() && (form.category !== "Other" ? form.category : form.categoryOther.trim());
+  const canContinue = form.title.trim() && (form.category !== "Other" ? form.category : form.categoryOther.trim()) && !resolveGenerationType(form.generationType, form.generationTypeOther).error;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -502,6 +508,36 @@ function DetailsSubStep({ form, setForm, onContinue, onBack }) {
             style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
           />
           <CharCount value={form.zipContents} max={500} />
+        </div>
+
+        <div>
+          <label htmlFor="generation-type" className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Generation type</label>
+          <select
+            id="generation-type"
+            value={form.generationType}
+            onChange={(e) => setForm({ ...form, generationType: e.target.value, generationTypeOther: e.target.value === "others" ? form.generationTypeOther : "" })}
+            className="w-full px-3 py-2.5 rounded text-sm outline-none"
+            style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF", color: form.generationType ? "#14213D" : "#6B6F76" }}
+          >
+            <option value="" disabled>Select what it generates…</option>
+            {GENERATION_TYPES.map((g) => (
+              <option key={g.value} value={g.value}>{g.label}</option>
+            ))}
+          </select>
+          {form.generationType === "others" && (
+            <>
+              <input
+                value={form.generationTypeOther}
+                onChange={(e) => setForm({ ...form, generationTypeOther: e.target.value.slice(0, GENERATION_TYPE_OTHER_MAX) })}
+                maxLength={GENERATION_TYPE_OTHER_MAX}
+                placeholder="Type what it generates, e.g. Music, 3D models…"
+                aria-label="Other generation type"
+                className="w-full mt-2 px-3 py-2.5 rounded text-sm outline-none"
+                style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
+              />
+              <CharCount value={form.generationTypeOther} max={GENERATION_TYPE_OTHER_MAX} />
+            </>
+          )}
         </div>
 
         <div>
@@ -1029,6 +1065,8 @@ export default function SellPage() {
     title: "",
     category: "",
     categoryOther: "",
+    generationType: "",
+    generationTypeOther: "",
     model: "",
     modelOther: "",
     description: "",
@@ -1117,6 +1155,12 @@ export default function SellPage() {
     const sellerName = userData.user.user_metadata?.display_name || userData.user.email;
     const category = form.category === "Other" ? form.categoryOther.trim() : form.category;
     const model = form.model === "Other" ? form.modelOther.trim() : form.model;
+    const gen = resolveGenerationType(form.generationType, form.generationTypeOther);
+    if (gen.error) {
+      setSubmitting(false);
+      setSubmitError(gen.error);
+      return;
+    }
 
     // Real redaction, not a simulation -- strips emails, phone numbers, card
     // numbers, and common API-key/token shapes from everything the buyer
@@ -1134,6 +1178,8 @@ export default function SellPage() {
       id: form.listingId,
       title: redacted.title,
       category,
+      generation_type: gen.generation_type,
+      generation_type_other: gen.generation_type_other,
       model,
       description: redacted.description,
       zip_contents: redacted.zipContents,
@@ -1195,6 +1241,8 @@ export default function SellPage() {
       title: "",
       category: "",
       categoryOther: "",
+      generationType: "",
+      generationTypeOther: "",
       model: "",
       modelOther: "",
       description: "",

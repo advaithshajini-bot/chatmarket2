@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { describeSettlement, describeSettlementAccount, formatPayoutDate } from "@/lib/domain/seller-settlement";
+import { describeSettlement, describeSettlementAccount, describeUpiCooldown, formatPayoutDate } from "@/lib/domain/seller-settlement";
 import { formatPaise } from "@/lib/domain/paise";
 
 const MONO = { fontFamily: "'IBM Plex Mono', monospace" };
@@ -30,6 +30,7 @@ export default function SellerPayoutPanel({ settlement }) {
   const items = settlement?.items || [];
   const payouts = settlement?.payouts || [];
   const next = formatPayoutDate(settlement?.next_payout_date);
+  const cooldownNote = describeUpiCooldown(settlement?.upi_unlocks_at);
 
   return (
     <div>
@@ -46,6 +47,12 @@ export default function SellerPayoutPanel({ settlement }) {
         <p className="text-sm mb-4" style={{ color: "#3A3D42" }}>Payouts go to <span style={MONO}>{settlement.upi_masked}</span>. <Link href="/sell/payout" className="underline">Change</Link></p>
       )}
 
+      {cooldownNote && (
+        <p className="text-sm mb-4 rounded-md px-3 py-2.5" role="status" style={{ background: "#FBF1DD", border: "1px solid #E9D9AA", color: "#3A3D42" }}>
+          {cooldownNote} Earnings made meanwhile are not lost: they are paid in the next monthly payout after that time.
+        </p>
+      )}
+
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
         <Stat label="Unsettled earnings" paise={s.unsettled_paise} hint={next ? `Next payout: ${next}` : "Paid once a month"} />
         {s.in_batch_paise > 0 && <Stat label="Being paid" paise={s.in_batch_paise} hint="in this month's payout" />}
@@ -53,6 +60,12 @@ export default function SellerPayoutPanel({ settlement }) {
         {s.action_needed_paise > 0 && <Stat label="Action needed" paise={s.action_needed_paise} hint="add your UPI ID" />}
         {s.refunded_paise > 0 && <Stat label="Refunded before payout" paise={s.refunded_paise} />}
       </div>
+
+      {settlement?.min_payout_paise > 0 && (
+        <p className="text-sm mb-6" style={{ color: "#3A3D42" }}>
+          Payouts are made once your unsettled earnings reach {formatPaise(settlement.min_payout_paise)}. Smaller amounts roll over to the next month and are added to your next payout.
+        </p>
+      )}
 
       <h3 className="text-sm mb-2" style={{ fontWeight: 600, color: "#14213D" }}>Past payouts</h3>
       {payouts.length === 0 ? (

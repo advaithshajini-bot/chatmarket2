@@ -159,6 +159,8 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
 
           <p className="text-sm mb-3" style={{ color: "#14213D" }}>
             <strong>{formatPaise(t.payable_paise || 0)}</strong> payable to {t.payable_sellers || 0} seller(s) across {t.payable_purchases || 0} sale(s)
+            {pending?.min_payout_paise > 0 && <span style={{ color: "#6B6F76" }}> · minimum payout {formatPaise(pending.min_payout_paise)}</span>}
+            {pending?.upi_cooldown_hours > 0 && <span style={{ color: "#6B6F76" }}> · changed UPI IDs wait {pending.upi_cooldown_hours}h</span>}
             {t.blocked_sellers > 0 && <span style={{ color: "#8A6A18" }}> · {formatPaise(t.blocked_paise || 0)} held back for {t.blocked_sellers} seller(s) who can&apos;t be paid yet</span>}
           </p>
 
@@ -191,7 +193,7 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
                   {pending.blocked.map((b) => (
                     <tr key={b.seller_id} style={{ borderTop: "1px solid #EAE8DE" }}>
                       <td className="py-2 pr-3">{b.seller_name || b.seller_id.slice(0, 8)}</td>
-                      <td className="pr-3"><Pill tone="amber">{BLOCKED_LABELS[b.reason] || b.reason}</Pill></td>
+                      <td className="pr-3"><Pill tone="amber">{BLOCKED_LABELS[b.reason] || b.reason}</Pill>{b.reason === "upi_in_cooldown" && b.upi_unlocks_at && <span className="block text-xs mt-1" style={{ color: "#6B6F76" }}>new ID matures {when(b.upi_unlocks_at)}</span>}</td>
                       <td className="pr-3 text-right">{b.purchase_count} sale(s)</td>
                       <td className="pr-3 text-right">{formatPaise(b.amount_paise)}</td>
                       <td>{b.reason === "account_suspended" && <button disabled={busy} onClick={() => toggleSeller(b.seller_id, "active")} className="text-xs underline" style={{ color: "#14213D" }}>Resume</button>}</td>

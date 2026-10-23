@@ -6,6 +6,7 @@ import { CheckCircle2, Loader2, Zap, Info, Lock } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import { createClient } from "@/lib/supabase/client";
 import { validateUpi, maskUpi } from "@/lib/domain/upi";
+import { describeUpiCooldown, getSellerUpiCooldown } from "@/lib/domain/seller-settlement";
 
 // 5.4: sellers add ONE thing -- a UPI ID. No documents, no bank details, no business verification.
 // Everything is validated again by the database function set_my_payout_vpa (the same rule), so this form is only the friendly layer.
@@ -28,6 +29,7 @@ export default function PayoutPage() {
   const [touched, setTouched] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);   // { tone: "ok" | "err", text }
+  const [cooldown, setCooldown] = useState({ upi_cooldown_hours: 0, upi_unlocks_at: null });   // 5.7: a changed UPI ID waits before it can be paid
 
   useEffect(() => {
     let live = true;
@@ -39,6 +41,8 @@ export default function PayoutPage() {
         if (user) {
           const { data } = await supabase.from("seller_payout_accounts").select("vpa_address, status").eq("user_id", user.id).maybeSingle();
           if (live && data) { setSaved(data); setInput(data.vpa_address ?? ""); }
+          const c = await getSellerUpiCooldown(supabase);
+          if (live) setCooldown(c);
         }
       } catch { /* shows the empty form */ }
       if (live) setLoading(false);
@@ -60,6 +64,7 @@ export default function PayoutPage() {
     setSaving(false);
     if (error) { setMessage({ tone: "err", text: explain(error) }); return; }
     setSaved({ vpa_address: v.value, status: saved?.status ?? "active" });
+    setCooldown({ upi_cooldown_hours: Number.isInteger(data?.upi_cooldown_hours) ? data.upi_cooldown_hours : cooldown.upi_cooldown_hours, upi_unlocks_at: data?.upi_unlocks_at ?? null });
     setInput(v.value);
     setMessage({ tone: "ok", text: data?.outcome === "unchanged" ? "That UPI ID is already saved." : "UPI ID saved. Your earnings will be paid to it in the monthly payout." });
   }
@@ -88,6 +93,11 @@ export default function PayoutPage() {
                 <CheckCircle2 size={15} /> Payouts go to <span style={MONO}>{maskUpi(saved.vpa_address)}</span>
               </p>
             )}
+            {describeUpiCooldown(cooldown.upi_unlocks_at) && (
+              <p className="text-sm mb-4 rounded-md px-3 py-2.5" role="status" style={{ background: "#FBF1DD", border: "1px solid #E9D9AA", color: "#3A3D42" }}>
+                {describeUpiCooldown(cooldown.upi_unlocks_at)} Earnings made meanwhile are not lost: they are paid in the next monthly payout after that time.
+              </p>
+            )}
             {saved?.status === "suspended" && (
               <p className="text-sm mb-4" style={{ color: "#B33A2E" }} role="alert">Payouts to your account are paused. Please contact support.</p>
             )}
@@ -104,6 +114,10 @@ export default function PayoutPage() {
             <p id="upi-help" className="text-xs mt-1.5 min-h-[1.25rem]" style={{ color: showError ? "#B33A2E" : v.ok ? "#2F6F62" : "#6B6F76" }} role={showError ? "alert" : undefined}>
               {showError ? v.error : v.ok ? "Looks good." : "Find it in your UPI app (Google Pay, PhonePe, Paytm…) under your profile."}
             </p>
+
+            {saved?.vpa_address && cooldown.upi_cooldown_hours > 0 && !unchanged && (
+              <p className="text-xs mt-2" style={{ color: "#6B6F76" }}>Heads up: after you change your UPI ID, payouts to the new ID unlock {cooldown.upi_cooldown_hours} hours later. This protects you if someone else ever gets into your account.</p>
+            )}
 
             <button
               type="submit" disabled={!v.ok || saving || unchanged}
@@ -123,7 +137,7 @@ export default function PayoutPage() {
           <Info size={16} color="#8A6A18" className="shrink-0 mt-0.5" />
           <div className="text-sm" style={{ color: "#3A3D42" }}>
             <p className="mb-1" style={{ fontWeight: 600, color: "#14213D" }}>All sales are final.</p>
-            <p>Earnings are paid together once a month and can&apos;t be recalled once sent. Please double-check your UPI ID: money sent to a wrong ID can&apos;t be brought back. If you change your UPI ID after a monthly payout has been prepared, the change applies from the next month. We never take a payout back from you.</p>
+            <p>Earnings are paid together once a month and can&apos;t be recalled once sent. Please double-check your UPI ID: money sent to a wrong ID can&apos;t be brought back. If you change your UPI ID after a monthly payout has been prepared, the change applies from the next month, and a changed ID waits a short while before it can be paid. We never take a payout back from you.</p>
           </div>
         </div>
         <p className="text-sm mt-6"><Link href="/sell/earnings" className="underline" style={{ color: "#14213D" }}>See your earnings and payout status →</Link></p>
