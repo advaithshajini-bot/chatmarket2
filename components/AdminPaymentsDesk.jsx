@@ -8,11 +8,12 @@ import {
   clearTransferReview, getPayouts, retryPayout,
 } from "@/lib/domain/admin-payments";
 import AdminSettlementTab from "@/components/AdminSettlementTab";
+import AdminDirectPaymentsTab from "@/components/AdminDirectPaymentsTab";
 
 const MONO = { fontFamily: "'IBM Plex Mono', monospace" };
 const card = { background: "#F7F7F4", border: "1px solid #D8D5C9" };
 // 5.5: payouts are a manual monthly settlement. The two retired automatic flows (instant UPI, Route) only show a tab when they hold history.
-const TABS = [["settlement", "Monthly settlement"], ["attention", "Needs attention"], ["disputes", "Disputes (support tickets)"]];
+const TABS = [["settlement", "Monthly settlement"], ["attention", "Needs attention"], ["disputes", "Disputes (support tickets)"], ["direct", "Direct payments"]];
 const LEGACY_TABS = [["payouts", "UPI payouts (retired)"], ["transfers", "Route transfers (retired)"]];
 const when = (iso) => (iso ? new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : "—");
 
@@ -142,6 +143,8 @@ export default function AdminPaymentsDesk({ initialAttention, initialLedger, ini
       {tab === "settlement" && (
         <AdminSettlementTab supabase={supabase} initialPending={initialSettlement.pending} initialBatches={initialSettlement.batches} />
       )}
+
+      {tab === "direct" && <AdminDirectPaymentsTab supabase={supabase} />}
 
       {tab === "attention" && (
         <div>
