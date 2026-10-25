@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Lock } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import SellerEarningsClient from "@/components/SellerEarningsClient";
+import SellerClaimsPanel from "@/components/SellerClaimsPanel";
 import { createClient } from "@/lib/supabase/server";
 import { getVerifiedUser } from "@/lib/supabase/get-verified-user";
 import { PLATFORM_FEE_PCT } from "@/lib/constants";
@@ -56,11 +57,13 @@ export default async function EarningsPage() {
     buyerNames = Object.fromEntries((profiles || []).map((p) => [p.id, p.display_name]));
   }
 
+  // Direct-UPI sales (payment_method = 'direct_upi') were paid straight to the seller: no platform fee, nothing to settle.
+  const feeRate = (p) => (p.payment_method === "direct_upi" ? 0 : PLATFORM_FEE_PCT);
   const paid = purchases.filter((p) => p.status === "paid");
   const refunded = purchases.filter((p) => p.status === "refunded");
 
   const grossEarnings = paid.reduce((sum, p) => sum + Number(p.amount), 0);
-  const platformFee = grossEarnings * PLATFORM_FEE_PCT;
+  const platformFee = paid.reduce((sum, p) => sum + Number(p.amount) * feeRate(p), 0);
   const netEarnings = grossEarnings - platformFee;
   const refundedTotal = refunded.reduce((sum, p) => sum + Number(p.amount), 0);
 
@@ -76,7 +79,7 @@ export default async function EarningsPage() {
   paid.forEach((p) => {
     const bucket = weekBucketStart(p.purchased_at);
     if (bucket in weekTotals) {
-      weekTotals[bucket] += Number(p.amount) * (1 - PLATFORM_FEE_PCT);
+      weekTotals[bucket] += Number(p.amount) * (1 - feeRate(p));
     }
   });
   const weeklyEarnings = weeks.map((w, i) => ({ week: `Wk ${i + 1}`, amount: Math.round(weekTotals[w]) }));
@@ -86,8 +89,8 @@ export default async function EarningsPage() {
     listing: p.listings?.title || "(listing removed)",
     buyer: buyerNames[p.user_id] || "buyer",
     amount: Number(p.amount),
-    platformFee: Math.round(Number(p.amount) * PLATFORM_FEE_PCT),
-    net: Math.round(Number(p.amount) * (1 - PLATFORM_FEE_PCT)),
+    platformFee: Math.round(Number(p.amount) * feeRate(p)),
+    net: Math.round(Number(p.amount) * (1 - feeRate(p))),
     status: p.status,
     date: p.purchased_at,
     paymentMethod: p.payment_method,
@@ -98,6 +101,7 @@ export default async function EarningsPage() {
       <TopNav />
       <main className="px-6 py-8 max-w-4xl mx-auto">
         {error && <p className="text-sm mb-4" style={{ color: "#B33A2E" }}>Couldn't load earnings: {error.message}</p>}
+        <SellerClaimsPanel />
         <SellerEarningsClient
           grossEarnings={grossEarnings}
           netEarnings={netEarnings}

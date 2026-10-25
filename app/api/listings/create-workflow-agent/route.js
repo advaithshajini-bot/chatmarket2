@@ -96,6 +96,10 @@ export async function POST(request) {
     .single();
 
   if (insertError) {
+    // CM079: with direct payments ON, a seller needs identity details and an active, matured UPI ID before listing.
+    if (insertError.code === "CM079") {
+      return NextResponse.json({ error: insertError.message === "upi_in_cooldown" ? "You changed your UPI ID recently. You can list again once it unlocks." : "Finish your identity details and UPI ID before listing." }, { status: 403 });
+    }
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 

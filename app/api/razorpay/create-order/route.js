@@ -19,6 +19,12 @@ export async function POST(request) {
     return NextResponse.json({ error: "You need to be logged in to check out." }, { status: 401 });
   }
 
+  // Flag `direct_upi_checkout` ON: buyers pay the seller's UPI ID directly and the platform never takes the money, so no gateway order is created.
+  const { data: directOnly } = await supabase.rpc("direct_upi_checkout_enabled");
+  if (directOnly === true) {
+    return NextResponse.json({ error: "Payments now go directly to the seller. Refresh the page to see the new checkout." }, { status: 403 });
+  }
+
   const { listingId } = await request.json();
   if (!listingId) {
     return NextResponse.json({ error: "Missing listingId." }, { status: 400 });

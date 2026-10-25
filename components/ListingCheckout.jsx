@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Lock, Unlock, Smartphone, CreditCard, Landmark, Wallet, Check } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import DirectUpiCheckout from "@/components/DirectUpiCheckout";
+import { isDirectCheckoutEnabled } from "@/lib/domain/direct-upi";
 
 const PAYMENT_METHODS = [
   { id: "upi", label: "UPI", icon: Smartphone, hint: "Pay via any UPI app", razorpayMethod: "upi" },
@@ -37,10 +39,12 @@ export default function ListingCheckout({ listing }) {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
+  const [direct, setDirect] = useState(false);   // flag `direct_upi_checkout`: buyers pay the seller directly instead of through Razorpay
 
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data }) => {
+      setDirect(await isDirectCheckoutEnabled(supabase));
       setIsLoggedIn(!!data.user);
       setUserInfo(data.user);
 
@@ -160,7 +164,7 @@ export default function ListingCheckout({ listing }) {
         <span className="text-3xl" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
           ₹{listing.price}
         </span>
-        <span className="text-xs" style={{ color: "#6B6F76" }}>platform fee included</span>
+        <span className="text-xs" style={{ color: "#6B6F76" }}>{direct ? "paid directly to the seller" : "platform fee included"}</span>
       </div>
       <p className="text-xs mb-4" style={{ color: "#6B6F76" }}>
         Unlocks the full thread for your account only
@@ -176,6 +180,16 @@ export default function ListingCheckout({ listing }) {
           <Unlock size={16} /> Unlocked — check your{" "}
           <Link href="/library" style={{ textDecoration: "underline" }}>library</Link>
         </div>
+      ) : direct && !isLoggedIn ? (
+        <button
+          onClick={() => router.push(`/login?next=/listing/${listing.id}`)}
+          className="w-full py-3 rounded text-sm font-medium"
+          style={{ background: "#E2A83E", color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600 }}
+        >
+          Log in to pay ₹{listing.price}
+        </button>
+      ) : direct ? (
+        <DirectUpiCheckout listing={listing} onUnlocked={() => setPaid(true)} />
       ) : (
         <>
           <p className="text-xs uppercase tracking-wide mb-2" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>

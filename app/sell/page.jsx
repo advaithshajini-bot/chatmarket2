@@ -23,6 +23,7 @@ import StatusPill from "@/components/StatusPill";
 import ProductTypePicker from "@/components/ProductTypePicker";
 import WorkflowAgentListingForm from "@/components/WorkflowAgentListingForm";
 import { CATEGORIES, MODELS } from "@/lib/categories";
+import { getMyDirectSellerStatus } from "@/lib/domain/direct-upi";
 import { GENERATION_TYPES, GENERATION_TYPE_OTHER_MAX, resolveGenerationType, generationTypeLabel } from "@/lib/generation-types";
 import { parseThreadExport } from "@/lib/parse-thread-export";
 import { redactListing } from "@/lib/redact-pii";
@@ -763,6 +764,31 @@ function UpiGate() {
   );
 }
 
+// Direct payments ON: step 1 of onboarding. Nothing is listed until identity & tax details are saved.
+function IdentityGate() {
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <TopNav />
+      <main className="px-6 py-16 max-w-md mx-auto text-center">
+        <ShieldCheck size={28} color="#14213D" className="mx-auto mb-4" />
+        <h1 className="text-2xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
+          Complete your seller profile to start selling
+        </h1>
+        <p className="text-sm mb-6" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+          Buyers pay you directly, so we first need your identity and tax details (private, never shown to buyers). Then you add the UPI ID buyers pay.
+        </p>
+        <Link
+          href="/sell/profile"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded text-sm"
+          style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}
+        >
+          Add your details <ArrowRight size={15} />
+        </Link>
+      </main>
+    </div>
+  );
+}
+
 function AwaitingApprovalStep({ listings, onAddAnother }) {
   return (
     <div>
@@ -1090,6 +1116,7 @@ export default function SellPage() {
   const [statusListings, setStatusListings] = useState([]);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [hasUpi, setHasUpi] = useState(false);
+  const [directStatus, setDirectStatus] = useState({ flag_on: false, identity_complete: true, upi_unlocks_at: null });   // flag `direct_upi_checkout`
 
   useEffect(() => {
     // Generated up front (not at final submit) so screenshots can be
@@ -1106,6 +1133,7 @@ export default function SellPage() {
       .eq("user_id", userId)
       .maybeSingle();
     setHasUpi(!!payoutAccount?.vpa_address);
+    setDirectStatus(await getMyDirectSellerStatus(supabase));
 
     const { data: myListings } = await supabase
       .from("listings")
@@ -1203,7 +1231,10 @@ export default function SellPage() {
     setSubmitting(false);
 
     if (insertError) {
-      setSubmitError(insertError.message);
+      // CM079: with direct payments ON the database also requires identity details and an active, matured UPI ID.
+      setSubmitError(insertError.code === "CM079"
+        ? (insertError.message === "upi_in_cooldown" ? "You changed your UPI ID recently. You can list again once it unlocks." : "Finish your identity details and UPI ID before listing.")
+        : insertError.message);
       return;
     }
 
@@ -1275,6 +1306,10 @@ export default function SellPage() {
   }
 
   // Selling is gated on a saved UPI ID (5.4) -- no access to the upload wizard or the dashboard until then.
+  // Direct payments ON: identity & tax details come first (step 1), then the UPI ID (step 2).
+  if (directStatus.flag_on && !directStatus.identity_complete) {
+    return <IdentityGate />;
+  }
   if (!hasUpi) {
     return <UpiGate />;
   }
