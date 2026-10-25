@@ -33,6 +33,8 @@
 | `m62-logic.test.mjs` | nothing | the Images/Text/Videos/Others helper, the dropdown + Others text box on the playbook Details step, the insert, and the additive migration. |
 | `m63-db.test.mjs` | Postgres with ALL real migrations | **direct UPI payments** (flag `direct_upi_checkout`, OFF): identity details (validation, masking, last 4 only), step order, listing gate, checkout lookup, claims, seller confirm/reject, purchase creation, settlement isolation, privileges. |
 | `m63-logic.test.mjs` | nothing | UTR and UPI-link helpers, identity validation, wording, loaders, the screens and the migration guardrails. |
+| `m64-db.test.mjs` | Postgres with ALL real migrations | **instant unlock:** a UTR creates the purchase at once, one UTR one purchase, the seller report, the admin (MFA) decision (verified keeps access / not verified removes it), report window, privileges. |
+| `m64-logic.test.mjs` | nothing | the checkout step order (Buy now, blurred QR, Show QR, I've paid, UTR), seller report and admin screens, wording, migration guardrails. |
 
 `fake-razorpay.mjs` is the mock Razorpay API for refunds and the (dormant) Route paths used by the m52c integration tests (a `fetch` replacement with fault injection; no network). The mutation runners for the deleted code were removed; `run-mutations-53.mjs` / `run-mutations-53b.mjs` / `run-mutations.mjs` remain. The 5.6 and 5.7 migrations were mutation-checked by hand (each broken variant fails at least one test); for 5.7 the six variants are listed in the milestone report.
 
@@ -40,7 +42,7 @@ Scratch DB: `tests/phase5/scratch/build-real.sh <db> <migrations-dir> [extra.sql
 Supabase stub (`min-stub.sql`: roles incl. service_role BYPASSRLS, default grants, auth/storage/vault/pg_net stand-ins)
 plus your REAL migrations in order. `run-mutations.mjs` breaks the code on purpose; every mutation must be caught.
 
-Total at the 5.7 milestone: 1,527 passed, 0 failed (with `PHASE5_CONCURRENCY_TESTS=1` on an empty scratch DB). The rehearsal data script is `supabase/manual/rehearsal_seed.sql` (scratch databases only).
+Total at the 5.7 milestone: 1,752 passed, 0 failed (with `PHASE5_CONCURRENCY_TESTS=1` on an empty scratch DB). The rehearsal data script is `supabase/manual/rehearsal_seed.sql` (scratch databases only).
 
 Not covered here (needs real Razorpay / Supabase / Vercel): an actual signed webhook from Razorpay, the Vercel env vars,
 and the deployed route -- see `supabase/manual/phase5_review_golive.md`.

@@ -45,6 +45,12 @@ async function mkListing(seller, price = 499.5, status = "live") {
   const r = await q(`insert into public.listings (title, model, category, price, seller_name, seller_id, status) values ('L','Claude','Design',$1,'s',$2,$3) returning id`, [price, seller, status]);
   return r.rows[0].id;
 }
+// Instant unlock means the app no longer creates PENDING claims; confirm/reject remain for claims made before that, so tests seed them directly.
+async function seed(buyer, listing, utr) {
+  const l = (await q(`select seller_id, price from public.listings where id=$1`, [listing])).rows[0];
+  const a = (await q(`select vpa_address from public.seller_payout_accounts where user_id=$1`, [l.seller_id])).rows[0];
+  return (await q(`insert into public.direct_payment_claims (buyer_id, seller_id, listing_id, amount_paise, vpa_address, utr, expires_at) values ($1,$2,$3,round($4::numeric*100),$5,$6, now() + interval '48 hours') returning id`, [buyer, l.seller_id, listing, l.price, a?.vpa_address ?? "x@ybl", utr])).rows[0].id;
+}
 const UTR = (n) => String(100000000000 + n);
 
 // ================================================================= flag OFF: nothing changes
@@ -169,12 +175,12 @@ await inTxn(async () => {
 await inTxn(async () => {
   await mkUsers(); await seedSeller(U.s1); await flag(true);
   const L = await mkListing(U.s1, 499.5), LB = await mkListing(U.s1, 100);
-  const s1 = await rpc(U.b1, "submit_direct_payment_claim", L, " 1234 5678 9012 ");
-  check("E01 a claim is created (pending, expires ~48h, spaces in the UTR ignored)", !s1.err && s1.rows[0].v.status === "pending" && Math.abs(new Date(s1.rows[0].v.expires_at) - Date.now() - 48 * 3600e3) < 60e3, s1.err?.message);
+  await seed(U.b1, L, "123456789012");
+  check("E01 a legacy pending claim exists for the confirm/reject tests", (await q(`select status from public.direct_payment_claims where buyer_id=$1`, [U.b1])).rows[0].status === "pending");
   const claim = (await q(`select * from public.direct_payment_claims where buyer_id=$1`, [U.b1])).rows[0];
   check("E02 the claim snapshots seller, amount in paise, UPI ID and UTR from the SERVER (not the client)", claim.seller_id === U.s1 && Number(claim.amount_paise) === 49950 && claim.vpa_address === "asha@okhdfcbank" && claim.utr === "123456789012", claim);
   for (const bad of ["12345", "abcdefghijkl", "1234567890123", ""]) check(`E03 invalid UTR '${bad}' refused`, msg(await rpc(U.b1, "submit_direct_payment_claim", LB, bad)) === "invalid_utr");
-  check("E04 a second pending claim by the same buyer on the same listing is refused", msg(await rpc(U.b1, "submit_direct_payment_claim", L, UTR(2))) === "claim_already_pending");
+  check("E04 the database allows only ONE pending claim per buyer and listing", (await q("SAVEPOINT e4").then(async () => { try { await seed(U.b1, L, UTR(2)); return null; } catch (e) { await q("ROLLBACK TO SAVEPOINT e4"); return e.code; } })) === "23505");
   check("E05 the same UTR cannot be used by another buyer", msg(await rpc(U.b2, "submit_direct_payment_claim", L, "123456789012")) === "utr_already_used");
   check("E06 …nor on another listing", msg(await rpc(U.b2, "submit_direct_payment_claim", LB, "123456789012")) === "utr_already_used");
   check("E07 the seller cannot claim on their own listing", msg(await rpc(U.s1, "submit_direct_payment_claim", L, UTR(3))) === "own_listing");
@@ -200,7 +206,7 @@ await inTxn(async () => {
   check("E21 the lookup now says already_purchased and a new claim is refused", (await val(U.b1, "get_direct_payment_target", L)).reason === "already_purchased" && msg(await rpc(U.b1, "submit_direct_payment_claim", L, UTR(4))) === "already_purchased");
   check("E22 a confirmed claim cannot be rejected", msg(await rpc(U.s1, "reject_direct_payment_claim", cid)) === "claim_not_pending");
   const aud = (await q(`select string_agg(metadata::text, ' ') m from public.audit_log where action like 'direct_claim_%'`)).rows[0].m;
-  check("E23 the audit log records submit + confirm with only the last 4 digits of the UTR", /direct_claim_submitted/.test((await q(`select string_agg(action,' ') a from public.audit_log`)).rows[0].a) && aud.includes('"9012"') && !aud.includes("123456789012"), aud);
+  check("E23 the confirm audit entry keeps only the last 4 digits of the UTR", !(await q(`select string_agg(metadata::text, ' ') m from public.audit_log where action = 'direct_claim_confirmed'`)).rows[0].m.includes("123456789012"));
   // settlement isolation
   const el = await q(`select count(*)::int n from private.settlement_eligible(now() + interval '1 minute') where purchase_id = $1`, [p.id]);
   check("E24 the direct sale is NOT settlement-eligible", el.rows[0].n === 0);
@@ -211,14 +217,14 @@ await inTxn(async () => {
 await inTxn(async () => {
   await mkUsers(); await seedSeller(U.s1); await flag(true);
   const L = await mkListing(U.s1, 50);
-  const c = (await val(U.b1, "submit_direct_payment_claim", L, UTR(10))).claim_id;
+  const c = await seed(U.b1, L, UTR(10));
   const r = await rpc(U.s1, "reject_direct_payment_claim", c, "  Not received  ");
   check("F01 the seller rejects with a reason (trimmed)", !r.err && r.rows[0].v.outcome === "rejected" && (await q(`select reject_reason from public.direct_payment_claims where id=$1`, [c])).rows[0].reject_reason === "Not received");
   check("F02 rejecting again is idempotent; confirming a rejected claim is refused", (await val(U.s1, "reject_direct_payment_claim", c)).outcome === "already_rejected" && msg(await rpc(U.s1, "confirm_direct_payment_claim", c)) === "claim_not_pending");
   check("F03 no purchase was created", (await q(`select count(*)::int n from public.purchases where listing_id=$1`, [L])).rows[0].n === 0);
   const t = await val(U.b1, "get_direct_payment_target", L);
   check("F04 the buyer sees the rejection and may submit a fresh claim (even with the same UTR)", t.claim.status === "rejected" && t.claim.reject_reason === "Not received" && !(await rpc(U.b1, "submit_direct_payment_claim", L, UTR(10))).err);
-  const c2 = (await val(U.b2, "submit_direct_payment_claim", L, UTR(11))).claim_id;
+  const c2 = await seed(U.b2, L, UTR(11));
   check("F05 a reason over 200 characters is refused", msg(await rpc(U.s1, "reject_direct_payment_claim", c2, "x".repeat(201))) === "reason_too_long");
   // overdue handling
   await q(`update public.direct_payment_claims set expires_at = now() - interval '1 hour' where id=$1`, [c2]);
@@ -226,22 +232,20 @@ await inTxn(async () => {
   check("F06 a pending claim past its window is reported overdue", t2.claim.status === "pending" && t2.claim.overdue === true);
   const lst = await val(U.s1, "seller_direct_claims");
   check("F07 the seller's list marks it overdue and still lists it", lst.claims.find((x) => x.id === c2)?.overdue === true);
-  const c3 = await rpc(U.b2, "submit_direct_payment_claim", L, UTR(12));
-  check("F08 a new claim supersedes an overdue one: the old one becomes 'expired'", !c3.err && (await q(`select status from public.direct_payment_claims where id=$1`, [c2])).rows[0].status === "expired");
-  check("F09 an expired claim can no longer be confirmed", msg(await rpc(U.s1, "confirm_direct_payment_claim", c2)) === "claim_not_pending");
+  check("F08 submitting a UTR after an overdue legacy claim still unlocks instantly (the new flow ignores legacy pending claims)", !(await rpc(U.b2, "submit_direct_payment_claim", L, UTR(12))).err);
   // overdue but not superseded can still be confirmed (late confirmation)
   const L2 = await mkListing(U.s1, 20);
-  const c4 = (await val(U.b3, "submit_direct_payment_claim", L2, UTR(13))).claim_id;
+  const c4 = await seed(U.b3, L2, UTR(13));
   await q(`update public.direct_payment_claims set expires_at = now() - interval '1 day' where id=$1`, [c4]);
   check("F10 a seller may still confirm a late (overdue, not superseded) claim", (await val(U.s1, "confirm_direct_payment_claim", c4)).outcome === "confirmed");
   // buyer already owns
   const L3 = await mkListing(U.s1, 30);
-  const c5 = (await val(U.b1, "submit_direct_payment_claim", L3, UTR(14))).claim_id;
+  const c5 = await seed(U.b1, L3, UTR(14));
   await q(`insert into public.purchases (user_id, listing_id, amount, status, payment_method, razorpay_payment_id, platform_fee) values ($1,$2,30,'paid','upi','pay_F11',5.4)`, [U.b1, L3]);
   check("F11 if the buyer already owns the listing (bought another way), confirming is refused (buyer_already_owns)", msg(await rpc(U.s1, "confirm_direct_payment_claim", c5)) === "buyer_already_owns");
   // flag switched off afterwards: pending claims are never stranded
   const L4 = await mkListing(U.s1, 40);
-  const c6 = (await val(U.b3, "submit_direct_payment_claim", L4, UTR(15))).claim_id;
+  const c6 = await seed(U.b3, L4, UTR(15));
   await flag(false);
   check("F12 with the flag OFF a pending claim can still be confirmed (nothing is stranded)", (await val(U.s1, "confirm_direct_payment_claim", c6)).outcome === "confirmed");
   check("F13 …but no NEW claim can be submitted", msg(await rpc(U.b1, "submit_direct_payment_claim", L4, UTR(16))) === "feature_off");

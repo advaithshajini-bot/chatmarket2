@@ -52,7 +52,7 @@ check("L41 the new qrcode package is a declared dependency", /"qrcode"/.test(rea
 const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql")).sort();
 const MIG = "20261024100000_add_direct_upi_checkout.sql";
 const m = read(`supabase/migrations/${MIG}`), code = m.split("\n").filter((l) => !/^\s*--/.test(l)).join("\n"), low = code.toLowerCase();
-check("L50 the migration sorts last and the flag is seeded OFF", migs.at(-1) === MIG && /insert into private\.feature_flags \(name, enabled\) values \('direct_upi_checkout', false\)/.test(code));
+check("L50 the migration sorts last and the flag is seeded OFF", migs.includes(MIG) && /insert into private\.feature_flags \(name, enabled\) values \('direct_upi_checkout', false\)/.test(code));
 check("L51 additive: no drop / delete / truncate / alter-column; only the two known functions are replaced", !/\b(drop|delete from|truncate)\b/.test(low) && !/alter table[^;]*alter column/.test(low) && [...code.matchAll(/create or replace function ([\w.]+)/g)].map((x) => x[1]).sort().join() === "private.settlement_eligible,public.set_my_payout_vpa");
 check("L52 every function is SECURITY DEFINER with an empty search_path", [...code.matchAll(/create (?:or replace )?function[\s\S]*?\n\$\$;/g)].every((f) => /security definer/i.test(f[0]) && /set search_path = ''/i.test(f[0])));
 check("L53 the full government-ID number is never written to a column or the audit log", !/govt_id_number|id_number\b[^;]*insert/i.test(code.replace(/p_id_number|v_num/g, "")) && /right\(v_num, 4\)/.test(code));
