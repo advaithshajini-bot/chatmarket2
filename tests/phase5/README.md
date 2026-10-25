@@ -31,6 +31,8 @@
 | `m61-docs.test.mjs` | nothing | the handoff and this README carry no stale payout/sweep instructions; the rehearsal seed script refuses a database with real purchases and creates only fake data. |
 | `m62-db.test.mjs` | Postgres with ALL real migrations | **generation type:** the two nullable columns and their CHECK constraints (types, the Others text 1-60 chars, text only with Others), insert policy unchanged. |
 | `m62-logic.test.mjs` | nothing | the Images/Text/Videos/Others helper, the dropdown + Others text box on the playbook Details step, the insert, and the additive migration. |
+| `m63-db.test.mjs` | Postgres with ALL real migrations | **direct UPI payments** (flag `direct_upi_checkout`, OFF): identity details (validation, masking, last 4 only), step order, listing gate, checkout lookup, claims, seller confirm/reject, purchase creation, settlement isolation, privileges. |
+| `m63-logic.test.mjs` | nothing | UTR and UPI-link helpers, identity validation, wording, loaders, the screens and the migration guardrails. |
 
 `fake-razorpay.mjs` is the mock Razorpay API for refunds and the (dormant) Route paths used by the m52c integration tests (a `fetch` replacement with fault injection; no network). The mutation runners for the deleted code were removed; `run-mutations-53.mjs` / `run-mutations-53b.mjs` / `run-mutations.mjs` remain. The 5.6 and 5.7 migrations were mutation-checked by hand (each broken variant fails at least one test); for 5.7 the six variants are listed in the milestone report.
 

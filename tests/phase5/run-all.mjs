@@ -64,6 +64,8 @@ suite("M60  cooldown wording, loaders, source + migration guardrails (no DB)", "
 suite("M61  docs + rehearsal seed guardrails (no DB)", "m61-docs.test.mjs");
 suite("M62  generation type: columns + constraints (live DB, real schema)", "m62-db.test.mjs");
 suite("M62  generation type: helper, form and migration guardrails (no DB)", "m62-logic.test.mjs");
+suite("M63  direct seller-to-buyer UPI payments (live DB, real schema)", "m63-db.test.mjs");
+suite("M63  direct UPI: helpers, screens, migration guardrails (no DB)", "m63-logic.test.mjs");
 suite("M58  Tier 1 clean-up: payout code retired, nothing reaches it (no DB)", "m58-tier1.test.mjs");
 suite("M59  Tier 2 clean-up: Route transfers + sweep retired, refunds and disputes kept (no DB)", "m59-tier2.test.mjs");
 console.log(`\nTOTAL: ${totalPass} passed, ${totalFail} failed${notPassed ? ", with skipped suites (NOT a pass)" : ""}`);

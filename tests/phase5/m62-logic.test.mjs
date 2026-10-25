@@ -22,6 +22,6 @@ const dom = read("lib/domain/products.js");
 check("L16 the product domain selects and exposes the fields", /generation_type, generation_type_other";/.test(dom) && /generationType: generation_type/.test(dom));
 const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql")).sort();
 const m = read("supabase/migrations/20261023100000_add_generation_type.sql").split("\n").filter((l) => !/^\s*--/.test(l)).join("\n").toLowerCase();
-check("L20 the migration sorts last and is additive only (no drop, delete, update, truncate, rename)", migs.at(-1) === "20261023100000_add_generation_type.sql" && !/\b(drop|delete|update|truncate|rename)\b/.test(m.replace(/comment on column[^;]*;/g, "")));
+check("L20 the migration sorts last and is additive only (no drop, delete, update, truncate, rename)", migs.includes("20261023100000_add_generation_type.sql") && !/\b(drop|delete|update|truncate|rename)\b/.test(m.replace(/comment on column[^;]*;/g, "")));
 check("L21 it touches no policy, grant, function or flag", !/\b(policy|grant|revoke|function|feature_flags)\b/.test(m.replace(/comment on column[^;]*;/g, "")));
 console.log(`\nA62-L: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

@@ -77,8 +77,8 @@ check("G13 both new tables have RLS enabled and an admin-only SELECT policy",
 check("G14 webhook_events stores a hash, not a payload: no payload/body/raw/json column", !/\b(payload|body|raw_body|raw_payload)\s+(jsonb|json|text)\b/.test(lower) && /payload_sha256/.test(lower));
 check("G15 the new error code CM070 is used by this migration and by no OTHER migration", read(MIG).includes("CM070")
   && fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql") && f !== path.basename(MIG)).every((f) => !read(`supabase/migrations/${f}`).includes("CM070")));
-check("G16 purchases are inserted in exactly ONE place in all migrations: inside fulfil_captured_payment",
-  fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql")).flatMap((f) => [...sql(`supabase/migrations/${f}`).toLowerCase().matchAll(/insert\s+into\s+public\.purchases/g)].map(() => f)).join() === path.basename(MIG));
+check("G16 purchases are inserted in exactly TWO places in all migrations: fulfil_captured_payment (gateway) and the SELLER-ONLY confirm_direct_payment_claim (direct UPI, flag OFF by default)",
+  fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql")).flatMap((f) => [...sql(`supabase/migrations/${f}`).toLowerCase().matchAll(/insert\s+into\s+public\.purchases/g)].map(() => f)).join() === [path.basename(MIG), "20261024100000_add_direct_upi_checkout.sql"].join());
 check("G17 amount mismatch is compared with <> against the ORDER amount, and the purchase amount is derived from the order (not a parameter)",
   /p_amount_paise <> v_order\.amount_paise/.test(lower) && /v_amount := v_order\.amount_paise \/ 100\.0/.test(lower));
 check("G18 fulfilment takes an advisory lock keyed on the payment id before reading", /pg_advisory_xact_lock\(hashtextextended\('payment:' \|\| p_payment_id/.test(lower));
