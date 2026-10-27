@@ -55,6 +55,10 @@ export async function POST(request) {
   }
 
   const amountPaise = Math.round(Number(listing.price) * 100);
+  // Razorpay's minimum order is 100 paise (Rs 1). Refuse anything below it (or not a whole number of paise) before calling Razorpay.
+  if (!Number.isInteger(amountPaise) || amountPaise < 100) {
+    return NextResponse.json({ error: "This listing's price is below the minimum payment amount." }, { status: 400 });
+  }
 
   // Route: resolve the seller's linked account on the server (never from the client). No activated account -> no order.
   const service = createServiceClient();
