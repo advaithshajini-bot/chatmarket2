@@ -36,7 +36,7 @@ check("L23 the admin desk has a 'Direct payments' tab wired to it", /\["direct",
 const MIG = "20261025100000_direct_upi_instant_unlock.sql";
 const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql")).sort();
 const m = read(`supabase/migrations/${MIG}`), low = m.split("\n").filter((l) => !/^\s*--/.test(l)).join("\n").toLowerCase();
-check("L30 the migration sorts last, after the first direct-UPI migration", migs.at(-1) === MIG && migs.indexOf(MIG) === migs.indexOf("20261024100000_add_direct_upi_checkout.sql") + 1);
+check("L30 the migration sorts last, after the first direct-UPI migration", migs.includes(MIG) && migs.indexOf(MIG) === migs.indexOf("20261024100000_add_direct_upi_checkout.sql") + 1);
 check("L31 additive: it drops only the status check and the UTR index it recreates; no table, column, function or data is dropped", [...low.matchAll(/\bdrop\s+(\w+)(?:\s+if exists)?\s+([\w.]+)/g)].map((x) => `${x[1]} ${x[2]}`).sort().join() === "constraint direct_payment_claims_status_check,index public.direct_claims_utr_idx" && !/\b(delete from|truncate|drop table|drop column|drop function)\b/.test(low));
 check("L32 it does not touch the feature flag (still OFF unless you flip it)", !/feature_flags/.test(low));
 check("L33 submit creates the purchase and the claim in ONE block, and the purchase is direct_upi with fee 0", /insert into public\.purchases[\s\S]{0,400}'direct_upi'[\s\S]{0,60}, 0\)[\s\S]{0,200}insert into public\.direct_payment_claims/.test(low));

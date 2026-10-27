@@ -68,6 +68,9 @@ suite("M63  direct seller-to-buyer UPI payments (live DB, real schema)", "m63-db
 suite("M63  direct UPI: helpers, screens, migration guardrails (no DB)", "m63-logic.test.mjs");
 suite("M64  direct UPI instant unlock, seller report, admin decision (live DB, real schema)", "m64-db.test.mjs");
 suite("M64  direct UPI: checkout step order, report + admin screens, migration guardrails (no DB)", "m64-logic.test.mjs");
+suite("M65  Razorpay Route: linked accounts, split orders, fulfilment, listing gate (live DB, real schema)", "m65-db.test.mjs");
+suite("M65  Razorpay Route: payloads, onboarding, webhook, screens, migration guardrails (no DB)", "m65-logic.test.mjs");
+suite("M66  legal + help pages: identity, refund SLA, consistency, links, cookie panel (no DB)", "m66-docs.test.mjs");
 suite("M58  Tier 1 clean-up: payout code retired, nothing reaches it (no DB)", "m58-tier1.test.mjs");
 suite("M59  Tier 2 clean-up: Route transfers + sweep retired, refunds and disputes kept (no DB)", "m59-tier2.test.mjs");
 console.log(`\nTOTAL: ${totalPass} passed, ${totalFail} failed${notPassed ? ", with skipped suites (NOT a pass)" : ""}`);

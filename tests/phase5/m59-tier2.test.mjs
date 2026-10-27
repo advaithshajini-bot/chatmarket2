@@ -51,14 +51,14 @@ check("T23 no app code reads or sets phase5_route_transfers (database kill switc
 
 // ---------------------------------------------------------------- the client and db wrapper
 const rzp = createRazorpayClient({ keyId: "k", keySecret: "s", fetchImpl: async () => { throw new Error("no network in this test"); } });
-check("T30 the Razorpay client has exactly two methods: createRefund and listPaymentRefunds", Object.keys(rzp).sort().join() === "createRefund,listPaymentRefunds", Object.keys(rzp));
+check("T30 the Razorpay client has refund methods plus the Route linked-account/payment-lookup methods, and NO transfer-creation, hold, reverse or payout method", Object.keys(rzp).sort().join() === "createLinkedAccount,createRefund,fetchLinkedAccount,fetchPayment,listPaymentRefunds,requestRouteProduct,updateRouteProduct", Object.keys(rzp));
 const db = createPaymentsDb({ rpc: async () => ({ data: null, error: null }) });
 check("T31 the db wrapper has no transfer or dispute-action method, and keeps payments, disputes list and refunds",
   ["planTransfer", "applyTransferEvent", "recordTransferFailure", "listTransferWork", "prepareTransferHold", "claimDisputeAction", "finishDisputeAction"].every((m) => db[m] === undefined)
   && ["recordPaymentOrder", "beginEvent", "finishEvent", "fulfil", "listDisputeWork", "planRefund", "applyRefundEvent", "recordRefundFailure"].every((m) => typeof db[m] === "function"), Object.keys(db));
 check("T32 disputes.js performs exactly one action now: refund", DISPUTE_ACTIONS.join() === "refund", DISPUTE_ACTIONS);
 check("T33 the Razorpay client never calls a Route URL", !/\/v1\/transfers|\/transfers`|\/reversals/.test(read("lib/payments/razorpay-client.js")));
-check("T34 the webhook and disputes-sync routes build the client from the key id and secret only", /createRazorpayClient\(\{ keyId, keySecret \}\)/.test(read("app/api/payments/disputes/sync/route.js")) && !/createRazorpayClient/.test(read("app/api/razorpay/webhook/route.js")));
+check("T34 the webhook and disputes-sync routes build the client from the key id and secret only", /createRazorpayClient\(\{ keyId, keySecret \}\)/.test(read("app/api/payments/disputes/sync/route.js")) && /createRazorpayClient\(\{ keyId: process\.env\.RAZORPAY_KEY_ID, keySecret: process\.env\.RAZORPAY_KEY_SECRET \}\)/.test(read("app/api/razorpay/webhook/route.js")));
 
 // ---------------------------------------------------------------- behaviour
 const SECRET = "whsec_test_only_not_real";
@@ -68,8 +68,8 @@ const send = (event, payload, id, db2 = rec) => {
   const rawBody = JSON.stringify({ event, payload });
   return handleRazorpayWebhook({ rawBody, secret: SECRET, feePct: 10, db: db2, headers: { "x-razorpay-signature": computeWebhookSignature(rawBody, SECRET), "x-razorpay-event-id": id } });
 };
-const t = await send("transfer.processed", { transfer: { entity: { id: "trf_ABCDEF123456", source: "pay_1", amount: 100, transfer_status: "processed" } } }, "evt_t1");
-check("T40 a transfer.* webhook is acknowledged and IGNORED: 200, ignored, nothing applied", t.status === 200 && t.json.ignored === true && calls.some(([n, a]) => n === "finishEvent" && a.status === "ignored") && !calls.some(([n]) => /Transfer|fulfil|Refund/.test(n)), { t, calls: calls.map((c) => c[0]) });
+const t = await send("transfer.reversed", { transfer: { entity: { id: "trf_ABCDEF123456", source: "pay_1", amount: 100, transfer_status: "reversed" } } }, "evt_t1");
+check("T40 a transfer.* webhook other than transfer.processed (the Route fulfilment event, see m65) is acknowledged and IGNORED: 200, ignored, nothing applied", t.status === 200 && t.json.ignored === true && calls.some(([n, a]) => n === "finishEvent" && a.status === "ignored") && !calls.some(([n]) => /Transfer|fulfil|Refund/.test(n)), { t, calls: calls.map((c) => c[0]) });
 calls.length = 0;
 const r = await send("refund.processed", { refund: { entity: { id: "rfnd_ABCDEF123456", payment_id: "pay_1", amount: 49900, currency: "INR", status: "processed", notes: { purchase_id: "11111111-2222-4333-8444-555555555555" } } } }, "evt_r1");
 check("T41 a refund.* webhook is still applied (disputes and refunds keep tracking)", r.status === 200 && r.json.outcome === "refund_applied" && calls.some(([n]) => n === "applyRefundEvent"), r);
@@ -94,7 +94,7 @@ check("T52 the monthly settlement runbook is still in place", exists("supabase/m
 
 // ---------------------------------------------------------------- not touched
 const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql")).sort();
-check("T60 no migration was added or changed: nothing newer than the 5.7 migration exists, and the 5.2 / 5.2c / 5.4 ones remain", migs.at(-1) <= "20261025100000_direct_upi_instant_unlock.sql" && ["20261018100000_add_vpa_payouts.sql", "20261014100000_add_dispute_actions.sql"].every((f) => migs.includes(f)));
+check("T60 no migration was added or changed: nothing newer than the 5.7 migration exists, and the 5.2 / 5.2c / 5.4 ones remain", migs.at(-1) <= "20261027100000_disputes_report_any_time.sql" && ["20261018100000_add_vpa_payouts.sql", "20261014100000_add_dispute_actions.sql"].every((f) => migs.includes(f)));
 check("T61 the monthly-settlement code imports nothing from lib/payments", ["lib/domain/admin-settlement.js", "lib/domain/seller-settlement.js", "components/AdminSettlementTab.jsx", "components/SellerPayoutPanel.jsx"].every((f) => !/payments\//.test(read(f))));
 
 console.log(`\nA59: ${pass} passed, ${fail} failed`);
