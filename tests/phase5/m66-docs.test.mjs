@@ -48,5 +48,11 @@ check("P17 the cookie panel describes only session/preference/payment cookies an
 check("P18 the cookie panel no longer offers accept/reject switches for categories that do not exist", !/type="radio"/.test(ck) && !/localStorage/.test(ck));
 check("P19 the privacy page's cookie statement matches the panel", /only the cookies needed to sign you in/.test(src.privacy) && /do not use advertising or cross-site tracking cookies/.test(src.privacy));
 
+// ---- checkout hardening (Standard Checkout: minimum amount, secrets hygiene)
+const co = read("app/api/razorpay/create-order/route.js"), gi = read(".gitignore"), vp = read("app/api/razorpay/verify-payment/route.js");
+check("P20 create-order refuses an amount under 100 paise with a 400 before calling the gateway", /amountPaise < 100/.test(co) && co.indexOf("amountPaise < 100") < co.indexOf("api.razorpay.com/v1/orders"));
+check("P21 .env files are git-ignored and .env.example holds names only, no values", /^\.env$/m.test(gi) && !/=\s*\S*[A-Za-z0-9]{20,}/.test(read(".env.example")));
+check("P22 no file contains a live-looking Razorpay secret and the secret is only read server-side (never NEXT_PUBLIC)", !/NEXT_PUBLIC_RAZORPAY_KEY_SECRET/.test(["app", "components", "lib"].flatMap((d) => { const w = (x) => fs.readdirSync(path.join(root, x), { withFileTypes: true }).flatMap((e) => e.isDirectory() ? w(`${x}/${e.name}`) : [`${x}/${e.name}`]); return w(d).filter((f) => /\.(js|jsx)$/.test(f)).map(read); }).join("")) && /createHmac\("sha256", process\.env\.RAZORPAY_KEY_SECRET\)/.test(vp) && /timingSafeEqual/.test(vp) && /status: 400/.test(vp));
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
