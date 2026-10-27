@@ -57,8 +57,6 @@ function DisputeSection({ order, onDisputeFiled }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  const hoursSincePurchase = (Date.now() - new Date(order.date).getTime()) / (1000 * 60 * 60);
-  const windowClosed = hoursSincePurchase > 48;
 
   const handleSubmit = async () => {
     if (!reason.trim()) {
@@ -88,7 +86,7 @@ function DisputeSection({ order, onDisputeFiled }) {
       if (insertError.code === "23505") {
         setError("You've already reported an issue on this order.");
       } else if (insertError.message?.includes("row-level security") || insertError.code === "42501") {
-        setError("48 hours have lapsed from purchase, so an issue can no longer be raised.");
+        setError("We couldn't submit that report. Please try again, or email us.");
       } else {
         setError(insertError.message);
       }
@@ -126,14 +124,6 @@ function DisputeSection({ order, onDisputeFiled }) {
 
   if (order.status !== "paid") return null;
 
-  if (windowClosed) {
-    return (
-      <p className="text-xs" style={{ color: "#B33A2E" }}>
-        48 hours have lapsed from purchase, so an issue can no longer be raised.
-      </p>
-    );
-  }
-
   return (
     <div>
       {reporting ? (
@@ -147,6 +137,9 @@ function DisputeSection({ order, onDisputeFiled }) {
             style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", color: "#14213D" }}
           />
           {error && <p className="text-xs mb-2" style={{ color: "#B33A2E" }}>{error}</p>}
+          <p className="text-xs mb-2" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+            Reports can be sent at any time and our team reads every one. All sales are final, so a report does not lead to a refund.
+          </p>
           <div className="flex items-center gap-2">
             <button
               onClick={handleSubmit}

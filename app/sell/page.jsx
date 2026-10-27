@@ -24,6 +24,7 @@ import ProductTypePicker from "@/components/ProductTypePicker";
 import WorkflowAgentListingForm from "@/components/WorkflowAgentListingForm";
 import { CATEGORIES, MODELS } from "@/lib/categories";
 import { getMyDirectSellerStatus } from "@/lib/domain/direct-upi";
+import { getMyRouteStatus, describeRouteStatus } from "@/lib/domain/route";
 import { GENERATION_TYPES, GENERATION_TYPE_OTHER_MAX, resolveGenerationType, generationTypeLabel } from "@/lib/generation-types";
 import { parseThreadExport } from "@/lib/parse-thread-export";
 import { redactListing } from "@/lib/redact-pii";
@@ -764,6 +765,33 @@ function UpiGate() {
   );
 }
 
+// Route ON (flag the Route flag): selling is gated on an ACTIVATED Razorpay linked account (verified by Razorpay, stored as route_status).
+function RouteGate({ status }) {
+  const info = describeRouteStatus(status?.route_status);
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <TopNav />
+      <main className="px-6 py-16 max-w-md mx-auto text-center">
+        <ShieldCheck size={28} color="#14213D" className="mx-auto mb-4" />
+        <h1 className="text-2xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
+          Set up your payment account to start selling
+        </h1>
+        <p className="text-sm mb-2" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+          Buyers pay through chatmarket and Razorpay sends 100% of each sale to your bank account. You can list once Razorpay has verified your details.
+        </p>
+        {status?.has_account && <p className="text-sm mb-6" style={{ color: "#3A3D42" }}>Status: <strong>{info.label}</strong>. {info.detail}</p>}
+        <Link
+          href="/sell/payout"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded text-sm"
+          style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}
+        >
+          {status?.has_account ? "Check your payment account" : "Set up payments"} <ArrowRight size={15} />
+        </Link>
+      </main>
+    </div>
+  );
+}
+
 // Direct payments ON: step 1 of onboarding. Nothing is listed until identity & tax details are saved.
 function IdentityGate() {
   return (
@@ -1116,6 +1144,7 @@ export default function SellPage() {
   const [statusListings, setStatusListings] = useState([]);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [hasUpi, setHasUpi] = useState(false);
+  const [routeStatus, setRouteStatus] = useState({ route_enabled: false, has_account: false, route_status: null, ready: false });   // flag the Route flag
   const [directStatus, setDirectStatus] = useState({ flag_on: false, identity_complete: true, upi_unlocks_at: null });   // flag `direct_upi_checkout`
 
   useEffect(() => {
@@ -1134,6 +1163,7 @@ export default function SellPage() {
       .maybeSingle();
     setHasUpi(!!payoutAccount?.vpa_address);
     setDirectStatus(await getMyDirectSellerStatus(supabase));
+    setRouteStatus(await getMyRouteStatus(supabase));
 
     const { data: myListings } = await supabase
       .from("listings")
@@ -1233,7 +1263,8 @@ export default function SellPage() {
     if (insertError) {
       // CM079: with direct payments ON the database also requires identity details and an active, matured UPI ID.
       setSubmitError(insertError.code === "CM079"
-        ? (insertError.message === "upi_in_cooldown" ? "You changed your UPI ID recently. You can list again once it unlocks." : "Finish your identity details and UPI ID before listing.")
+        ? (insertError.message === "route_account_required" ? "Finish setting up your payment account before listing."
+          : insertError.message === "upi_in_cooldown" ? "You changed your UPI ID recently. You can list again once it unlocks." : "Finish your identity details and UPI ID before listing.")
         : insertError.message);
       return;
     }
@@ -1307,10 +1338,12 @@ export default function SellPage() {
 
   // Selling is gated on a saved UPI ID (5.4) -- no access to the upload wizard or the dashboard until then.
   // Direct payments ON: identity & tax details come first (step 1), then the UPI ID (step 2).
-  if (directStatus.flag_on && !directStatus.identity_complete) {
+  // Route ON: an activated linked account is the only requirement (it replaces both steps below).
+  if (routeStatus.route_enabled) {
+    if (!routeStatus.ready) return <RouteGate status={routeStatus} />;
+  } else if (directStatus.flag_on && !directStatus.identity_complete) {
     return <IdentityGate />;
-  }
-  if (!hasUpi) {
+  } else if (!hasUpi) {
     return <UpiGate />;
   }
 

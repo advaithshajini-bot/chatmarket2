@@ -3,13 +3,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import CookiePreferencesModal from "@/components/CookiePreferencesModal";
+import { BUSINESS as B } from "@/lib/business";
 
 const LINKS = [
   { label: "About us", href: "/about" },
   { label: "Help center", href: "/help" },
   { label: "Privacy policy", href: "/privacy" },
   { label: "Terms", href: "/terms" },
-  { label: "Refund Policy", href: "/refund-policy" },
+  { label: "Refund Policy", href: "/refund" },
+  { label: "Contact us", href: "/help" },
 ];
 
 export default function SiteFooter() {
@@ -40,6 +42,9 @@ export default function SiteFooter() {
             Manage cookies
           </button>
         </div>
+        <p className="text-xs text-center mt-3" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+          Operated by {B.operator} · {B.address} · {B.email}
+        </p>
       </footer>
 
       <CookiePreferencesModal open={cookiesOpen} onClose={() => setCookiesOpen(false)} />

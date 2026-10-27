@@ -88,9 +88,9 @@ export default function HowItWorksPage() {
                   3. Pay to unlock
                 </h3>
                 <p className="text-sm" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif", lineHeight: 1.7 }}>
-                  Checkout runs through Razorpay, so you can pay with UPI, a credit or debit card, netbanking, or
-                  Google Pay — whatever you'd normally use to pay for anything online. The listed price already
-                  includes chatmarket's platform fee, so there's nothing extra added at checkout.
+                  Checkout runs through a secure payment gateway, so you can pay with UPI, a credit or debit card, netbanking, or
+                  Google Pay — whatever you'd normally use to pay for anything online. The listed price is the
+                  price you pay; nothing extra is added at checkout.
                 </p>
               </div>
             </div>
@@ -138,9 +138,9 @@ export default function HowItWorksPage() {
             </h2>
           </div>
           <p className="text-sm mb-2" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif", lineHeight: 1.7 }}>
-            Go to Purchases and select "Report an issue" within 48 hours of buying it. Our team reviews what
-            happened and can issue a refund if the thread genuinely doesn't match its listing. See our{" "}
-            <Link href="/refund-policy" style={{ color: "#14213D", fontWeight: 500, textDecoration: "underline" }}>
+            Go to Purchases and select "Report an issue" at any time, or email chatmarket2@gmail.com. Our team reviews what
+            happened and can act on the listing or the seller. All sales are final, so reports don't lead to refunds. See our{" "}
+            <Link href="/refund" style={{ color: "#14213D", fontWeight: 500, textDecoration: "underline" }}>
               Refund Policy
             </Link>{" "}
             for the details.

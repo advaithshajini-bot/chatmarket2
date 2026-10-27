@@ -7,6 +7,7 @@ import { Lock, Unlock, Smartphone, CreditCard, Landmark, Wallet, Check } from "l
 import { createClient } from "@/lib/supabase/client";
 import DirectUpiCheckout from "@/components/DirectUpiCheckout";
 import { isDirectCheckoutEnabled } from "@/lib/domain/direct-upi";
+import { isRouteCheckoutEnabled } from "@/lib/domain/route";
 
 const PAYMENT_METHODS = [
   { id: "upi", label: "UPI", icon: Smartphone, hint: "Pay via any UPI app", razorpayMethod: "upi" },
@@ -39,12 +40,15 @@ export default function ListingCheckout({ listing }) {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
+  const [route, setRoute] = useState(false);     // flag the Route flag: standard Razorpay Checkout, 100% split to the seller (takes precedence over direct)
   const [direct, setDirect] = useState(false);   // flag `direct_upi_checkout`: buyers pay the seller directly instead of through Razorpay
 
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data }) => {
-      setDirect(await isDirectCheckoutEnabled(supabase));
+      const routeOn = await isRouteCheckoutEnabled(supabase);
+      setRoute(routeOn);
+      setDirect(routeOn ? false : await isDirectCheckoutEnabled(supabase));   // Route active: the UTR / direct flow is never shown
       setIsLoggedIn(!!data.user);
       setUserInfo(data.user);
 
@@ -164,7 +168,7 @@ export default function ListingCheckout({ listing }) {
         <span className="text-3xl" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
           ₹{listing.price}
         </span>
-        <span className="text-xs" style={{ color: "#6B6F76" }}>{direct ? "paid directly to the seller" : "platform fee included"}</span>
+        <span className="text-xs" style={{ color: "#6B6F76" }}>{route ? "100% goes to the seller" : direct ? "paid directly to the seller" : "platform fee included"}</span>
       </div>
       <p className="text-xs mb-4" style={{ color: "#6B6F76" }}>
         Unlocks the full thread for your account only

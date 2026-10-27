@@ -9,6 +9,8 @@ import { createClient } from "@/lib/supabase/client";
 import { validateUpi, maskUpi } from "@/lib/domain/upi";
 import { describeUpiCooldown, getSellerUpiCooldown } from "@/lib/domain/seller-settlement";
 import { getMyDirectSellerStatus, explainDirectError } from "@/lib/domain/direct-upi";
+import { getMyRouteStatus } from "@/lib/domain/route";
+import RouteOnboardingForm from "@/components/RouteOnboardingForm";
 
 // 5.4: sellers add ONE thing -- a UPI ID. No documents, no bank details, no business verification.
 // Everything is validated again by the database function set_my_payout_vpa (the same rule), so this form is only the friendly layer.
@@ -26,6 +28,7 @@ function explain(error) {
 export default function PayoutPage() {
   const supabase = createClient();
   const router = useRouter();
+  const [route, setRoute] = useState(null);       // flag the Route flag: Razorpay Route linked account instead of a UPI ID (takes precedence)
   const [direct, setDirect] = useState(false);   // flag `direct_upi_checkout`: buyers pay this UPI ID directly
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState(null);
@@ -36,6 +39,8 @@ export default function PayoutPage() {
   const [message, setMessage] = useState(null);   // { tone: "ok" | "err", text }
   const [cooldown, setCooldown] = useState({ upi_cooldown_hours: 0, upi_unlocks_at: null });   // 5.7: a changed UPI ID waits before it can be paid
 
+  const reloadRoute = async () => { const r = await getMyRouteStatus(supabase); setRoute(r); };
+
   useEffect(() => {
     let live = true;
     (async () => {
@@ -44,6 +49,9 @@ export default function PayoutPage() {
         if (!live) return;
         setUserId(user?.id ?? null);
         if (user) {
+          const rs = await getMyRouteStatus(supabase);
+          if (live) setRoute(rs);
+          if (rs.route_enabled) { setLoading(false); return; }
           // Step 2 of onboarding: with direct payments ON, identity & tax details (step 1) must be saved first.
           const st = await getMyDirectSellerStatus(supabase);
           if (st.flag_on && !st.identity_complete) { router.replace("/sell/profile?notice=identity"); return; }
@@ -88,6 +96,16 @@ export default function PayoutPage() {
     <div style={{ minHeight: "100vh" }}>
       <TopNav />
       <main className="px-6 py-10 max-w-xl mx-auto">
+        {route?.route_enabled && userId ? (
+          <>
+            <h1 className="text-3xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>Get paid on every sale</h1>
+            <p className="text-sm mb-6" style={{ color: "#3A3D42" }}>
+              Buyers pay through chatmarket and Razorpay sends 100% of the sale to your bank. chatmarket takes no commission. Set up your payment account once, then you can list.
+            </p>
+            <RouteOnboardingForm status={route} onChanged={reloadRoute} />
+            <p className="text-sm mt-6"><Link href="/sell/earnings" className="underline" style={{ color: "#14213D" }}>See your earnings →</Link></p>
+          </>
+        ) : (<>
         {direct && <p className="text-xs uppercase tracking-wide mb-2" style={{ ...MONO, color: "#6B6F76" }}>Step 2 of 2</p>}
         <h1 className="text-3xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>{direct ? "Where buyers pay you" : "Get paid monthly"}</h1>
         <p className="text-sm mb-6" style={{ color: "#3A3D42" }}>
@@ -161,6 +179,7 @@ export default function PayoutPage() {
           </div>
         </div>
         <p className="text-sm mt-6"><Link href="/sell/earnings" className="underline" style={{ color: "#14213D" }}>See your earnings and payout status →</Link></p>
+        </>)}
       </main>
     </div>
   );

@@ -1,90 +1,82 @@
-import TopNav from "@/components/TopNav";
+import LegalPage from "@/components/LegalPage";
+import { BUSINESS as B } from "@/lib/business";
 
-export const metadata = {
-  title: "Privacy Policy — chatmarket",
-};
+export const metadata = { title: "Privacy Policy — chatmarket" };
 
 const SECTIONS = [
   {
-    heading: "1. Information we collect",
+    heading: "1. Who is responsible for your data",
+    body: [`${B.operator}, ${B.address}, operates chatmarket and is responsible for the personal data described here. Email ${B.email} with any privacy question.`],
+  },
+  {
+    heading: "2. What we collect",
     body: [
-      "Account information you provide directly: name, email address, and password (stored securely, never in plain text).",
-      "Content you upload as a seller: chat threads, listing titles, descriptions, and prices.",
-      "Payment information is handled entirely by Razorpay — chatmarket never sees or stores your card, UPI, or bank account numbers.",
-      "Seller payout information (PAN, bank account, address) collected during payout setup, stored separately and restricted to you and admins.",
+      { list: [
+        "Account data: your name and email address, and your password (stored only in secured, hashed form).",
+        "Transaction data: order ID, payment reference, amount, listing and date. This is metadata about the transaction, not your payment credentials.",
+        "Seller content: the playbooks, workflows, threads, screenshots, titles, descriptions and prices you upload.",
+        "Seller payment account status: for Sellers, the identifier and verification status of the linked payment account.",
+        "Support messages you send us and reports you raise about a purchase.",
+      ] },
     ],
   },
   {
-    heading: "2. How we use information",
+    heading: "3. Payment data",
     body: [
-      "To operate the marketplace: showing listings, processing purchases, and unlocking threads you've bought.",
-      "To screen listings for personal information or secrets before they go live.",
-      "To communicate with you about your account, purchases, or listings.",
-      "To investigate reported issues and disputes.",
+      "We never store card numbers, CVVs, UPI PINs or net-banking credentials on our servers. Payments are collected and tokenised by our licensed payment gateway partner, which processes them under PCI-DSS standards.",
+      "Sellers' identity (such as PAN) and bank details for payouts are entered on our onboarding form and sent to our payment partner to verify the Seller and set up settlement. We keep only the resulting account identifier and status. Details collected through any earlier payout setup remain in access-restricted storage and can be deleted on request, subject to records we must keep by law.",
     ],
   },
   {
-    heading: "3. Cookies",
+    heading: "4. How we use it",
     body: [
-      "chatmarket uses required cookies to keep you signed in and remember basic preferences. With your consent, we may also use analytics, social media, or advertising cookies — you can review and change these anytime from \"Manage cookies\" in the site footer.",
+      { list: [
+        "to run the marketplace: show listings, process purchases and unlock what you bought;",
+        "to screen listings for personal information or secrets before they go live;",
+        "to contact you about your account, orders and support requests;",
+        "to investigate disputes, prevent fraud and keep the platform safe; and",
+        "to meet legal, tax and accounting obligations.",
+      ] },
+      "If you use a live demo on a listing, the text you type is sent to our AI provider to produce the demo output.",
     ],
   },
   {
-    heading: "4. Sharing of information",
+    heading: "5. Who we share it with",
     body: [
-      "We share payment details with Razorpay solely to process transactions.",
-      "We don't sell your personal information to third parties.",
-      "We may disclose information if required by law or to protect the safety of our users.",
+      { list: [
+        "Our licensed payment gateway partner: for payments, payment-error reversals, Seller verification and settlement.",
+        "Supabase: secure database, authentication and file hosting for chatmarket.",
+        "Our AI provider (Anthropic), only for live-demo runs you start.",
+        "Sellers see that a purchase happened on their listing; they do not receive your payment details.",
+        "Authorities, when the law requires it.",
+      ] },
+      "We do not sell your personal information.",
     ],
   },
   {
-    heading: "5. Data retention and security",
+    heading: "6. Cookies",
     body: [
-      "We retain account and transaction information for as long as your account is active and as needed to comply with legal obligations.",
-      "Sensitive documents (like KYC uploads) are stored in access-restricted storage, readable only by you and admins.",
+      "We use only the cookies needed to sign you in and keep your session secure. We do not use advertising or cross-site tracking cookies. See \"Manage cookies\" in the footer for details.",
     ],
   },
   {
-    heading: "6. Your choices",
+    heading: "7. Retention and security",
     body: [
-      "You can review and update your account information at any time. You can request deletion of your account by contacting support, subject to records we're required to retain.",
+      "We keep account and transaction records while your account is active and for as long as law and accounting rules require. Data is stored with access controls and encrypted connections; no system is perfectly secure, so please use a strong password.",
     ],
   },
   {
-    heading: "7. Changes to this policy",
+    heading: "8. Your rights",
     body: [
-      "We may update this Privacy Policy from time to time. Material changes will be reflected by an updated date at the top of this page.",
+      `You can view and update your account details at any time. You can ask us to correct or delete your data, or withdraw a consent, by emailing ${B.email}. We will respond within the time the law allows; some transaction records must be kept even after deletion of your account.`,
     ],
+  },
+  {
+    heading: "9. Changes",
+    body: ["If we change this policy, the date at the top changes. Material changes will also be announced on the site."],
   },
 ];
 
 export default function PrivacyPage() {
-  return (
-    <div style={{ minHeight: "100vh" }}>
-      <TopNav />
-      <main className="px-6 py-16 max-w-2xl mx-auto">
-        <h1 className="text-3xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
-          Privacy Policy
-        </h1>
-        <p className="text-sm mb-10" style={{ color: "#6B6F76" }}>
-          Last updated: September 2026
-        </p>
-
-        <div className="space-y-8">
-          {SECTIONS.map((section) => (
-            <div key={section.heading}>
-              <h2 className="text-lg mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
-                {section.heading}
-              </h2>
-              {section.body.map((para, i) => (
-                <p key={i} className="text-sm mb-2" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif", lineHeight: 1.7 }}>
-                  {para}
-                </p>
-              ))}
-            </div>
-          ))}
-        </div>
-      </main>
-    </div>
-  );
+  return <LegalPage title="Privacy Policy" updated={B.lastUpdated} sections={SECTIONS} />;
 }

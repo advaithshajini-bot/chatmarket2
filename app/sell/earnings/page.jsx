@@ -57,8 +57,8 @@ export default async function EarningsPage() {
     buyerNames = Object.fromEntries((profiles || []).map((p) => [p.id, p.display_name]));
   }
 
-  // Direct-UPI sales (payment_method = 'direct_upi') were paid straight to the seller: no platform fee, nothing to settle.
-  const feeRate = (p) => (p.payment_method === "direct_upi" ? 0 : PLATFORM_FEE_PCT);
+  // Direct-UPI and Route sales (payment_method = 'direct_upi' / 'route') were paid straight to the seller: no platform fee, nothing to settle.
+  const feeRate = (p) => (p.payment_method === "direct_upi" || p.payment_method === "route" ? 0 : PLATFORM_FEE_PCT);
   const paid = purchases.filter((p) => p.status === "paid");
   const refunded = purchases.filter((p) => p.status === "refunded");
 

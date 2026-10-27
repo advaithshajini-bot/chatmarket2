@@ -70,9 +70,8 @@ export default function ForSellersPage() {
                   3. Set your price
                 </h3>
                 <p className="text-sm" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif", lineHeight: 1.7 }}>
-                  You choose what to charge. The platform fee is built into the price buyers see — there's no
-                  separate charge added on top at checkout, and no surprise deduction you didn't expect either;
-                  what you set factors it in from the start.
+                  You choose what to charge. Buyers pay exactly that price, and chatmarket takes no commission
+                  on it: the full sale price is settled to your bank account.
                 </p>
               </div>
             </div>
@@ -98,13 +97,13 @@ export default function ForSellersPage() {
               </div>
               <div>
                 <h3 className="text-sm mb-1" style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600, color: "#14213D" }}>
-                  5. Set up payouts, then get paid
+                  5. Set up your payment account, then get paid
                 </h3>
                 <p className="text-sm" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif", lineHeight: 1.7 }}>
-                  Before any earnings can be paid out, you'll complete a one-time payout setup with your PAN and
-                  bank account details from Sell → Set up payouts. When someone buys your thread, that sale's
-                  funds are held for 48 hours (in case the buyer reports a genuine issue) before being released to
-                  you.
+                  Before you can list, you'll complete a one-time payment account setup (name as per PAN, PAN and
+                  bank details) from Sell → Set up payments; our payment partner verifies it. When someone buys your listing,
+                  the sale is split and 100% is settled to your bank account on the payment partner's settlement
+                  schedule.
                 </p>
               </div>
             </div>
@@ -148,11 +147,11 @@ export default function ForSellersPage() {
                 What if a buyer reports an issue with my listing?
               </p>
               <p className="text-sm" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif", lineHeight: 1.7 }}>
-                Our team reviews the report against your listing before any refund decision is made — see the{" "}
-                <Link href="/refund-policy" style={{ color: "#14213D", fontWeight: 500, textDecoration: "underline" }}>
+                Buyers can report an issue at any time and our team reviews it against your listing. All sales are final, so there are no refunds — see the{" "}
+                <Link href="/refund" style={{ color: "#14213D", fontWeight: 500, textDecoration: "underline" }}>
                   Refund Policy
                 </Link>{" "}
-                for how that works. If a sale is refunded, the payout for that sale is reversed.
+                for how that works. Your earnings from a completed sale are not taken back because of a report.
               </p>
             </div>
             <div>
@@ -165,11 +164,11 @@ export default function ForSellersPage() {
             </div>
             <div>
               <p className="text-sm mb-1" style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600, color: "#14213D" }}>
-                Do I need to complete payout setup before I can list a thread?
+                Do I need to set up my payment account before I can list?
               </p>
               <p className="text-sm" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif", lineHeight: 1.7 }}>
-                No — you can list and sell without it, but you'll need to complete it before any earnings can
-                actually be paid out to you.
+                Yes. Once our payment partner has verified your payment account you can list; until then the sell page
+                walks you through the setup.
               </p>
             </div>
           </div>
