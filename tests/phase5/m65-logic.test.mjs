@@ -18,7 +18,7 @@ check("L03 an ordinary order has no transfers; receipt <= 40 chars", !("transfer
 check("L04 bad amount / bad account are refused", (() => { try { R.buildOrderBody({ amountPaise: 0, listingId: L, userId: "u" }); return false; } catch { return true; } })() && (() => { try { R.buildOrderBody({ amountPaise: 5, listingId: L, userId: "u", accountId: "x" }); return false; } catch { return true; } })());
 
 // ---- form + payloads
-const good = { legalName: "Asha Rao", email: "Asha@Example.com", phone: "+91 98765-43210", pan: "abcde1234f", beneficiaryName: "Asha Rao", accountNumber: "1234 5678 9012", ifsc: "hdfc0001234", street: "12 MG Road", city: "Bengaluru", state: "Karnataka", postalCode: "560001" };
+const good = { legalName: "Asha Rao", email: "Asha@Example.com", phone: "+91 98765-43210", pan: "abcde1234f", beneficiaryName: "Asha Rao", accountNumber: "1234 5678 9012", confirmAccountNumber: "123456789012", ifsc: "hdfc0001234", street: "12 MG Road", city: "Bengaluru", state: "Karnataka", postalCode: "560001" };
 const v = R.validateRouteForm(good);
 check("L10 a good form validates and is normalised (PAN/IFSC upper, phone 10 digits, email lower)", v.ok && v.value.pan === "ABCDE1234F" && v.value.ifsc === "HDFC0001234" && v.value.phone === "9876543210" && v.value.email === "asha@example.com" && v.value.accountNumber === "123456789012", v);
 check("L11 each bad field is reported", ["legalName", "email", "phone", "pan", "accountNumber", "ifsc", "postalCode"].every((k) => R.validateRouteForm({ ...good, [k]: "x" }).errors[k]));

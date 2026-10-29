@@ -36,6 +36,8 @@
 | `m64-db.test.mjs` | Postgres with ALL real migrations | **instant unlock:** a UTR creates the purchase at once, one UTR one purchase, the seller report, the admin (MFA) decision (verified keeps access / not verified removes it), report window, privileges. |
 | `m65-db.test.mjs` | Postgres with ALL real migrations | **Razorpay Route:** linked-account save/status (idempotent), checkout target, Route orders fulfil as `route` with fee 0 (payment.captured and transfer.processed, either order), mismatches refused, settlement exclusion, listing gate, direct-UPI objects intact. |
 | `m65-logic.test.mjs` | nothing | order payload with the 100% transfer, linked-account payloads, onboarding steps and resume, status mapping, webhook signature/idempotency/unlock, screens, migration guardrails. |
+| `m67-db.test.mjs` | Postgres with ALL real migrations | **bank display facts:** last 4 / IFSC / type saved by the server only, generated onboarding_status, no column for a full account number or PAN, privileges, row-level security, the migration runs twice. |
+| `m67-logic.test.mjs` | nothing | the 2-step payout form (identity, then bank with confirm + IFSC lookup), no UPI step in the Route flow, and the seller-transparency text on the listing, checkout and receipt. |
 | `m66-docs.test.mjs` | nothing | the legal and help pages (all sales final, reports allowed at any time, no payment-gateway name, report-any-time migration): merchant identity, refund/support SLAs, Route wording, consistency with the seller pages, no dead links, honest cookie panel. |
 | `m64-logic.test.mjs` | nothing | the checkout step order (Buy now, blurred QR, Show QR, I've paid, UTR), seller report and admin screens, wording, migration guardrails. |
 
