@@ -33,6 +33,7 @@ function loadRazorpayScript() {
 
 export default function ListingCheckout({ listing }) {
   const router = useRouter();
+  const sellerName = (typeof listing.seller_name === "string" && listing.seller_name.trim()) || "the seller";
   const [payment, setPayment] = useState("upi");
   const [paid, setPaid] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -170,8 +171,11 @@ export default function ListingCheckout({ listing }) {
         </span>
         <span className="text-xs" style={{ color: "#6B6F76" }}>{route ? "100% goes to the seller" : direct ? "paid directly to the seller" : "platform fee included"}</span>
       </div>
-      <p className="text-xs mb-4" style={{ color: "#6B6F76" }}>
+      <p className="text-xs mb-1" style={{ color: "#6B6F76" }}>
         Unlocks the full thread for your account only
+      </p>
+      <p className="text-xs mb-4" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif" }} data-testid="sold-by">
+        Sold &amp; Fulfilled by: <span style={{ fontWeight: 600, color: "#14213D" }}>{sellerName}</span>
       </p>
 
       {checkingAuth ? (
@@ -229,6 +233,12 @@ export default function ListingCheckout({ listing }) {
 
           {error && <p className="text-xs mb-3" style={{ color: "#B33A2E" }}>{error}</p>}
 
+          {route && (
+            <p className="text-xs mb-3" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif", lineHeight: 1.6 }} data-testid="settlement-note">
+              Payment settled directly to {sellerName} via authorized settlement rails. Access is delivered instantly upon confirmation.
+            </p>
+          )}
+
           <button
             onClick={handlePay}
             disabled={loading || checkingAuth}
@@ -238,7 +248,7 @@ export default function ListingCheckout({ listing }) {
             {loading ? "Processing..." : !isLoggedIn && !checkingAuth ? `Log in to pay ₹${listing.price}` : `Pay ₹${listing.price} & unlock`}
           </button>
           <p className="text-[11px] mt-2 text-center" style={{ color: "#6B6F76" }}>
-            Funds held for 48 hrs after unlock in case of a dispute
+            All sales are final. Access is delivered instantly after payment.
           </p>
         </>
       )}

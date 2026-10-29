@@ -26,7 +26,7 @@ export default async function PurchaseHistoryPage() {
 
   const { data: purchases } = await supabase
     .from("purchases")
-    .select("id, amount, payment_method, status, purchased_at, listing_id, listings(title, seller_name)")
+    .select("id, amount, payment_method, status, purchased_at, listing_id, razorpay_order_id, listings(title, seller_name)")
     .eq("user_id", user.id)
     .order("purchased_at", { ascending: false });
 
@@ -42,6 +42,7 @@ export default async function PurchaseHistoryPage() {
     listingId: p.listing_id,
     listingTitle: p.listings?.title || "(listing no longer available)",
     seller: p.listings?.seller_name || "unknown",
+    orderRef: p.razorpay_order_id || p.id,
     date: p.purchased_at,
     amount: Number(p.amount),
     paymentMethod: p.payment_method,

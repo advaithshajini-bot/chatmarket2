@@ -44,7 +44,8 @@ export async function POST(request) {
     if (acct?.route_status === "activated") return json({ error: "route_account_exists" }, 409);
     const form = validateRouteForm(body);
     if (!form.ok) return json({ error: "Please check the highlighted fields.", fields: form.errors }, 400);
-    const r = await onboardLinkedAccount({ db, rzp, userId: userData.user.id, value: form.value, existingAccountId: acct?.razorpay_account_id ?? null });
+    const bankName = typeof body?.bankName === "string" ? body.bankName.slice(0, 120) : null;   // display only (from the IFSC lookup)
+    const r = await onboardLinkedAccount({ db, rzp, userId: userData.user.id, value: form.value, existingAccountId: acct?.razorpay_account_id ?? null, bankName });
     if (!r.ok) {
       // Razorpay's own message is safe wording (no card/bank data); never echo the request body.
       return json({ error: r.retryable ? "Razorpay is busy. Please try again in a moment." : (r.message || "Razorpay couldn't accept these details."), step: r.step }, r.retryable ? 502 : 422);

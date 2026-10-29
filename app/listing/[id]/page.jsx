@@ -160,6 +160,9 @@ export default async function ListingDetailPage({ params }) {
             <h1 className="text-3xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
               {listing.title}
             </h1>
+            <p className="text-sm mb-2" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+              Sold &amp; Fulfilled by: <span style={{ fontWeight: 600, color: "#14213D" }}>{listing.seller_name || "the seller"}</span>
+            </p>
             <div className="flex items-center gap-3 mb-6 text-sm" style={{ color: "#6B6F76" }}>
               <span className="flex items-center gap-1">
                 <Star size={13} fill="#E2A83E" color="#E2A83E" />

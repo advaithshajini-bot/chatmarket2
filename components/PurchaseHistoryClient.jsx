@@ -185,7 +185,7 @@ function OrderRow({ order, onDisputeFiled }) {
               {order.listingTitle}
             </p>
             <p className="text-xs" style={{ color: "#6B6F76" }}>
-              {formatDate(order.date)} · {order.paymentMethod}
+              Sold &amp; fulfilled by {order.seller} · {formatDate(order.date)}
             </p>
           </div>
         </div>
@@ -202,11 +202,11 @@ function OrderRow({ order, onDisputeFiled }) {
         <div className="px-4 pb-4" style={{ background: "#FAFAF8" }}>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 mb-3">
             <div>
-              <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Purchase ID</p>
-              <p className="text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#14213D" }}>{order.id.slice(0, 8)}</p>
+              <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Order reference</p>
+              <p className="text-xs break-all" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#14213D" }}>{order.orderRef}</p>
             </div>
             <div>
-              <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Seller</p>
+              <p className="text-[10px] uppercase tracking-wide mb-0.5" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Sold &amp; fulfilled by</p>
               <p className="text-xs" style={{ fontFamily: "'IBM Plex Sans', sans-serif", color: "#14213D" }}>{order.seller}</p>
             </div>
             <div>
