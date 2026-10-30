@@ -81,7 +81,13 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
     if (r.error) return say("err", r.error);
     say("ok", status === "suspended" ? "Payouts to this seller are paused: they will be left out of batches." : "Payouts to this seller are on again.");
     await refresh();
+    if (detail?.batch?.batch_id) await loadDetail(detail.batch.batch_id);
   });
+
+  // One control for both states: an active account shows Pause, a paused (suspended) one shows Resume straight away.
+  const PayoutToggle = ({ sellerId, accountStatus }) => accountStatus === "suspended"
+    ? <button disabled={busy} onClick={() => toggleSeller(sellerId, "active")} className="text-xs underline" style={{ color: "#2F6F62" }}>Resume</button>
+    : <button disabled={busy} onClick={() => toggleSeller(sellerId, "suspended")} className="text-xs underline" style={{ color: "#14213D" }}>Pause</button>;
 
   const items = detail?.items || [];
   const batch = detail?.batch;
@@ -176,7 +182,7 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
                       <td className="pr-3 text-right">{p.purchase_count}</td>
                       <td className="pr-3 text-right">{formatPaise(p.platform_fee_paise)}</td>
                       <td className="pr-3 text-right" style={{ fontWeight: 600 }}>{formatPaise(p.amount_paise)}</td>
-                      <td><button disabled={busy} onClick={() => toggleSeller(p.seller_id, "suspended")} className="text-xs underline" style={{ color: "#14213D" }}>Pause</button></td>
+                      <td><PayoutToggle sellerId={p.seller_id} accountStatus={p.account_status} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -196,7 +202,7 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
                       <td className="pr-3"><Pill tone="amber">{BLOCKED_LABELS[b.reason] || b.reason}</Pill>{b.reason === "bank_in_cooldown" && b.bank_unlocks_at && <span className="block text-xs mt-1" style={{ color: "#6B6F76" }}>new account matures {when(b.bank_unlocks_at)}</span>}</td>
                       <td className="pr-3 text-right">{b.purchase_count} sale(s)</td>
                       <td className="pr-3 text-right">{formatPaise(b.amount_paise)}</td>
-                      <td>{b.reason === "account_suspended" && <button disabled={busy} onClick={() => toggleSeller(b.seller_id, "active")} className="text-xs underline" style={{ color: "#14213D" }}>Resume</button>}</td>
+                      <td>{(b.reason === "account_suspended" || b.account_status === "suspended") && <PayoutToggle sellerId={b.seller_id} accountStatus="suspended" />}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -215,7 +221,7 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
               {!isOpen && <button onClick={() => { setViewId(null); setDetail(null); }} className="text-xs underline" style={{ color: "#6B6F76" }}>Close</button>}
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={exportCsv} className="text-sm px-4 py-2 rounded-md" style={btn(false, false)}>{isOpen ? "Download CSV (to pay)" : "Download CSV"}</button>
+              <button onClick={exportCsv} className="text-sm px-4 py-2 rounded-md" style={btn(false, false)}>Download Settlement CSV</button>
               {isOpen && !hasPaid && <button disabled={busy} onClick={cancel} className="text-sm px-3 py-2 rounded-md" style={{ color: "#B33A2E", border: "1px solid #B33A2E", opacity: busy ? 0.6 : 1 }}>Cancel batch</button>}
             </div>
           </div>
@@ -244,7 +250,10 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
                     <td className="pr-3 text-right">{i.purchase_count}</td>
                     <td className="pr-3 text-right" style={{ fontWeight: 600 }}>{formatPaise(i.amount_paise)}</td>
                     <td className="pr-3"><Pill tone={itemTone[i.status]}>{i.status}</Pill>{i.utr && <div className="text-xs mt-1" style={MONO}>{i.utr}</div>}{i.released_reason && <div className="text-xs mt-1" style={{ color: "#6B6F76" }}>{i.released_reason}</div>}</td>
-                    <td>{i.status === "pending" && isOpen && <button disabled={busy} onClick={() => release(i)} className="text-xs underline" style={{ color: "#14213D" }}>Release</button>}</td>
+                    <td className="whitespace-nowrap">
+                      {i.status === "pending" && isOpen && <button disabled={busy} onClick={() => release(i)} className="text-xs underline mr-3" style={{ color: "#14213D" }}>Release</button>}
+                      {i.status === "pending" && isOpen && <PayoutToggle sellerId={i.seller_id} accountStatus={i.account_status} />}
+                    </td>
                   </tr>
                 ))}
               </tbody>

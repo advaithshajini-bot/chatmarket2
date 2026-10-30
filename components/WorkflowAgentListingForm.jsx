@@ -10,6 +10,7 @@
 // only; the API route re-validates everything with the same Zod schema
 // server-side and is the only real authority.
 
+import { LISTING_RULES, validateProductListing } from "@/lib/domain/listing-rules";
 import { useState } from "react";
 import { Plus, Trash2, ArrowLeft } from "lucide-react";
 import { CATEGORIES } from "@/lib/categories";
@@ -119,8 +120,12 @@ export default function WorkflowAgentListingForm({ type, onBack, onSubmitted }) 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  const rules = validateProductListing({ title, description, price });
+  const shown = (k, v) => (String(v ?? "").length > 0 ? rules.errors[k] : null);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!rules.ok) { setError(Object.values(rules.errors)[0]); return; }
     setSubmitting(true);
     setError("");
 
@@ -179,9 +184,11 @@ export default function WorkflowAgentListingForm({ type, onBack, onSubmitted }) 
             onChange={(e) => setTitle(e.target.value)}
             required
             maxLength={200}
+            aria-invalid={shown("title", title) ? "true" : "false"}
             className="w-full text-sm px-3 py-2 rounded outline-none"
-            style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif" }}
+            style={{ border: `1px solid ${shown("title", title) ? "#B33A2E" : "#D8D5C9"}`, fontFamily: "'IBM Plex Sans', sans-serif" }}
           />
+          <p className="text-[11px] mt-1 text-right" style={{ color: title.trim().length >= LISTING_RULES.titleMin ? "#2F6F62" : "#B33A2E" }}>{title.trim().length} / {LISTING_RULES.titleMin} characters</p>
         </div>
 
         <div>
@@ -192,10 +199,12 @@ export default function WorkflowAgentListingForm({ type, onBack, onSubmitted }) 
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             required
-            rows={3}
+            rows={5}
+            aria-invalid={shown("description", description) ? "true" : "false"}
             className="w-full text-sm px-3 py-2 rounded outline-none"
-            style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif" }}
+            style={{ border: `1px solid ${shown("description", description) ? "#B33A2E" : "#D8D5C9"}`, fontFamily: "'IBM Plex Sans', sans-serif" }}
           />
+          <p className="text-[11px] mt-1 text-right" style={{ color: description.trim().length >= LISTING_RULES.descriptionMin ? "#2F6F62" : "#B33A2E" }}>{description.trim().length} / {LISTING_RULES.descriptionMin} characters</p>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -233,14 +242,17 @@ export default function WorkflowAgentListingForm({ type, onBack, onSubmitted }) 
             </label>
             <input
               type="number"
-              min="1"
+              min={LISTING_RULES.priceMinRupees}
+              max={LISTING_RULES.priceMaxRupees}
               step="1"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               required
+              aria-invalid={shown("price", price) ? "true" : "false"}
               className="w-full text-sm px-3 py-2 rounded outline-none"
-              style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif" }}
+              style={{ border: `1px solid ${shown("price", price) ? "#B33A2E" : "#D8D5C9"}`, fontFamily: "'IBM Plex Sans', sans-serif" }}
             />
+            <p className="text-[11px] mt-1" style={{ color: shown("price", price) ? "#B33A2E" : "#6B6F76" }}>{shown("price", price) || `Between ₹${LISTING_RULES.priceMinRupees} and ₹${LISTING_RULES.priceMaxRupees}.`}</p>
           </div>
         </div>
 
@@ -283,8 +295,8 @@ export default function WorkflowAgentListingForm({ type, onBack, onSubmitted }) 
 
       <button
         type="submit"
-        disabled={submitting}
-        className="w-full py-3 rounded text-sm font-medium"
+        disabled={submitting || !rules.ok}
+        className="w-full py-3 rounded text-sm font-medium disabled:opacity-50"
         style={{ background: "#E2A83E", color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600 }}
       >
         {submitting ? "Submitting…" : "Submit for review"}
