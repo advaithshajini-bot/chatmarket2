@@ -55,3 +55,5 @@ and the deployed route -- see `supabase/manual/phase5_review_golive.md`.
 `run-all.mjs` refuses to run against a database that already holds purchases/listings (`PHASE5_ALLOW_NONEMPTY=1` overrides). How to run the DB-backed suites: `supabase/manual/phase6_db_tests.md`.
 | `m68-db.test.mjs` | Postgres with ALL real migrations | **manual bank payouts:** `set_my_bank_payout` validation + upsert, full number unreadable by authenticated, listing gate on bank account + IFSC, settlement preview/batch/detail use the bank snapshot, cooldown on change |
 | `m68-logic.test.mjs` | nothing | bank form validation (9–18 digits, IFSC, confirm match), CSV columns and safety, the legacy UPI form is gone from `/sell/payout`, masked badge, API route |
+| `m69-db.test.mjs` | Postgres with ALL real migrations | **listing rules trigger** (title 10 / description 500 / zip note 250 / price 50-999, self-inserts only) and the **Pause / Resume** payout transitions through preview, batch and batch detail |
+| `m69-logic.test.mjs` | nothing | the shared listing rules, sell-page counters and gating, API route enforcement, CSV columns/remarks, desk Pause/Resume + Download Settlement CSV |

@@ -13,7 +13,7 @@ async function ins(gt, other, uid = SELLER, role = "authenticated") {
   await c.query(`select set_config('request.jwt.claims',$1,true)`, [JSON.stringify({ sub: uid, role })]);
   await c.query(`set local role ${role}`); await c.query("SAVEPOINT s");
   try {
-    const r = await c.query(`insert into public.listings (title, model, category, price, seller_name, seller_id, generation_type, generation_type_other) values ('t','Claude','Design',10,'s',$1,$2,$3) returning id`, [SELLER, gt, other]);
+    const r = await c.query(`insert into public.listings (title, model, category, price, seller_name, seller_id, generation_type, generation_type_other, description, zip_contents) values (repeat('t',10),'Claude','Design',50,'s',$1,$2,$3,repeat('d',500),repeat('z',250)) returning id`, [SELLER, gt, other]);
     await c.query("RELEASE SAVEPOINT s"); return { id: r.rows[0].id, err: null };
   } catch (e) { await c.query("ROLLBACK TO SAVEPOINT s"); return { err: e }; } finally { await c.query("reset role"); }
 }
