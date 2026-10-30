@@ -25,6 +25,7 @@ import WorkflowAgentListingForm from "@/components/WorkflowAgentListingForm";
 import { CATEGORIES, MODELS } from "@/lib/categories";
 import { getMyDirectSellerStatus } from "@/lib/domain/direct-upi";
 import { getMyRouteStatus, describeRouteStatus } from "@/lib/domain/route";
+import { getMyBankPayout } from "@/lib/domain/bank-payout";
 import { GENERATION_TYPES, GENERATION_TYPE_OTHER_MAX, resolveGenerationType, generationTypeLabel } from "@/lib/generation-types";
 import { parseThreadExport } from "@/lib/parse-thread-export";
 import { redactListing } from "@/lib/redact-pii";
@@ -741,6 +742,30 @@ function ReviewStep({ onDone, findings }) {
 }
 
 // 5.4: selling is gated on one thing only -- a saved UPI ID to be paid at. No identity documents, no bank details, no review.
+function BankGate() {
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <TopNav />
+      <main className="px-6 py-16 max-w-md mx-auto text-center">
+        <ShieldCheck size={28} color="#14213D" className="mx-auto mb-4" />
+        <h1 className="text-2xl mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
+          Add your bank account to start selling
+        </h1>
+        <p className="text-sm mb-6" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+          Tell us where to pay you. Save your bank account once and we pay your share of every sale to it by bank transfer, once a month.
+        </p>
+        <Link
+          href="/sell/payout"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded text-sm"
+          style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 500 }}
+        >
+          Add your bank account <ArrowRight size={15} />
+        </Link>
+      </main>
+    </div>
+  );
+}
+
 function UpiGate() {
   return (
     <div style={{ minHeight: "100vh" }}>
@@ -1144,6 +1169,7 @@ export default function SellPage() {
   const [statusListings, setStatusListings] = useState([]);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [hasUpi, setHasUpi] = useState(false);
+  const [hasBank, setHasBank] = useState(false);   // manual bank payouts: a saved account number + IFSC is what lets a seller list
   const [routeStatus, setRouteStatus] = useState({ route_enabled: false, has_account: false, route_status: null, ready: false });   // flag the Route flag
   const [directStatus, setDirectStatus] = useState({ flag_on: false, identity_complete: true, upi_unlocks_at: null });   // flag `direct_upi_checkout`
 
@@ -1162,6 +1188,7 @@ export default function SellPage() {
       .eq("user_id", userId)
       .maybeSingle();
     setHasUpi(!!payoutAccount?.vpa_address);
+    setHasBank((await getMyBankPayout(supabase)).configured === true);
     setDirectStatus(await getMyDirectSellerStatus(supabase));
     setRouteStatus(await getMyRouteStatus(supabase));
 
@@ -1343,8 +1370,8 @@ export default function SellPage() {
     if (!routeStatus.ready) return <RouteGate status={routeStatus} />;
   } else if (directStatus.flag_on && !directStatus.identity_complete) {
     return <IdentityGate />;
-  } else if (!hasUpi) {
-    return <UpiGate />;
+  } else if (directStatus.flag_on ? !hasUpi : !hasBank) {
+    return directStatus.flag_on ? <UpiGate /> : <BankGate />;
   }
 
   return (

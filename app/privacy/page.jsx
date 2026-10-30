@@ -24,7 +24,7 @@ const SECTIONS = [
     heading: "3. Payment data",
     body: [
       "We never store card numbers, CVVs, UPI PINs or net-banking credentials on our servers. Payments are collected and tokenised by our licensed payment gateway partner, which processes them under PCI-DSS standards.",
-      "Sellers' identity (such as PAN) and bank details for payouts are entered on our onboarding form and sent to our payment partner to verify the Seller and set up settlement. We keep only the resulting account identifier and status. Details collected through any earlier payout setup remain in access-restricted storage and can be deleted on request, subject to records we must keep by law.",
+      "Sellers save their bank account details (beneficiary name, account number, IFSC and account type) so we can pay out their earnings by bank transfer. We store them in access-restricted storage, show a seller only the last four digits of their own account, and use them only to make payouts and keep payout records. They can be deleted on request, subject to records we must keep by law.",
     ],
   },
   {
