@@ -14,7 +14,7 @@ const SECTIONS = [
   {
     heading: "How the money works",
     body: [
-      "Buyers pay securely through a licensed payment gateway. The full price of a sale is settled directly to the creator's verified bank account, and chatmarket keeps no commission on it. Items are digital and unlock instantly after payment, and all sales are final.",
+      "Buyers pay securely through a licensed payment gateway. chatmarket keeps an 18% platform fee on each sale, and creators receive the remaining earnings in a monthly bank transfer (IMPS/NEFT) around the 1st of every month. Items are digital and unlock instantly after payment, and all sales are final.",
     ],
   },
   {

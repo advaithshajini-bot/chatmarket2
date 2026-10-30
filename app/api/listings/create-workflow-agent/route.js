@@ -1,3 +1,4 @@
+import { LISTING_RULES, validateProductListing, explainListingRuleError } from "@/lib/domain/listing-rules";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getVerifiedUser } from "@/lib/supabase/get-verified-user";
@@ -45,11 +46,15 @@ export async function POST(request) {
       { status: 400 }
     );
   }
-  if (!title || typeof title !== "string" || title.trim().length < 3 || title.length > 200) {
-    return NextResponse.json({ error: "Title must be between 3 and 200 characters." }, { status: 400 });
+  if (!title || typeof title !== "string" || title.length > 200) {
+    return NextResponse.json({ error: "Title must be between 10 and 200 characters." }, { status: 400 });
   }
-  if (!description || typeof description !== "string" || description.trim().length < 10) {
-    return NextResponse.json({ error: "Description must be at least 10 characters." }, { status: 400 });
+  if (!description || typeof description !== "string") {
+    return NextResponse.json({ error: `Description must be at least ${LISTING_RULES.descriptionMin} characters.` }, { status: 400 });
+  }
+  const rules = validateProductListing({ title, description, price });
+  if (!rules.ok) {
+    return NextResponse.json({ error: rules.errors.title || rules.errors.description || rules.errors.price, fields: rules.errors }, { status: 400 });
   }
   const resolvedCategory = category === "Other" ? String(categoryOther || "").trim() : category;
   if (!resolvedCategory || (category !== "Other" && !CATEGORIES.includes(category))) {
@@ -97,6 +102,9 @@ export async function POST(request) {
 
   if (insertError) {
     // CM079: with direct payments ON, a seller needs identity details and an active, matured UPI ID before listing.
+    if (insertError.code === "CM081") {
+      return NextResponse.json({ error: explainListingRuleError(insertError) || "Please check the title, description and price." }, { status: 400 });
+    }
     if (insertError.code === "CM079") {
       const msg = insertError.message === "route_account_required" ? "Finish setting up your payment account before listing."
         : insertError.message === "bank_account_required" ? "Add your bank account before listing."

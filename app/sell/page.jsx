@@ -26,6 +26,7 @@ import { CATEGORIES, MODELS } from "@/lib/categories";
 import { getMyDirectSellerStatus } from "@/lib/domain/direct-upi";
 import { getMyRouteStatus, describeRouteStatus } from "@/lib/domain/route";
 import { getMyBankPayout } from "@/lib/domain/bank-payout";
+import { LISTING_RULES, validateListingText, validateListingPrice, explainListingRuleError } from "@/lib/domain/listing-rules";
 import { GENERATION_TYPES, GENERATION_TYPE_OTHER_MAX, resolveGenerationType, generationTypeLabel } from "@/lib/generation-types";
 import { parseThreadExport } from "@/lib/parse-thread-export";
 import { redactListing } from "@/lib/redact-pii";
@@ -101,6 +102,20 @@ function MiniStepper({ step }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// "123 / 500 characters": red until the minimum is met, then green.
+function MinCount({ value, min, error }) {
+  const count = (value || "").trim().length;
+  const ok = count >= min;
+  return (
+    <div className="flex justify-between items-start gap-3 mt-1.5">
+      <span className="text-[11px]" style={{ color: "#B33A2E" }} role={error ? "alert" : undefined}>{error ? `Needs at least ${min} characters.` : ""}</span>
+      <span className="text-[11px] px-2 py-0.5 rounded" style={{ fontFamily: "'IBM Plex Mono', monospace", color: ok ? "#2F6F62" : "#B33A2E", background: ok ? "#EEF6F3" : "#FBEDEA" }}>
+        {count} / {min} characters
+      </span>
     </div>
   );
 }
@@ -467,7 +482,9 @@ function UploadSubStep({ form, setForm, onContinue }) {
 
 // Step 2 of 3 — details.
 function DetailsSubStep({ form, setForm, onContinue, onBack }) {
-  const canContinue = form.title.trim() && (form.category !== "Other" ? form.category : form.categoryOther.trim()) && !resolveGenerationType(form.generationType, form.generationTypeOther).error;
+  const text = validateListingText(form);
+  const canContinue = text.ok && (form.category !== "Other" ? form.category : form.categoryOther.trim()) && !resolveGenerationType(form.generationType, form.generationTypeOther).error;
+  const bad = (k) => (form[k] || "").length > 0 && text.errors[k];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -479,10 +496,11 @@ function DetailsSubStep({ form, setForm, onContinue, onBack }) {
             onChange={(e) => setForm({ ...form, title: e.target.value.slice(0, 200) })}
             maxLength={200}
             placeholder="e.g. Next.js SaaS billing flow with Stripe"
+            aria-invalid={bad("title") ? "true" : "false"}
             className="w-full px-3 py-2.5 rounded text-sm outline-none"
-            style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
+            style={{ border: `1px solid ${bad("title") ? "#B33A2E" : "#D8D5C9"}`, fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
           />
-          <CharCount value={form.title} max={200} />
+          <MinCount value={form.title} min={LISTING_RULES.titleMin} error={bad("title")} />
         </div>
 
         <div>
@@ -492,11 +510,12 @@ function DetailsSubStep({ form, setForm, onContinue, onBack }) {
             onChange={(e) => setForm({ ...form, description: e.target.value.slice(0, 2000) })}
             maxLength={2000}
             placeholder="e.g. A billing UI with Stripe checkout and webhook handling, generated end-to-end."
-            rows={3}
+            rows={5}
+            aria-invalid={bad("description") ? "true" : "false"}
             className="w-full px-3 py-2.5 rounded text-sm outline-none resize-none"
-            style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
+            style={{ border: `1px solid ${bad("description") ? "#B33A2E" : "#D8D5C9"}`, fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
           />
-          <CharCount value={form.description} max={2000} />
+          <MinCount value={form.description} min={LISTING_RULES.descriptionMin} error={bad("description")} />
         </div>
 
         <div>
@@ -506,11 +525,12 @@ function DetailsSubStep({ form, setForm, onContinue, onBack }) {
             onChange={(e) => setForm({ ...form, zipContents: e.target.value.slice(0, 500) })}
             maxLength={500}
             placeholder="e.g. conversation.json, App.jsx, styles.css, a screenshot of the final result"
-            rows={2}
+            rows={4}
+            aria-invalid={bad("zipContents") ? "true" : "false"}
             className="w-full px-3 py-2.5 rounded text-sm outline-none resize-none"
-            style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
+            style={{ border: `1px solid ${bad("zipContents") ? "#B33A2E" : "#D8D5C9"}`, fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
           />
-          <CharCount value={form.zipContents} max={500} />
+          <MinCount value={form.zipContents} min={LISTING_RULES.zipContentsMin} error={bad("zipContents")} />
         </div>
 
         <div>
@@ -603,6 +623,8 @@ function DetailsSubStep({ form, setForm, onContinue, onBack }) {
 // Step 3 of 3 — price & submit.
 function PriceSubStep({ form, setForm, onSubmit, onBack, submitting, submitError }) {
   const price = Number(form.price) || 0;
+  const priceCheck = validateListingPrice(form.price);
+  const showPriceError = String(form.price ?? "").length > 0 && !priceCheck.ok;
   const youReceive = price * (1 - PLATFORM_FEE_PCT);
 
   return (
@@ -617,10 +639,15 @@ function PriceSubStep({ form, setForm, onSubmit, onBack, submitting, submitError
               value={form.price}
               onChange={(e) => setForm({ ...form, price: e.target.value })}
               placeholder="499"
+              min={LISTING_RULES.priceMinRupees} max={LISTING_RULES.priceMaxRupees}
+              aria-invalid={showPriceError ? "true" : "false"}
               className="w-full pl-7 pr-3 py-2.5 rounded text-sm outline-none"
-              style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
+              style={{ border: `1px solid ${showPriceError ? "#B33A2E" : "#D8D5C9"}`, fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
             />
           </div>
+          <p className="text-xs mt-1.5" role={showPriceError ? "alert" : undefined} style={{ color: showPriceError ? "#B33A2E" : "#6B6F76" }}>
+            {showPriceError ? priceCheck.error : `Between ₹${LISTING_RULES.priceMinRupees} and ₹${LISTING_RULES.priceMaxRupees}.`}
+          </p>
         </div>
 
         <div className="rounded-md p-4 flex items-center justify-between" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
@@ -649,9 +676,9 @@ function PriceSubStep({ form, setForm, onSubmit, onBack, submitting, submitError
           </button>
           <button
             onClick={onSubmit}
-            disabled={!price || submitting}
+            disabled={!priceCheck.ok || submitting}
             className="flex-1 py-3 rounded text-sm flex items-center justify-center gap-2"
-            style={{ background: (!price || submitting) ? "#D8D5C9" : "#E2A83E", color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600 }}
+            style={{ background: (!priceCheck.ok || submitting) ? "#D8D5C9" : "#E2A83E", color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600 }}
           >
             {submitting ? "Submitting…" : "Submit for screening"} <ArrowRight size={15} />
           </button>
@@ -1227,6 +1254,11 @@ export default function SellPage() {
 
   const handleFinalSubmit = async () => {
     setSubmitError("");
+    const textCheck = validateListingText(form), priceCheck = validateListingPrice(form.price);
+    if (!textCheck.ok || !priceCheck.ok) {
+      setSubmitError(Object.values(textCheck.errors)[0] || priceCheck.error);
+      return;
+    }
     setSubmitting(true);
     const supabase = createClient();
     const { data: userData } = await supabase.auth.getUser();
@@ -1289,7 +1321,7 @@ export default function SellPage() {
 
     if (insertError) {
       // CM079: with direct payments ON the database also requires identity details and an active, matured UPI ID.
-      setSubmitError(insertError.code === "CM079"
+      setSubmitError(insertError.code === "CM081" ? (explainListingRuleError(insertError) || "Please check the title, description, zip note and price.") : insertError.code === "CM079"
         ? (insertError.message === "route_account_required" ? "Finish setting up your payment account before listing."
           : insertError.message === "upi_in_cooldown" ? "You changed your UPI ID recently. You can list again once it unlocks." : "Finish your identity details and UPI ID before listing.")
         : insertError.message);

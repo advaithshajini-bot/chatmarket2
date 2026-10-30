@@ -70,8 +70,8 @@ export default function ForSellersPage() {
                   3. Set your price
                 </h3>
                 <p className="text-sm" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif", lineHeight: 1.7 }}>
-                  You choose what to charge. Buyers pay exactly that price, and chatmarket takes no commission
-                  on it: the full sale price is settled to your bank account.
+                  You choose what to charge, between ₹50 and ₹999. Buyers pay exactly that price. chatmarket deducts an 18%
+                  platform fee from each sale, and you receive the net earnings in your monthly payout.
                 </p>
               </div>
             </div>
@@ -97,13 +97,13 @@ export default function ForSellersPage() {
               </div>
               <div>
                 <h3 className="text-sm mb-1" style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600, color: "#14213D" }}>
-                  5. Set up your payment account, then get paid
+                  5. Save your bank account, then get paid monthly
                 </h3>
                 <p className="text-sm" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif", lineHeight: 1.7 }}>
-                  Before you can list, you'll complete a one-time payment account setup (name as per PAN, PAN and
-                  bank details) from Sell → Set up payments; our payment partner verifies it. When someone buys your listing,
-                  the sale is split and 100% is settled to your bank account on the payment partner's settlement
-                  schedule.
+                  Before you can list, save your bank account details once (beneficiary name, account number, IFSC and
+                  account type) under Sell → Payout. When someone buys your listing, the payment is collected by chatmarket and
+                  your net earnings (after the 18% platform fee) are paid to that account in one monthly batch by bank
+                  transfer (IMPS/NEFT), around the 1st of every month. Sales are final, so payouts are never taken back.
                 </p>
               </div>
             </div>
@@ -164,11 +164,11 @@ export default function ForSellersPage() {
             </div>
             <div>
               <p className="text-sm mb-1" style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600, color: "#14213D" }}>
-                Do I need to set up my payment account before I can list?
+                Do I need to save my bank account before I can list?
               </p>
               <p className="text-sm" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif", lineHeight: 1.7 }}>
-                Yes. Once our payment partner has verified your payment account you can list; until then the sell page
-                walks you through the setup.
+                Yes. Save your bank account details under Sell → Payout and you can list straight away; until then the sell
+                page takes you there.
               </p>
             </div>
           </div>

@@ -31,7 +31,7 @@ const SECTIONS = [
     heading: "4. Payments and Seller settlement",
     body: [
       "Payments are processed by a licensed third-party payment gateway. chatmarket does not see or store your card, UPI or bank credentials.",
-      "Sellers are paid through split settlement: when a Buyer pays, the Seller's share is allocated to the Seller's verified linked account and settled to the Seller's bank account through the payment partner's regulated settlement system. The platform retains no commission on a sale at present. Sellers must complete the payment partner's verification (identity and bank details) before they can list; those details are given to the payment partner for verification.",
+      "Buyer payments are collected by chatmarket through a licensed payment gateway. chatmarket charges an 18% platform fee, deducted from the gross sale price; a Seller's payout reflects the net earnings after that fee. Net earnings are paid to the bank account the Seller has saved, in one monthly batch by bank transfer (IMPS/NEFT), around the 1st of every month. Sellers must save their bank account details before they can list, and are responsible for keeping them correct: a transfer sent to the account on file cannot be recalled.",
       "The price shown on a listing is the price you pay, in Indian Rupees. Payment gateway charges, if any, are not added to the Buyer's price.",
       "Sellers are responsible for their own tax obligations arising from their sales.",
     ],

@@ -15,11 +15,11 @@ const FAQS = [
   },
   {
     q: "How do I sell?",
-    a: "Go to Sell. First set up your payment account (your details are verified by our payment partner), then upload your playbook, workflow or thread. We scan it for personal information, then it gets a short review before it appears on Browse.",
+    a: "Go to Sell. First save your bank account details under Sell → Payout, then upload your playbook, workflow or thread. We scan it for personal information, then it gets a short review before it appears on Browse.",
   },
   {
     q: "How and when do I get paid as a seller?",
-    a: "Buyers pay through our payment gateway, and 100% of the sale price is settled to your verified bank account. chatmarket takes no commission. Settlement timing follows the payment partner's settlement schedule.",
+    a: "Buyers pay through our payment gateway. chatmarket deducts an 18% platform fee from each sale, and your net earnings are paid to your saved bank account in one monthly batch by bank transfer (IMPS/NEFT), around the 1st of every month. You can see what is unsettled and what has been paid under Sell → Earnings.",
   },
   {
     q: "What if something doesn't work or doesn't match its listing?",
