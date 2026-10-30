@@ -20,11 +20,11 @@ check("L02 formatUnlockAt: bad input gives an empty string, never throws", ["", 
 const before = new Date("2026-10-24T10:00:00Z");
 check("L03 the seller notice carries the exact wording asked for", describeUpiCooldown(at, before) === "UPI ID updated. Payouts to this ID will unlock after 25 Oct 2026, 3:30 pm IST.", describeUpiCooldown(at, before));
 check("L04 no notice once the time has passed (boundary included) or when there is no cooldown", describeUpiCooldown(at, new Date(at)) === null && describeUpiCooldown(at, new Date("2026-10-26T00:00:00Z")) === null && describeUpiCooldown(null, before) === null && describeUpiCooldown(undefined, before) === null && describeUpiCooldown("junk", before) === null);
-const d = describeSettlement({ status: "upi_cooldown" });
-check("L05 the new per-sale status has its own label, an explanation and an amber tone", d.label === "Waiting: UPI ID changed" && /next payout/.test(d.detail) && d.tone === "amber", d);
-check("L06 the new code is in SETTLEMENT_CODES and every code has a real label (none falls through to 'unavailable')", SETTLEMENT_CODES.includes("upi_cooldown") && SETTLEMENT_CODES.every((c) => describeSettlement({ status: c }).label !== "Status unavailable"));
+const d = describeSettlement({ status: "bank_cooldown" });
+check("L05 the new per-sale status has its own label, an explanation and an amber tone", d.label === "Waiting: bank account changed" && /next payout/.test(d.detail) && d.tone === "amber", d);
+check("L06 the new code is in SETTLEMENT_CODES and every code has a real label (none falls through to 'unavailable')", SETTLEMENT_CODES.includes("bank_cooldown") && SETTLEMENT_CODES.every((c) => describeSettlement({ status: c }).label !== "Status unavailable"));
 check("L07 an unknown status still falls back safely", describeSettlement({ status: "weird" }).label === "Status unavailable");
-check("L08 the admin desk has a label for the new blocked reason", BLOCKED_LABELS.upi_in_cooldown === "UPI ID changed recently: rolls over" && BLOCKED_LABELS.below_minimum && BLOCKED_LABELS.no_upi_id);
+check("L08 the admin desk has a label for the new blocked reason", BLOCKED_LABELS.bank_in_cooldown === "Bank account changed recently: rolls over" && BLOCKED_LABELS.below_minimum && BLOCKED_LABELS.no_bank_account);
 
 // ---------------------------------------------------------------- loaders
 const sb = (res) => ({ rpc: async (fn, args) => { sb.calls.push([fn, args]); if (res instanceof Error) throw res; return res; } });
@@ -36,7 +36,7 @@ for (const [name, res] of [["an rpc error", { data: null, error: { message: "x" 
   check(`L11 ${name}: falls back to 'no cooldown' (never blocks the page, never shows a wrong date)`, r.upi_cooldown_hours === 0 && r.upi_unlocks_at === null, r);
 }
 const st = await getSellerSettlementStatus(sb({ data: null, error: { message: "x" } }));
-check("L12 the earnings loader's fallback carries the new keys", st.upi_unlocks_at === null && st.upi_cooldown_hours === 0 && st.error === true, st);
+check("L12 the earnings loader's fallback carries the new keys", st.bank_unlocks_at === null && st.bank_cooldown_hours === 0 && st.error === true, st);
 
 // ---------------------------------------------------------------- static guardrails
 const MIG = "supabase/migrations/20261021100000_add_upi_cooldown.sql";
@@ -62,10 +62,10 @@ check("G15 it never touches the retired payout tables or flags", !/vpa_payouts|f
 check("G16 the error codes used are only the existing ones (no new code)", [...new Set([...lower.matchAll(/errcode = '(\w+)'/g)].map((x) => x[1].toLowerCase()))].sort().join() === "42501,cm074,cm075,cm076");
 
 const page = read("app/sell/payout/page.jsx"), panel = read("components/SellerPayoutPanel.jsx"), tab = read("components/AdminSettlementTab.jsx");
-check("G20 /sell/payout loads the cooldown through the RPC helper and uses what the save returned", /getSellerUpiCooldown\(supabase\)/.test(page) && /data\?\.upi_unlocks_at/.test(page) && !/vpa_changed_at/.test(page));
-check("G21 the payout page and the earnings panel show the notice through describeUpiCooldown (one wording)", /describeUpiCooldown\(cooldown\.upi_unlocks_at\)/.test(page) && /describeUpiCooldown\(settlement\?\.upi_unlocks_at\)/.test(panel));
+check("G20 /sell/payout loads the cooldown through the RPC helper and uses what the save returned", /getMyBankPayout\(supabase\)/.test(page) && /bank_unlocks_at/.test(read("components/BankPayoutForm.jsx")) && !/vpa_changed_at|bank_changed_at/.test(page));
+check("G21 the payout page and the earnings panel show the notice through describeUpiCooldown (one wording)", /describeBankCooldown\(saved\?\.bank_unlocks_at\)/.test(read("components/BankPayoutForm.jsx")) && /describeBankCooldown\(settlement\?\.bank_unlocks_at\)/.test(panel));
 check("G22 no browser code reads vpa_changed_at or the config table directly", ![page, panel, tab, read("lib/domain/seller-settlement.js"), read("lib/domain/admin-settlement.js")].some((f) => /vpa_changed_at|settlement_config/.test(f)));
-check("G23 the admin desk shows when the new ID matures next to the blocked reason", /b\.reason === "upi_in_cooldown" && b\.upi_unlocks_at/.test(tab) && /new ID matures/.test(tab));
+check("G23 the admin desk shows when the new ID matures next to the blocked reason", /b\.reason === "bank_in_cooldown" && b\.bank_unlocks_at/.test(tab) && /new account matures/.test(tab));
 check("G24 the seller wording never says 'frozen', 'locked out', 'penalty' or 'suspicious' (a legitimate change must not read as an accusation)", ![page, panel].some((f) => /frozen|locked out|penalt|suspicious|fraud/i.test(f.replace(/Admin|frozen batch/g, ""))));
 check("G25 the cooldown never creates a negative amount or a clawback concept", !/negative|clawback|claw back|chargeback/i.test(m));
 

@@ -41,7 +41,7 @@ check("L34 the create-order route refuses when direct checkout is ON, before it 
 const prof = read("app/sell/profile/page.jsx"), pay = read("app/sell/payout/page.jsx"), sell = read("app/sell/page.jsx");
 check("L35 the identity page calls set_seller_identity_details, then moves on to /sell/payout", /set_seller_identity_details/.test(prof) && /router\.push\("\/sell\/payout"\)/.test(prof));
 check("L36 the identity page never sends the ID number anywhere except that function, and keeps none after saving", (prof.match(/idNumber/g) || []).length > 0 && !/localStorage|sessionStorage|console\./.test(prof) && /idNumber: ""/.test(prof));
-check("L37 /sell/payout redirects to the identity page (with the notice) when step 1 is missing", /identity_complete/.test(pay) && /\/sell\/profile\?notice=identity/.test(pay));
+check("L37 (M68) /sell/payout no longer depends on identity or a UPI/Route branch: bank-only, never redirects", !/identity_complete|router\.replace/.test(pay) && /BankPayoutForm/.test(pay));
 check("L38 the sell page shows the identity gate before the UPI gate, and maps the database refusal", sell.indexOf("<IdentityGate />") > -1 && sell.indexOf("<IdentityGate />") < sell.indexOf("<UpiGate />") && /CM079/.test(sell));
 const panel = read("components/SellerClaimsPanel.jsx");
 check("L39 the seller panel confirms and rejects through the database functions, asks before confirming, and shows buyer, amount, UTR", /confirm_direct_payment_claim/.test(panel) && /reject_direct_payment_claim/.test(panel) && /window\.confirm/.test(panel) && /c\.utr/.test(panel) && /buyer_name/.test(panel));

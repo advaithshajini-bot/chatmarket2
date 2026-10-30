@@ -94,7 +94,7 @@ check("T52 the monthly settlement runbook is still in place", exists("supabase/m
 
 // ---------------------------------------------------------------- not touched
 const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql")).sort();
-check("T60 no migration was added or changed: nothing newer than the 5.7 migration exists, and the 5.2 / 5.2c / 5.4 ones remain", migs.at(-1) <= "20261028100000_seller_bank_details.sql" && ["20261018100000_add_vpa_payouts.sql", "20261014100000_add_dispute_actions.sql"].every((f) => migs.includes(f)));
+check("T60 no migration was added or changed: nothing newer than the 5.7 migration exists, and the 5.2 / 5.2c / 5.4 ones remain", migs.at(-1) <= "20261029100000_manual_bank_payouts.sql" && ["20261018100000_add_vpa_payouts.sql", "20261014100000_add_dispute_actions.sql"].every((f) => migs.includes(f)));
 check("T61 the monthly-settlement code imports nothing from lib/payments", ["lib/domain/admin-settlement.js", "lib/domain/seller-settlement.js", "components/AdminSettlementTab.jsx", "components/SellerPayoutPanel.jsx"].every((f) => !/payments\//.test(read(f))));
 
 console.log(`\nA59: ${pass} passed, ${fail} failed`);

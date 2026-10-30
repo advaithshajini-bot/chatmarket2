@@ -73,13 +73,13 @@ check("G37 the plan function is never called from browser code", !/planVpaPayout
 
 // ---------------------------------------------------------------- the seller's page
 const page = read("app/sell/payout/page.jsx"), pageC = stripComments(page, "js");
-check("G40 /sell/payout has exactly one input (the UPI id) and no document / bank / IFSC / PAN / business inputs", (pageC.match(/<input\b/g) || []).length === 1 && !/IFSC|ifsc|\bPAN\b|aadhaar|passport|bank account|<select|type="file"|DatePicker|GST|business/i.test(pageC));
-check("G41 it saves only through set_my_payout_vpa (no direct table write)", /rpc\("set_my_payout_vpa"/.test(pageC) && !/\.(insert|update|upsert|delete)\(/.test(pageC));
-check("G42 it validates with the shared validator as you type", /validateUpi\(input\)/.test(pageC) && /onChange=/.test(pageC));
+check("G40 (M68) /sell/payout is the bank-only screen: no UPI input; the bank form has no document / PAN / file inputs", !/<input\b/.test(pageC) && !/upi/i.test(pageC.replace(/chatmarket/gi, "")) && !/aadhaar|passport|<select|type="file"|DatePicker|GST/i.test(read("components/BankPayoutForm.jsx")) && !/\bPAN\b/.test(stripComments(read("components/BankPayoutForm.jsx"), "js")));
+check("G41 (M68) it saves only through /api/sell/payout-bank -> set_my_bank_payout (no direct table write in the browser)", /\/api\/sell\/payout-bank/.test(read("components/BankPayoutForm.jsx")) && !/\.(insert|update|upsert|delete)\(/.test(pageC + read("components/BankPayoutForm.jsx")));
+check("G42 (M68) it validates with the shared bank validator before saving", /validateBankPayoutForm\(form\)/.test(read("components/BankPayoutForm.jsx")) && /onChange=/.test(read("components/BankPayoutForm.jsx")));
 check("G43 it shows the 'All sales are final' notice", /All sales are final/.test(page));
 check("G44 the old KYC wizard, OTP routes and storage uploads are gone from the payout page and routes", !exists("app/api/kyc/send-otp/route.js") && !exists("app/api/kyc/verify-otp/route.js") && !/seller-kyc-documents|send-otp|verify-otp|storage\.from/.test(pageC));
 const sell = stripComments(read("app/sell/page.jsx"), "js"), route = stripComments(read("app/api/listings/create-workflow-agent/route.js"), "js");
-check("G45 the listing gate is 'has a saved UPI ID' in the page and in the server route, not seller_kyc", /seller_payout_accounts/.test(sell) && /if \(!hasUpi\)/.test(sell) && !/seller_kyc|kycStatus/.test(sell) && /seller_payout_accounts/.test(route) && /vpa_address/.test(route) && !/seller_kyc/.test(route));
+check("G45 (M68) the listing gate is 'has a saved bank account' in the page and in the server route, not seller_kyc", /seller_payout_accounts/.test(sell) && /hasBank/.test(sell) && !/seller_kyc|kycStatus/.test(sell) && /seller_payout_accounts/.test(route) && /bank_account_required/.test(route) && !/seller_kyc/.test(route));
 check("G46 the earnings page and panel carry the 'All sales are final' wording and the Refunded red card is gone", /All sales are final/.test(read("components/SellerEarningsClient.jsx")) && /All sales are final/.test(read("components/SellerPayoutPanel.jsx")) && !/label="Refunded"/.test(read("components/SellerEarningsClient.jsx")));
 
 // ---------------------------------------------------------------- wording / validator
@@ -96,7 +96,7 @@ check("G57 account wording is about the UPI ID", /UPI ID/.test(describeAccount("
 check("G58 the legacy 48-hour wording appears only on the legacy 'held' status", STATUS_CODES.filter((c) => /48/.test(describeStatus({ status: c }).detail + describeStatus({ status: c }).label)).join() === "held");
 
 check("G60 action_needed is red and tells the seller to check the UPI ID", describeStatus({ status: "action_needed" }).tone === "red" && /UPI ID/.test(describeStatus({ status: "action_needed" }).detail));
-check("G61 the Save button is disabled unless the UPI id is valid", /disabled=\{!v\.ok \|\| saving/.test(pageC));
+check("G61 (M68) the Save button is disabled while saving", /disabled=\{busy\}/.test(read("components/BankPayoutForm.jsx")));
 check("G62 the server route refuses listing without a UPI id (403)", /if \(!payoutAccount\?\.vpa_address\) \{[\s\S]{0,200}status: 403/.test(route));
 {
   const lib = stripComments(read("lib/domain/admin-payments.js"), "js"), desk = stripComments(read("components/AdminPaymentsDesk.jsx"), "js");

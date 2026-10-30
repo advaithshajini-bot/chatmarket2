@@ -40,7 +40,7 @@ const callErr = async (fn, ...args) => (await adm(`select public.${fn}(${args.ma
 const seller = async (uid, limit = 100) => { const r = await as("authenticated", uid, null, `select public.seller_settlement_status($1) as v`, [limit]); if (r.err) throw r.err; return r.rows[0].v; };
 const acct = async (uid, status = "active", vpa = Object.values(VPA)[Object.values(U).indexOf(uid)]) => {
   await mkUsers();
-  await q(`insert into public.seller_payout_accounts (user_id, vpa_address, status) values ($1,$2,$3) on conflict (user_id) do update set status = excluded.status, vpa_address = excluded.vpa_address`, [uid, vpa, status]);
+  await q(`insert into public.seller_payout_accounts (user_id, vpa_address, status, bank_account_number, bank_account_last4, bank_ifsc, bank_beneficiary_name, bank_account_type) values ($1,$2,$3,'0012345678901','8901','HDFC0001234','Test Seller','savings') on conflict (user_id) do update set status = excluded.status, vpa_address = excluded.vpa_address, bank_account_number = excluded.bank_account_number, bank_account_last4 = excluded.bank_account_last4, bank_ifsc = excluded.bank_ifsc, bank_beneficiary_name = excluded.bank_beneficiary_name, bank_account_type = excluded.bank_account_type`, [uid, vpa, status]);
 };
 let seq = 0;
 async function mk({ sellerId = U.s1, amount = 500, fee = 90, pstatus = "paid", pay, ago = "1 minute", buyer = U.buyer } = {}) {
@@ -111,9 +111,9 @@ await inTxn(async () => {
   check("B01 payable lists only the active seller with a UPI ID", v.payable.length === 1 && v.payable[0].seller_id === U.s1, v.payable);
   check("B02 payable amount = sum of (round(amount*100) - round(fee*100)) in integer paise", v.payable[0].amount_paise === 49200 && v.payable[0].purchase_count === 2 && v.totals.payable_paise === 49200, v.payable[0]);
   check("B03 platform fee aggregated in paise", v.payable[0].platform_fee_paise === 10800);
-  check("B04 the payable row shows the UPI ID and seller name", v.payable[0].vpa_address === VPA.s1 && v.payable[0].seller_name === "Seller One");
+  check("B04 the payable row shows the bank beneficiary, IFSC, last 4 and seller name", v.payable[0].bank_ifsc === "HDFC0001234" && v.payable[0].bank_account_last4 === "8901" && v.payable[0].bank_beneficiary_name === "Test Seller" && !JSON.stringify(v.payable[0]).includes("0012345678901") && v.payable[0].seller_name === "Seller One");
   const reasons = Object.fromEntries(v.blocked.map((b) => [b.seller_id, b.reason]));
-  check("B05 suspended -> account_suspended, pending -> account_pending, none -> no_upi_id", reasons[U.s2] === "account_suspended" && reasons[U.s3] === "account_pending" && reasons[U.plain] === "no_upi_id", reasons);
+  check("B05 suspended -> account_suspended, pending -> account_pending, none -> no_bank_account", reasons[U.s2] === "account_suspended" && reasons[U.s3] === "account_pending" && reasons[U.plain] === "no_bank_account", reasons);
   check("B06 blocked totals add up", v.totals.blocked_sellers === 3 && v.totals.blocked_paise === 3 * 41000, v.totals);
   check("B07 refunded / no-payment-id / no-share / free purchases never appear", v.totals.payable_purchases === 2 && v.blocked.every((b) => b.purchase_count === 1));
   check("B08 the preview wrote nothing", JSON.stringify(await sc(`select (select count(*) from public.settlement_batches)::int a, (select count(*) from public.purchase_settlements)::int b`)) === JSON.stringify(before));
@@ -150,7 +150,7 @@ await inTxn(async () => {
   const r = await call("admin_create_settlement_batch", " 2026-10 ", nowIso());
   check("C03 creates a batch: 2 sellers, 3 purchases, total in paise", r.seller_count === 2 && r.purchase_count === 3 && r.total_paise === 41000 + 8200 + 20500, r);
   const items = (await q(`select * from public.settlement_items where batch_id = $1 order by amount_paise desc`, [r.batch_id])).rows;
-  check("C04 one item per payable seller with the UPI snapshot, status pending", items.length === 2 && items[0].seller_id === U.s1 && Number(items[0].amount_paise) === 49200 && items[0].vpa_address === VPA.s1 && items.every((i) => i.status === "pending" && i.utr === null));
+  check("C04 one item per payable seller with the bank snapshot, status pending", items.length === 2 && items[0].seller_id === U.s1 && Number(items[0].amount_paise) === 49200 && items[0].bank_account_number === "0012345678901" && items[0].bank_ifsc === "HDFC0001234" && items.every((i) => i.status === "pending" && i.utr === null));
   const ps = (await q(`select purchase_id from public.purchase_settlements`)).rows.map((x) => x.purchase_id);
   check("C05 every settled purchase has exactly one purchase_settlements row; the suspended seller's sale does not", ps.length === 3 && [a1, a2, b1].every((p) => ps.includes(p)) && !ps.includes(c1));
   check("C06 label is trimmed and the batch is open", (await sc(`select label, status, completed_at is null as open, total_paise::int t from public.settlement_batches where id = $1`, [r.batch_id])).label === "2026-10");
@@ -261,16 +261,16 @@ await inTxn(async () => {
   check("F02 limit validation -> CM076", (await callErr("admin_settlement_batches", 0))?.code === "CM076" && (await callErr("admin_settlement_batches", 201))?.code === "CM076");
   const d0 = await call("admin_settlement_batch", r.batch_id);
   const it = (uid) => d0.items.find((x) => x.seller_id === uid);
-  check("F03 detail: batch header + one row per seller with full UPI ID (the admin needs it to pay)", d0.found && d0.batch.label === "F" && d0.items.length === 2 && it(U.s1).vpa_address === VPA.s1 && it(U.s1).seller_name === "Seller One");
-  check("F04 safety flags are false on a clean batch", d0.items.every((x) => x.refunded_purchase_count === 0 && x.upi_changed_since_snapshot === false && x.upi_changed_recently === false));
+  check("F03 detail: batch header + one row per seller with full bank account number (the admin needs it to pay)", d0.found && d0.batch.label === "F" && d0.items.length === 2 && it(U.s1).bank_account_number === "0012345678901" && it(U.s1).bank_beneficiary_name === "Test Seller" && it(U.s1).seller_name === "Seller One");
+  check("F04 safety flags are false on a clean batch", d0.items.every((x) => x.refunded_purchase_count === 0 && x.bank_changed_since_snapshot === false && x.bank_changed_recently === false));
   await q(`update public.purchases set status = 'refunded' where id = $1`, [a]);
-  await q(`update public.seller_payout_accounts set vpa_address = 'changed@ybl' where user_id = $1`, [U.s1]);
-  await q(`insert into public.audit_log (actor_id, action, target_type, target_id, metadata) values ($1,'payout_vpa_set','user',$1,'{}')`, [U.s1]);
+  await q(`update public.seller_payout_accounts set bank_account_number = '999988887777', bank_account_last4 = '7777' where user_id = $1`, [U.s1]);
+  await q(`insert into public.audit_log (actor_id, action, target_type, target_id, metadata) values ($1,'payout_bank_set','user',$1,'{}')`, [U.s1]);
   const d1 = await call("admin_settlement_batch", r.batch_id);
   const x = d1.items.find((i) => i.seller_id === U.s1);
   check("F05 a sale refunded after the batch was made is flagged", x.refunded_purchase_count === 1);
-  check("F06 a UPI ID changed after the snapshot is flagged, and the snapshot is what gets paid", x.upi_changed_since_snapshot === true && x.vpa_address === VPA.s1);
-  check("F07 a UPI ID set within a week of the batch is flagged", x.upi_changed_recently === true);
+  check("F06 a bank account changed after the snapshot is flagged, and the snapshot is what gets paid", x.bank_changed_since_snapshot === true && x.bank_account_number === "0012345678901");
+  check("F07 a bank account set within a week of the batch is flagged", x.bank_changed_recently === true);
   check("F08 unknown batch -> found:false", (await call("admin_settlement_batch", id(95))).found === false);
   await call("admin_settle_items", r.batch_id, "F-REF", null);
   const l2 = await call("admin_settlement_batches", 10);
@@ -283,7 +283,7 @@ await inTxn(async () => {
   const un = await mk({ sellerId: U.s1, amount: 500, fee: 90, ago: "3 days" });
   const v0 = await seller(U.s1);
   check("G01 an active seller's new sale is 'unsettled'", sellerItem(v0, un) === "unsettled" && v0.summary.unsettled_paise === 41000);
-  check("G02 account fields: status, masked UPI (never the full ID)", v0.account_status === "active" && v0.upi_masked === "se***@okbank" && !JSON.stringify(v0).includes(VPA.s1));
+  check("G02 account fields: status, masked bank account (never the full number)", v0.account_status === "active" && v0.bank_masked === "****8901" && !JSON.stringify(v0).includes("0012345678901"));
   const expectNext = (await sc(`select (date_trunc('month', now() at time zone 'Asia/Kolkata') + interval '1 month')::date::text as v`)).v;
   check("G03 next_payout_date = the 1st of next month (IST)", v0.next_payout_date === expectNext && expectNext.endsWith("-01"), v0.next_payout_date);
   const sub = await mk({ sellerId: U.s1, amount: 250, fee: 45, ago: "2 days" });
@@ -302,7 +302,7 @@ await inTxn(async () => {
   await call("admin_settle_items", r.batch_id, "BULK-OCT-8841", null);
   const v3 = await seller(U.s1);
   check("G09 after payment the sales are 'settled'", sellerItem(v3, un) === "settled" && sellerItem(v3, sub) === "settled" && v3.summary.settled_paise === 61500, v3.summary);
-  check("G10 the payout appears in the monthly history with label, amount, count, reference, masked UPI", v3.payouts.length === 1 && v3.payouts[0].batch_label === "G" && v3.payouts[0].amount_paise === 61500 && v3.payouts[0].purchase_count === 2 && v3.payouts[0].reference === "BULK-OCT-8841" && v3.payouts[0].upi_masked === "se***@okbank");
+  check("G10 the payout appears in the monthly history with label, amount, count, reference, masked bank account", v3.payouts.length === 1 && v3.payouts[0].batch_label === "G" && v3.payouts[0].amount_paise === 61500 && v3.payouts[0].purchase_count === 2 && v3.payouts[0].reference === "BULK-OCT-8841" && v3.payouts[0].bank_masked === "****8901");
   // non-recourse: refund AFTER payment changes nothing the seller sees
   await q(`update public.purchases set status = 'refunded' where id = $1`, [un]);
   const v4 = await seller(U.s1);
@@ -313,14 +313,14 @@ await inTxn(async () => {
   const item = (await sc(`select id from public.settlement_items limit 1`)).id;
   const text = JSON.stringify(v4);
   check("G14 no batch id, item id, seller id or admin id in the seller's JSON", !text.includes(r.batch_id) && !text.includes(item) && !text.includes(U.admin) && !text.includes(U.s1));
-  check("G15 only allow-listed keys at the top level and in a payout row", Object.keys(v4).sort().join() === "account_status,items,min_payout_paise,next_payout_date,payouts,summary,upi_cooldown_hours,upi_masked,upi_unlocks_at" && Object.keys(v4.payouts[0]).sort().join() === "amount_paise,batch_label,paid_at,purchase_count,reference,upi_masked");
+  check("G15 only allow-listed keys at the top level and in a payout row", Object.keys(v4).sort().join() === "account_status,bank_cooldown_hours,bank_masked,bank_unlocks_at,items,min_payout_paise,next_payout_date,payouts,summary" && Object.keys(v4.payouts[0]).sort().join() === "amount_paise,bank_masked,batch_label,paid_at,purchase_count,reference,upi_masked");
 });
 await inTxn(async () => {
   await mkUsers();
   const a = await mk({ sellerId: U.s1 }), b = await mk({ sellerId: U.s2, amount: 250, fee: 45 });
   const v1 = await seller(U.s1), v2 = await seller(U.s2);
-  check("G16 no account -> 'needs_upi', counted as action needed, account 'none'", sellerItem(v1, a) === "needs_upi" && v1.account_status === "none" && v1.upi_masked === null && v1.summary.action_needed_paise === 41000 && v1.summary.unsettled_paise === 41000);
-  check("G17 isolation: each seller sees only their own sales", v1.items.length === 1 && v2.items.length === 1 && sellerItem(v2, b) === "needs_upi");
+  check("G16 no account -> 'needs_bank', counted as action needed, account 'none'", sellerItem(v1, a) === "needs_bank" && v1.account_status === "none" && v1.bank_masked === null && v1.summary.action_needed_paise === 41000 && v1.summary.unsettled_paise === 41000);
+  check("G17 isolation: each seller sees only their own sales", v1.items.length === 1 && v2.items.length === 1 && sellerItem(v2, b) === "needs_bank");
   check("G18 a user with no sales gets a well-formed empty answer", (await seller(U.buyer)).items.length === 0 && (await seller(U.buyer)).summary.unsettled_paise === 0);
   await acct(U.s1, "suspended");
   check("G19 suspended account -> 'under_review'", sellerItem(await seller(U.s1), a) === "under_review");

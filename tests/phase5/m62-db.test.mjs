@@ -8,6 +8,7 @@ const check = (n, ok, x) => { if (ok) { pass++; console.log("PASS:", n); } else 
 const SELLER = "00000000-0000-0000-0000-0000000fff01", OTHER = "00000000-0000-0000-0000-0000000fff02";
 await c.query("BEGIN");
 for (const u of [SELLER, OTHER]) await c.query(`insert into auth.users (id,email) values ($1,$2) on conflict do nothing`, [u, `a62-${u.slice(-2)}@example.invalid`]);
+await c.query(`insert into public.seller_payout_accounts (user_id, status, bank_account_number, bank_account_last4, bank_ifsc, bank_beneficiary_name) values ($1,'active','0012345678901','8901','HDFC0001234','Seller') on conflict do nothing`, [SELLER]);
 async function ins(gt, other, uid = SELLER, role = "authenticated") {
   await c.query(`select set_config('request.jwt.claims',$1,true)`, [JSON.stringify({ sub: uid, role })]);
   await c.query(`set local role ${role}`); await c.query("SAVEPOINT s");

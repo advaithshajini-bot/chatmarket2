@@ -84,9 +84,9 @@ check("T23 the dispute sweep runs with no payout db method and returns plain cou
 // ---------------------------------------------------------------- what must NOT have been touched
 const migs = fs.readdirSync(path.join(root, "supabase/migrations"));
 check("T30 the 5.4 payout migration is untouched and still present (the tables stay; any drop is a separate approved migration)", migs.includes("20261018100000_add_vpa_payouts.sql"));
-check("T31 no new migration was added by the clean-up (only the later additive 5.6 / 5.7 milestones follow)", migs.filter((f) => f.endsWith(".sql")).sort().at(-1) <= "20261028100000_seller_bank_details.sql");
+check("T31 no new migration was added by the clean-up (only the later additive 5.6 / 5.7 milestones follow)", migs.filter((f) => f.endsWith(".sql")).sort().at(-1) <= "20261029100000_manual_bank_payouts.sql");
 check("T32 the monthly-settlement code does not import anything from lib/payments", ["lib/domain/admin-settlement.js", "lib/domain/seller-settlement.js", "components/AdminSettlementTab.jsx", "components/SellerPayoutPanel.jsx"].every((f) => !/lib\/payments|payments\//.test(read(f))));
-check("T33 the seller UPI page and the listing gate are untouched by this clean-up (still use set_my_payout_vpa)", /set_my_payout_vpa/.test(read("app/sell/payout/page.jsx")));
+check("T33 (M68) the DB function set_my_payout_vpa is preserved (the UI no longer uses it)", /set_my_payout_vpa/.test(read("supabase/migrations/20261021100000_add_upi_cooldown.sql")) && !/set_my_payout_vpa/.test(read("app/sell/payout/page.jsx")));
 
 console.log(`\nA58: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

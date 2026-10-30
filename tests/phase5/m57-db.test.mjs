@@ -40,7 +40,7 @@ const callErr = async (fn, ...args) => (await adm(`select public.${fn}(${args.ma
 const seller = async (uid, limit = 100) => { const r = await as("authenticated", uid, null, `select public.seller_settlement_status($1) as v`, [limit]); if (r.err) throw r.err; return r.rows[0].v; };
 const acct = async (uid, status = "active", vpa = Object.values(VPA)[Object.values(U).indexOf(uid)]) => {
   await mkUsers();
-  await q(`insert into public.seller_payout_accounts (user_id, vpa_address, status) values ($1,$2,$3) on conflict (user_id) do update set status = excluded.status, vpa_address = excluded.vpa_address`, [uid, vpa, status]);
+  await q(`insert into public.seller_payout_accounts (user_id, vpa_address, status, bank_account_number, bank_account_last4, bank_ifsc, bank_beneficiary_name, bank_account_type) values ($1,$2,$3,'0012345678901','8901','HDFC0001234','Test Seller','savings') on conflict (user_id) do update set status = excluded.status, vpa_address = excluded.vpa_address, bank_account_number = excluded.bank_account_number, bank_account_last4 = excluded.bank_account_last4, bank_ifsc = excluded.bank_ifsc, bank_beneficiary_name = excluded.bank_beneficiary_name, bank_account_type = excluded.bank_account_type`, [uid, vpa, status]);
 };
 let seq = 0;
 async function mk({ sellerId = U.s1, amount = 500, fee = 90, pstatus = "paid", pay, ago = "1 minute", buyer = U.buyer } = {}) {
@@ -94,7 +94,7 @@ await inTxn(async () => {
   check("C01 preview reports the minimum", v.min_payout_paise === 10000);
   check("C02 a seller at or above the minimum is payable (the total across all their sales is what counts)", v.payable.map((p) => p.seller_id).sort().join() === [U.s1, U.s3].sort().join() && v.payable.find((p) => p.seller_id === U.s3).amount_paise === 18000, v.payable);
   check("C03 a seller below the minimum is reported as below_minimum with their amount", reasonOf(v, U.s2) === "below_minimum" && v.blocked.find((b) => b.seller_id === U.s2).amount_paise === 8200, v.blocked);
-  check("C04 precedence: no UPI ID is reported before below_minimum", reasonOf(v, U.plain) === "no_upi_id");
+  check("C04 precedence: no bank account is reported before below_minimum", reasonOf(v, U.plain) === "no_bank_account");
   check("C05 totals: payable excludes the held-back sellers, blocked includes them", v.totals.payable_paise === 41000 + 18000 && v.totals.payable_sellers === 2 && v.totals.blocked_sellers === 2 && v.totals.blocked_paise === 8200 + 8200, v.totals);
   const r = await call("admin_create_settlement_batch", "C", now());
   check("C06 the frozen batch contains exactly the payable sellers and agrees with the preview", r.seller_count === 2 && r.total_paise === 59000 && r.purchase_count === 3, r);
@@ -128,7 +128,7 @@ await inTxn(async () => {
   await setMin(10000);
   const sv = await seller(U.s1);
   const text = JSON.stringify(sv);
-  check("E01 seller JSON: only allow-listed keys (5.6 added min_payout_paise, 5.7 the two cooldown keys); no ids; no negatives", Object.keys(sv).sort().join() === "account_status,items,min_payout_paise,next_payout_date,payouts,summary,upi_cooldown_hours,upi_masked,upi_unlocks_at" && !text.includes(U.admin) && Object.values(sv.summary).every((n) => n >= 0));
+  check("E01 seller JSON: only allow-listed keys (5.6 added min_payout_paise, 5.7 the two cooldown keys); no ids; no negatives", Object.keys(sv).sort().join() === "account_status,bank_cooldown_hours,bank_masked,bank_unlocks_at,items,min_payout_paise,next_payout_date,payouts,summary" && !text.includes(U.admin) && Object.values(sv.summary).every((n) => n >= 0));
 });
 
 console.log(`\nM57-DB: ${pass} passed, ${fail} failed`);

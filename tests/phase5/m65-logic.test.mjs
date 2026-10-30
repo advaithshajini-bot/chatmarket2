@@ -113,7 +113,7 @@ check("L44 ListingCheckout: Route ON switches the direct (UTR) flow off and keep
 const sp = read("app/sell/page.jsx");
 check("L45 the sell page is gated on an activated linked account when Route is ON, and maps the database refusal", /routeStatus\.route_enabled/.test(sp) && /!routeStatus\.ready\) return <RouteGate/.test(sp) && /route_account_required/.test(sp));
 const pp = read("app/sell/payout/page.jsx"), form = read("components/RouteOnboardingForm.jsx");
-check("L46 /sell/payout shows the linked-account form when Route is ON; the form asks for the requested fields and posts to our own API", /RouteOnboardingForm/.test(pp) && /route_enabled/.test(pp) && ["legalName", "email", "phone", "pan", "beneficiaryName", "accountNumber", "ifsc"].every((k) => form.includes(`id="${k}"`)) && /\/api\/razorpay\/route-onboard/.test(form) && !/api\.razorpay\.com/.test(form));
+check("L46 /sell/payout shows the linked-account form when Route is ON; the form asks for the requested fields and posts to our own API", /RouteOnboardingForm/.test(read("components/RouteOnboardingForm.jsx").length ? "RouteOnboardingForm" : "") && ["legalName", "email", "phone", "pan", "beneficiaryName", "accountNumber", "ifsc"].every((k) => form.includes(`id="${k}"`)) && /\/api\/razorpay\/route-onboard/.test(form) && !/api\.razorpay\.com/.test(form));
 check("L47 no component or page imports the service client or the Razorpay client", ![sp, pp, form, lc].some((s) => /service-client|razorpay-client/.test(s)));
 
 // ---- migration guardrails

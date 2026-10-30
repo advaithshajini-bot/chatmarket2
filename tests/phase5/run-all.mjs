@@ -73,6 +73,8 @@ suite("M65  Razorpay Route: payloads, onboarding, webhook, screens, migration gu
 suite("M66  legal + help pages: identity, refund SLA, consistency, links, cookie panel (no DB)", "m66-docs.test.mjs");
 suite("M67  seller bank display facts, onboarding_status, privileges, idempotent migration (live DB, real schema)", "m67-db.test.mjs");
 suite("M67  2-step payout onboarding, IFSC lookup, seller transparency text (no DB)", "m67-logic.test.mjs");
+suite("M68  manual bank payouts: RPC, privileges, listing gate, settlement snapshot (live DB, real schema)", "m68-db.test.mjs");
+suite("M68  manual bank payouts: form validation, CSV columns, bank-only payout page (no DB)", "m68-logic.test.mjs");
 suite("M58  Tier 1 clean-up: payout code retired, nothing reaches it (no DB)", "m58-tier1.test.mjs");
 suite("M59  Tier 2 clean-up: Route transfers + sweep retired, refunds and disputes kept (no DB)", "m59-tier2.test.mjs");
 console.log(`\nTOTAL: ${totalPass} passed, ${totalFail} failed${notPassed ? ", with skipped suites (NOT a pass)" : ""}`);

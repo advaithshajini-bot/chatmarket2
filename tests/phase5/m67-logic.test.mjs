@@ -41,7 +41,7 @@ check("S22 step 2 has beneficiary (prefilled from the legal name), account numbe
 check("S23 the IFSC field is upper-cased and limited to 11 characters, and looks up the bank and branch through our own API", /toUpperCase\(\)\.replace\(\/\[\^A-Z0-9\]\/g, ""\)\.slice\(0, 11\)/.test(form) && /\/api\/ifsc\//.test(form) && /bank\.branch/.test(form));
 check("S24 the penny-drop micro-copy is shown exactly as specified", /Razorpay will verify your bank details via an automated ₹1 penny-drop\. Payouts from thread sales settle automatically to this account\./.test(form));
 check("S25 there is NO UPI ID field anywhere in the Route flow", !/upi|vpa/i.test(fc.replace(/UPI/g, "")) && !/id="upi"|set_my_payout_vpa/.test(form));
-check("S26 with the Route flag ON /sell/payout shows only the Route form (the UPI form is reached only when it is OFF), so nothing blocks a seller on a raw UPI ID", /route\?\.route_enabled && userId/.test(page) && /if \(rs\.route_enabled\) \{ setLoading\(false\); return; \}/.test(page));
+check("S26 /sell/payout is the bank-only screen (manual payouts): no Route/UPI branch is left in the page", /BankPayoutForm/.test(page) && !/set_my_payout_vpa|route_enabled|validateUpi/.test(page));
 check("S27 the form shows the saved settlement account masked (****1234 · IFSC · bank · type)", /maskAccount\(status\.bank_account_last4\)/.test(form) && /Settlement account/.test(form));
 check("S28 the form posts to our own API only and never keeps the account number after submit", /\/api\/razorpay\/route-onboard/.test(form) && !/api\.razorpay\.com/.test(form) && /setForm\(EMPTY\)/.test(form) && !/localStorage|sessionStorage/.test(form));
 
@@ -53,7 +53,7 @@ check("S30 the IFSC lookup validates the code, needs a login, times out fast and
 const MIG = "20261028100000_seller_bank_details.sql";
 const migs = fs.readdirSync(path.join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql")).sort();
 const m = read(`supabase/migrations/${MIG}`), low = m.split("\n").filter((l) => !/^\s*--/.test(l)).join("\n").toLowerCase();
-check("S40 the migration sorts last and is additive: nothing is dropped, deleted or truncated", migs.at(-1) === MIG && !/\b(drop\s+(table|column|function|trigger|constraint|index|policy)|delete\s+from|truncate)\b/.test(low));
+check("S40 the migration exists and is additive: nothing is dropped, deleted or truncated", migs.includes(MIG) && !/\b(drop\s+(table|column|function|trigger|constraint|index|policy)|delete\s+from|truncate)\b/.test(low));
 check("S41 idempotent: every column / constraint / generated column is guarded (if not exists)", (low.match(/add column if not exists/g) || []).length >= 1 && /if not exists \(select 1 from pg_constraint/.test(low) && /if not exists \(select 1 from information_schema\.columns/.test(low));
 check("S42 it stores NO full account number or PAN (no such column is added)", !/bank_account_number|\bpan\b\s+text/.test(low) && /bank_account_last4/.test(low));
 check("S43 the writer is service_role only and pins search_path", /revoke all on function public\.route_save_bank_display\([^)]*\) from public, anon, authenticated/.test(low) && /grant execute on function public\.route_save_bank_display\([^)]*\) to service_role/.test(low) && (m.match(/security definer/gi) || []).length === (m.match(/set search_path = ''/g) || []).length);

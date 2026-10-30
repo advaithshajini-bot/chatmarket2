@@ -23,15 +23,15 @@ for (const evil of ["=HYPERLINK(\"http://x\")", "+1+1", "-2+3", "@SUM(A1)", "\tc
 }
 const batch = { label: "2026-10" };
 const items = [
-  { item_id: "i1", seller_name: "=cmd|' /C calc'!A0", vpa_address: "a@okbank", amount_paise: 49200, purchase_count: 2, status: "pending", utr: null },
-  { item_id: "i2", seller_name: "Bob, Jr.", vpa_address: "b@ybl", amount_paise: 5, purchase_count: 1, status: "paid", utr: "REF1" },
-  { item_id: "i3", seller_name: null, vpa_address: "c@paytm", amount_paise: 100, purchase_count: 1, status: "pending", utr: null },
+  { item_id: "i1", seller_name: "=cmd|' /C calc'!A0", bank_account_number: "123456789012", bank_ifsc: "HDFC0001234", bank_account_type: "savings", amount_paise: 49200, purchase_count: 2, status: "pending", utr: null },
+  { item_id: "i2", seller_name: "Bob, Jr.", bank_account_number: "223456789012", bank_ifsc: "HDFC0001234", bank_account_type: "savings", amount_paise: 5, purchase_count: 1, status: "paid", utr: "REF1" },
+  { item_id: "i3", seller_name: null, bank_account_number: "323456789012", bank_ifsc: "SBIN0001111", bank_account_type: "current", amount_paise: 100, purchase_count: 1, status: "pending", utr: null },
 ];
 const csv = buildSettlementCsv(batch, items);
 const lines = csv.trimEnd().split("\r\n");
 check("L06 header + pending rows only by default, CRLF line endings", lines[0] === CSV_HEADER.join(",") && lines.length === 3 && csv.endsWith("\r\n"), lines);
 check("L07 a seller name that is a formula is neutralised in the file", lines[1].startsWith("\"'=cmd") || lines[1].startsWith("'=cmd"), lines[1]);
-check("L08 amount is in rupees with two decimals; note carries the batch label; missing name -> Seller", lines[1].includes(",492.00,") && lines[1].includes("Chatmarket payout 2026-10") && lines[2].startsWith("Seller,c@paytm,1.00,"), lines);
+check("L08 amount is in rupees with two decimals; note carries the batch label; missing name -> Seller", lines[1].includes(",Savings,492.00,") && lines[1].includes("Chatmarket payout 2026-10") && lines[2].startsWith('Seller,"323456789012",SBIN0001111,Current,1.00,'), lines);
 check("L09 onlyPending:false includes paid rows with their reference", buildSettlementCsv(batch, items, { onlyPending: false }).includes("REF1") && buildSettlementCsv(batch, items, { onlyPending: false }).trimEnd().split("\r\n").length === 4);
 check("L10 empty / junk input gives just a header", buildSettlementCsv(batch, null) === CSV_HEADER.join(",") + "\r\n");
 check("L11 filename is a safe slug", csvFilename({ label: "2026-10" }) === "chatmarket-settlement-2026-10.csv" && csvFilename({ label: "../../etc/passwd" }) === "chatmarket-settlement-etc-passwd.csv" && csvFilename(null) === "chatmarket-settlement-batch.csv");
@@ -70,8 +70,8 @@ check("L24 pending loader passes the cut-off and a bounded limit", pc.calls[0][1
 // ---- seller wording
 const D = Object.fromEntries(SETTLEMENT_CODES.map((c) => [c, describeSettlement({ status: c })]));
 check("L25 every code has label, detail, tone", SETTLEMENT_CODES.every((c) => D[c].label && D[c].detail && ["green", "amber", "red", "grey"].includes(D[c].tone)));
-check("L26 wording", D.settled.label === "Paid" && D.in_batch.label === "Being paid" && D.unsettled.label === "Unsettled" && /add your UPI ID/i.test(D.needs_upi.label) && D.refunded.label === "Refunded");
-check("L27 only needs_upi is red", SETTLEMENT_CODES.filter((c) => D[c].tone === "red").join() === "needs_upi");
+check("L26 wording", D.settled.label === "Paid" && D.in_batch.label === "Being paid" && D.unsettled.label === "Unsettled" && /add your bank account/i.test(D.needs_bank.label) && D.refunded.label === "Refunded");
+check("L27 only needs_bank is red", SETTLEMENT_CODES.filter((c) => D[c].tone === "red").join() === "needs_bank");
 check("L28 no internals or debt language", SETTLEMENT_CODES.every((c) => !/razorpay|route|transfer|webhook|error|batch|admin|debt|owe|deduct|recover|negative|clawback|taken back from you/i.test(D[c].label + " " + D[c].detail)));
 check("L29 unknown status degrades safely", describeSettlement({ status: "weird" }).label === "Status unavailable" && describeSettlement(null).label === "Status unavailable");
 check("L30 account banner", describeSettlementAccount("active").needsAction === false && describeSettlementAccount("suspended").needsAction === true && describeSettlementAccount("none").needsAction === true);

@@ -110,7 +110,7 @@ await inTxn(async () => {
   check("C04 with both flags ON the Route gate wins: an activated seller without identity/UPI details can list", !(await ins(U.s1)).err);
   await q(`update private.feature_flags set enabled = false where name='direct_upi_checkout'`);
   await flag(false);
-  check("C05 flag OFF and direct OFF: anyone can list as before", !(await ins(U.s2)).err);
+  check("C05 flag OFF and direct OFF: the manual bank rule applies (no bank account -> refused; with one -> can list)", (await ins(U.s2)).err?.code === "CM079" && (await (async () => { await q(`insert into public.seller_payout_accounts (user_id, status, bank_account_number, bank_account_last4, bank_ifsc) values ($1,'active','123456789012','9012','HDFC0001234') on conflict (user_id) do update set bank_account_number = excluded.bank_account_number, bank_ifsc = excluded.bank_ifsc`, [U.s2]); return !(await ins(U.s2)).err; })()));
   check("C06 the direct-UPI objects are all still there", (await q(`select count(*)::int n from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('submit_direct_payment_claim','raise_direct_payment_dispute','admin_resolve_direct_dispute','set_seller_identity_details','confirm_direct_payment_claim')`)).rows[0].n === 5 && (await q(`select to_regclass('public.direct_payment_claims') is not null and to_regclass('public.seller_identity_details') is not null as ok`)).rows[0].ok);
   check("C07 direct_upi_checkout is still seeded OFF", (await q(`select enabled from private.feature_flags where name='direct_upi_checkout'`)).rows[0].enabled === false);
   check("C08 the legacy transfers table and its admin function are intact", (await q(`select to_regclass('public.transfers') is not null as ok`)).rows[0].ok);

@@ -63,7 +63,7 @@ await inTxn(async () => {
   check("A03 flag OFF: get_direct_payment_target says disabled", (await val(U.b1, "get_direct_payment_target", L)).enabled === false);
   check("A04 flag OFF: submitting a claim is refused (feature_off)", msg(await rpc(U.b1, "submit_direct_payment_claim", L, UTR(1))) === "feature_off");
   const noId = await au(U.s1, `insert into public.listings (title, model, category, price, seller_name, seller_id) values ('x','Claude','Design',10,'s',$1)`, [U.s1]);
-  check("A05 flag OFF: a seller with no identity and no UPI can still create a listing (old behaviour)", !noId.err, noId.err?.message);
+  check("A05 flag OFF: the live (manual bank payout) rule applies: no bank account -> CM079 bank_account_required", noId.err?.code === "CM079" && /bank_account_required/.test(noId.err?.message ?? ""), noId.err?.message);
   const v1 = await au(U.s1, `select public.set_my_payout_vpa('seller.one@okbank') v`);
   check("A06 flag OFF: set_my_payout_vpa works without identity details (old behaviour)", !v1.err && v1.rows[0].v.outcome === "saved", v1.err?.message);
   const ins = await q(`insert into public.purchases (user_id, listing_id, amount, status, payment_method, razorpay_payment_id, platform_fee) values ($1,$2,100,'paid','upi','pay_A07',18) returning id`, [U.b1, L]);

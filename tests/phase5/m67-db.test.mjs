@@ -24,7 +24,7 @@ await inTxn(async () => {
   const cols = (await q(`select column_name, is_generated from information_schema.columns where table_schema='public' and table_name='seller_payout_accounts'`)).rows;
   const names = cols.map((c) => c.column_name);
   check("B01 the new columns exist, and onboarding_status is a GENERATED column", ["bank_account_last4", "bank_ifsc", "bank_name", "bank_beneficiary_name", "bank_account_type", "onboarding_status"].every((c) => names.includes(c)) && cols.find((c) => c.column_name === "onboarding_status").is_generated === "ALWAYS");
-  check("B02 there is NO column that could hold a full account number or a PAN", !names.some((n) => /account_number|pan\b|pan_/.test(n)) && !names.includes("bank_account_number"));
+  check("B02 there is NO column that could hold a PAN", !names.some((n) => /pan\b|pan_/.test(n)));   // M68 (manual payouts) adds bank_account_number on purpose; m68 tests that authenticated cannot read it
   await svc("route_save_linked_account", U.s1, ACC, "created");
   const st = async () => (await q(`select onboarding_status s from public.seller_payout_accounts where user_id=$1`, [U.s1])).rows[0].s;
   const map = {};

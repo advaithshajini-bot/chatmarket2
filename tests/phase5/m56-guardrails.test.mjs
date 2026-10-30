@@ -58,7 +58,7 @@ check("G26 seller screens say it is monthly and final", /Unsettled earnings/.tes
 const adminRpcs = [...stripJs(read("lib/domain/admin-settlement.js")).matchAll(/["'](admin_[a-z_]+)["']/g)].map((x) => x[1]).sort().join();
 check("G27 the admin module calls exactly the seven admin RPCs", adminRpcs === "admin_cancel_settlement_batch,admin_create_settlement_batch,admin_release_settlement_item,admin_settle_items,admin_settlement_batch,admin_settlement_batches,admin_settlement_pending", adminRpcs);
 check("G28 no dangerouslySetInnerHTML or eval anywhere in the new UI", NEW.every((f) => !/dangerouslySetInnerHTML|\beval\(|new Function/.test(read(f))));
-check("G29 the CSV neutralises formula cells and routes every text column through csvCell", /\^\[=\+\\-@\\t\\r\]/.test(read("lib/domain/admin-settlement.js")) && /csvCell\(i\.seller_name/.test(read("lib/domain/admin-settlement.js")) && /csvCell\(i\.vpa_address\)/.test(read("lib/domain/admin-settlement.js")));
+check("G29 the CSV neutralises formula cells and routes every text column through csvCell", /\^\[=\+\\-@\\t\\r\]/.test(read("lib/domain/admin-settlement.js")) && /csvCell\(i\.bank_beneficiary_name/.test(read("lib/domain/admin-settlement.js")) && /csvCell\(i\.bank_ifsc\)/.test(read("lib/domain/admin-settlement.js")));
 const page = read("app/admin/payments/page.jsx");
 check("G30 the admin page gates on admin and aal2 before loading any settlement data", page.indexOf("gate.allowed") > 0 && page.indexOf("gate.allowed") < page.indexOf("getSettlementPending(") && page.indexOf("gate.isAdmin") < page.indexOf("getSettlementPending("));
 check("G31 the admin page uses no service client and no Razorpay code", !/service-client|razorpay/i.test(stripJs(page)) && !/AdminSettlementTab[\s\S]{0,0}service/.test(page));
@@ -69,7 +69,7 @@ check("G33 mark-paid is confirmed in the UI and warns that a paid item is final"
 check("G34 no scheduled sweep: no vercel.json cron and no cron.schedule in any migration", !exists("vercel.json") && migs.every((f) => !/cron\.schedule/i.test(stripSql(read(`supabase/migrations/${f}`)))));
 check("G35 no migration ever turns a feature flag on", migs.every((f) => !/update\s+private\.feature_flags[^;]*enabled\s*=\s*true/i.test(stripSql(read(`supabase/migrations/${f}`)))));
 check("G36 the instant-UPI cut-off still defaults to infinity", /cutoff_at\s+timestamptz not null default 'infinity'/.test(read("supabase/migrations/20261018100000_add_vpa_payouts.sql")));
-check("G37 the seller still only needs a UPI ID to list (gate unchanged)", /UpiGate/.test(read("app/sell/page.jsx")) && /set_my_payout_vpa/.test(read("app/sell/payout/page.jsx")));
+check("G37 (M68) the seller needs a saved bank account to list (BankGate; the dormant UpiGate stays for the direct-UPI flag)", /BankGate/.test(read("app/sell/page.jsx")) && /UpiGate/.test(read("app/sell/page.jsx")) && /BankPayoutForm/.test(read("app/sell/payout/page.jsx")));
 check("G38 the runbook exists", exists("supabase/manual/phase7_monthly_settlement_runbook.md"));
 console.log(`\nM56-GUARD: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
