@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { describeSettlement, describeSettlementAccount, describeUpiCooldown, formatPayoutDate } from "@/lib/domain/seller-settlement";
+import { describeSettlement, describeSettlementAccount, describeBankCooldown, formatPayoutDate } from "@/lib/domain/seller-settlement";
 import { formatPaise } from "@/lib/domain/paise";
 
 const MONO = { fontFamily: "'IBM Plex Mono', monospace" };
@@ -23,14 +23,14 @@ function Stat({ label, paise, hint }) {
   );
 }
 
-// Monthly manual settlement: sales are paid once a month, by hand, to the seller's saved UPI ID. All sales are final.
+// Monthly manual settlement: sales are paid once a month, by hand, to the seller's saved bank account. All sales are final.
 export default function SellerPayoutPanel({ settlement }) {
   const account = describeSettlementAccount(settlement?.account_status);
   const s = settlement?.summary || {};
   const items = settlement?.items || [];
   const payouts = settlement?.payouts || [];
   const next = formatPayoutDate(settlement?.next_payout_date);
-  const cooldownNote = describeUpiCooldown(settlement?.upi_unlocks_at);
+  const cooldownNote = describeBankCooldown(settlement?.bank_unlocks_at);
 
   return (
     <div>
@@ -39,12 +39,12 @@ export default function SellerPayoutPanel({ settlement }) {
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <Pill tone={account.tone}>{account.label}</Pill>
         {account.needsAction && (
-          <Link href="/sell/payout" className="text-sm underline" style={{ color: "#14213D" }}>Add your UPI ID →</Link>
+          <Link href="/sell/payout" className="text-sm underline" style={{ color: "#14213D" }}>Add your bank account →</Link>
         )}
       </div>
 
-      {settlement?.upi_masked && (
-        <p className="text-sm mb-4" style={{ color: "#3A3D42" }}>Payouts go to <span style={MONO}>{settlement.upi_masked}</span>. <Link href="/sell/payout" className="underline">Change</Link></p>
+      {settlement?.bank_masked && (
+        <p className="text-sm mb-4" style={{ color: "#3A3D42" }}>Payouts go to <span style={MONO}>{settlement.bank_masked}</span>. <Link href="/sell/payout" className="underline">Change</Link></p>
       )}
 
       {cooldownNote && (
@@ -56,8 +56,8 @@ export default function SellerPayoutPanel({ settlement }) {
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
         <Stat label="Unsettled earnings" paise={s.unsettled_paise} hint={next ? `Next payout: ${next}` : "Paid once a month"} />
         {s.in_batch_paise > 0 && <Stat label="Being paid" paise={s.in_batch_paise} hint="in this month's payout" />}
-        <Stat label="Paid out" paise={s.settled_paise} hint="sent to your UPI ID" />
-        {s.action_needed_paise > 0 && <Stat label="Action needed" paise={s.action_needed_paise} hint="add your UPI ID" />}
+        <Stat label="Paid out" paise={s.settled_paise} hint="sent to your bank account" />
+        {s.action_needed_paise > 0 && <Stat label="Action needed" paise={s.action_needed_paise} hint="add your bank account" />}
         {s.refunded_paise > 0 && <Stat label="Refunded before payout" paise={s.refunded_paise} />}
       </div>
 
@@ -76,7 +76,7 @@ export default function SellerPayoutPanel({ settlement }) {
             <div key={`${p.batch_label}-${p.paid_at}`} className="flex items-center justify-between gap-4 px-4 py-3.5" style={{ background: "#FFFFFF", borderTop: n === 0 ? "none" : "1px solid #EAE8DE" }}>
               <div className="min-w-0">
                 <p className="text-sm" style={{ color: "#14213D", fontWeight: 500 }}>{p.batch_label} payout · {p.purchase_count} sale{p.purchase_count === 1 ? "" : "s"}</p>
-                <p className="text-xs" style={{ color: "#6B6F76" }}>Sent {when(p.paid_at)} to <span style={MONO}>{p.upi_masked}</span>{p.reference ? <> · Ref <span style={MONO}>{p.reference}</span></> : null}</p>
+                <p className="text-xs" style={{ color: "#6B6F76" }}>Sent {when(p.paid_at)} to <span style={MONO}>{p.bank_masked || p.upi_masked}</span>{p.reference ? <> · Ref <span style={MONO}>{p.reference}</span></> : null}</p>
               </div>
               <span className="text-sm shrink-0" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>{formatPaise(p.amount_paise)}</span>
             </div>
@@ -107,7 +107,7 @@ export default function SellerPayoutPanel({ settlement }) {
         </div>
       )}
       <p className="text-xs mt-3" style={{ color: "#6B6F76" }}>
-        Amounts are your share after the platform fee. Earnings are paid together once a month, on or around the 1st, to your saved UPI ID. All sales are final: once a payout is sent it is yours, and it is never taken back. A payout can take a day or two to be recorded here after it is sent.
+        Amounts are your share after the platform fee. Earnings are paid together once a month, on or around the 1st, to your saved bank account. All sales are final: once a payout is sent it is yours, and it is never taken back. A payout can take a day or two to be recorded here after it is sent.
       </p>
     </div>
   );

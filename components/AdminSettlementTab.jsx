@@ -69,10 +69,10 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
     if (!iso) return say("err", "Pick a valid cut-off date.");
     if (!label.trim()) return say("err", "Give the batch a label, for example 2026-10.");
     const t = pending?.totals || {};
-    if (typeof window !== "undefined" && !window.confirm(`Freeze batch "${label.trim()}"?\n\n${formatPaise(t.payable_paise)} to ${t.payable_sellers} seller(s), for sales before ${cutoff} (IST).\nThe amounts and UPI IDs are locked in; you then pay them by hand.`)) return;
+    if (typeof window !== "undefined" && !window.confirm(`Freeze batch "${label.trim()}"?\n\n${formatPaise(t.payable_paise)} to ${t.payable_sellers} seller(s), for sales before ${cutoff} (IST).\nThe amounts and bank accounts are locked in; you then pay them by hand (IMPS / NEFT).`)) return;
     const r = await createSettlementBatch(supabase, { label: label.trim(), periodEndIso: iso });
     if (r.error) return say("err", r.error);
-    say("ok", `Batch created: ${formatPaise(r.data.total_paise)} to ${r.data.seller_count} seller(s). Export the CSV, pay by UPI, then record the bank reference below.`);
+    say("ok", `Batch created: ${formatPaise(r.data.total_paise)} to ${r.data.seller_count} seller(s). Export the CSV, pay by net banking (IMPS / NEFT), then record the bank reference below.`);
     await refresh(iso);
   });
 
@@ -132,11 +132,11 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
   return (
     <div>
       <div className="rounded-md p-4 mb-6" style={card}>
-        <p className="text-sm mb-1" style={{ fontWeight: 600, color: "#14213D" }}>Monthly settlement (manual UPI)</p>
+        <p className="text-sm mb-1" style={{ fontWeight: 600, color: "#14213D" }}>Monthly settlement (manual bank transfer)</p>
         <ol className="text-xs list-decimal ml-4 space-y-0.5" style={{ color: "#3A3D42" }}>
-          <li>Preview what each seller is owed and freeze a batch (amounts and UPI IDs are locked in).</li>
-          <li>Download the CSV and pay each seller by UPI from your bank or UPI app.</li>
-          <li>Record the bank reference here. Items you cannot pay (for example a rejected UPI ID) can be released to the next batch.</li>
+          <li>Preview what each seller is owed and freeze a batch (amounts and bank accounts are locked in).</li>
+          <li>Download the CSV (beneficiary, account number, IFSC, amount) and pay each seller by IMPS / NEFT from your corporate net-banking portal. Tip: open it in a text editor or import the account column as Text, so leading zeros are kept.</li>
+          <li>Record the bank reference here. Items you cannot pay (for example a rejected account number) can be released to the next batch.</li>
         </ol>
         <p className="text-xs mt-2" style={{ color: "#6B6F76" }}>Nothing on this page moves money. A paid item is final; sales refunded after payment are never taken back from a seller.</p>
       </div>
@@ -160,19 +160,19 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
           <p className="text-sm mb-3" style={{ color: "#14213D" }}>
             <strong>{formatPaise(t.payable_paise || 0)}</strong> payable to {t.payable_sellers || 0} seller(s) across {t.payable_purchases || 0} sale(s)
             {pending?.min_payout_paise > 0 && <span style={{ color: "#6B6F76" }}> · minimum payout {formatPaise(pending.min_payout_paise)}</span>}
-            {pending?.upi_cooldown_hours > 0 && <span style={{ color: "#6B6F76" }}> · changed UPI IDs wait {pending.upi_cooldown_hours}h</span>}
+            {pending?.bank_cooldown_hours > 0 && <span style={{ color: "#6B6F76" }}> · changed bank accounts wait {pending.bank_cooldown_hours}h</span>}
             {t.blocked_sellers > 0 && <span style={{ color: "#8A6A18" }}> · {formatPaise(t.blocked_paise || 0)} held back for {t.blocked_sellers} seller(s) who can&apos;t be paid yet</span>}
           </p>
 
           {(pending?.payable || []).length > 0 && (
             <div className="overflow-x-auto mb-4">
               <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
-                <thead><tr className="text-left text-xs uppercase" style={{ color: "#6B6F76", ...MONO }}><th className="py-2 pr-3">Seller</th><th className="pr-3">UPI ID</th><th className="pr-3 text-right">Sales</th><th className="pr-3 text-right">Fee</th><th className="pr-3 text-right">Pay</th><th></th></tr></thead>
+                <thead><tr className="text-left text-xs uppercase" style={{ color: "#6B6F76", ...MONO }}><th className="py-2 pr-3">Seller</th><th className="pr-3">Bank account</th><th className="pr-3 text-right">Sales</th><th className="pr-3 text-right">Fee</th><th className="pr-3 text-right">Pay</th><th></th></tr></thead>
                 <tbody>
                   {pending.payable.map((p) => (
                     <tr key={p.seller_id} style={{ borderTop: "1px solid #EAE8DE" }}>
                       <td className="py-2 pr-3">{p.seller_name || p.seller_id.slice(0, 8)}</td>
-                      <td className="pr-3 text-xs" style={MONO}>{p.vpa_address}</td>
+                      <td className="pr-3 text-xs" style={MONO}>{p.bank_beneficiary_name} · ****{p.bank_account_last4} · {p.bank_ifsc}</td>
                       <td className="pr-3 text-right">{p.purchase_count}</td>
                       <td className="pr-3 text-right">{formatPaise(p.platform_fee_paise)}</td>
                       <td className="pr-3 text-right" style={{ fontWeight: 600 }}>{formatPaise(p.amount_paise)}</td>
@@ -193,7 +193,7 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
                   {pending.blocked.map((b) => (
                     <tr key={b.seller_id} style={{ borderTop: "1px solid #EAE8DE" }}>
                       <td className="py-2 pr-3">{b.seller_name || b.seller_id.slice(0, 8)}</td>
-                      <td className="pr-3"><Pill tone="amber">{BLOCKED_LABELS[b.reason] || b.reason}</Pill>{b.reason === "upi_in_cooldown" && b.upi_unlocks_at && <span className="block text-xs mt-1" style={{ color: "#6B6F76" }}>new ID matures {when(b.upi_unlocks_at)}</span>}</td>
+                      <td className="pr-3"><Pill tone="amber">{BLOCKED_LABELS[b.reason] || b.reason}</Pill>{b.reason === "bank_in_cooldown" && b.bank_unlocks_at && <span className="block text-xs mt-1" style={{ color: "#6B6F76" }}>new account matures {when(b.bank_unlocks_at)}</span>}</td>
                       <td className="pr-3 text-right">{b.purchase_count} sale(s)</td>
                       <td className="pr-3 text-right">{formatPaise(b.amount_paise)}</td>
                       <td>{b.reason === "account_suspended" && <button disabled={busy} onClick={() => toggleSeller(b.seller_id, "active")} className="text-xs underline" style={{ color: "#14213D" }}>Resume</button>}</td>
@@ -223,7 +223,7 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
 
           <div className="overflow-x-auto mb-4">
             <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
-              <thead><tr className="text-left text-xs uppercase" style={{ color: "#6B6F76", ...MONO }}><th className="py-2 pr-2 w-6"></th><th className="pr-3">Seller</th><th className="pr-3">UPI ID</th><th className="pr-3 text-right">Sales</th><th className="pr-3 text-right">Amount</th><th className="pr-3">Status</th><th></th></tr></thead>
+              <thead><tr className="text-left text-xs uppercase" style={{ color: "#6B6F76", ...MONO }}><th className="py-2 pr-2 w-6"></th><th className="pr-3">Seller</th><th className="pr-3">Bank account</th><th className="pr-3 text-right">Sales</th><th className="pr-3 text-right">Amount</th><th className="pr-3">Status</th><th></th></tr></thead>
               <tbody>
                 {items.map((i) => (
                   <tr key={i.item_id} style={{ borderTop: "1px solid #EAE8DE", verticalAlign: "top" }}>
@@ -233,10 +233,10 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
                     )}</td>
                     <td className="pr-3">{i.seller_name || i.seller_id.slice(0, 8)}</td>
                     <td className="pr-3 text-xs" style={MONO}>
-                      {i.vpa_address}
+                      {i.bank_account_number ? <>{i.bank_beneficiary_name}<br />{i.bank_account_number} · {i.bank_ifsc}</> : i.vpa_address}
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {i.upi_changed_recently && <Pill tone="amber">UPI ID changed recently</Pill>}
-                        {i.upi_changed_since_snapshot && <Pill tone="red">UPI ID changed since batch</Pill>}
+                        {i.bank_changed_recently && <Pill tone="amber">Bank account changed recently</Pill>}
+                        {i.bank_changed_since_snapshot && <Pill tone="red">Bank account changed since batch</Pill>}
                         {i.refunded_purchase_count > 0 && <Pill tone="red">{i.refunded_purchase_count} sale(s) refunded since</Pill>}
                         {i.account_status === "suspended" && <Pill tone="red">payouts paused</Pill>}
                       </div>
