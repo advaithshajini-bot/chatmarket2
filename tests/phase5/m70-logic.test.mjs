@@ -1,0 +1,30 @@
+// A70 -- media milestone: video card, listing page, seller storefront (static; no database, no network).
+import fs from "node:fs"; import path from "node:path"; import { fileURLToPath } from "node:url";
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
+const nc = (s) => s.split("\n").filter((l) => !/^\s*(\/\/|--|\*|\/\*)/.test(l)).join("\n");
+let pass = 0, fail = 0;
+const check = (n, ok, x) => { if (ok) { pass++; console.log("PASS:", n); } else { fail++; console.log("FAIL:", n, x === undefined ? "" : `-- ${JSON.stringify(x)}`); } };
+
+const vc = nc(read("components/ListingVideoCard.jsx"));
+check("V01 the video card plays muted from the start on hover and pauses + rewinds on leave", /muted/.test(vc) && /onMouseEnter/.test(vc) && /onMouseLeave/.test(vc) && /currentTime = 0/.test(vc) && /\.play\(\)/.test(vc) && /\.pause\(\)/.test(vc));
+check("V02 touch devices / playback failure fall back to the first screenshot (poster)", /hover: hover/.test(vc) && /poster/.test(vc) && /catch|onError/.test(vc));
+check("V03 shows a duration badge and a play icon while idle, rounded, 16:9 or 4:3, with a controls mode for the primary player", /formatDuration/.test(vc) && /Play/.test(vc) && /rounded/.test(vc) && /16 ?\/ ?9|16:9/.test(vc) && /aspect/.test(vc) && /controls/.test(vc));
+const pc = nc(read("components/ProductCard.jsx"));
+check("V04 the shared ProductCard (Home + Browse) uses the video card for playbooks", /ListingVideoCard/.test(pc) && /previewVideo/.test(pc));
+const land = read("components/LandingClient.jsx") + read("components/BrowseClient.jsx");
+check("V05 Home and Browse render ProductCard", (land.match(/<ProductCard/g) || []).length >= 2);
+const prod = nc(read("lib/domain/products.js"));
+check("V06 products expose previewVideo and select both new columns", /previewVideo/.test(prod) && /preview_video_url/.test(prod) && /preview_video_duration/.test(prod));
+const gal = nc(read("components/ScreenshotGallery.jsx"));
+check("V07 the gallery opens a lightbox on click (dialog, Esc, arrows, close)", /role="dialog"/.test(gal) && /Escape/.test(gal) && /ArrowRight/.test(gal) && /setOpen\(true\)/.test(gal));
+const lp = nc(read("app/listing/[id]/page.jsx"));
+check("V08 the listing page shows the primary video player (controls) instead of the locked prompt box, with the legacy box as fallback", /<ListingVideoCard[^>]*controls/.test(lp) && /product\.previewVideo \?/.test(lp) && /more messages locked/.test(lp));
+check("V09 the seller card sits right after the checkout box and uses the public profile RPC", /<ListingCheckout[^>]*\/>\s*<SellerCard/.test(lp) && /getSellerPublicProfile/.test(lp));
+const sc = nc(read("components/SellerCard.jsx"));
+check("V10 seller card: initial avatar, link to /sellers/[id], bio, verified badge, rating/sales, support link", /sellerInitial/.test(sc) && /\/sellers\/\$\{sellerId\}/.test(sc) && /profile\?\.bio/.test(sc) && /Verified seller/.test(sc) && /avg_rating/.test(sc) && /sales_count/.test(sc) && /mailto:/.test(sc));
+const sp = nc(read("app/sellers/[id]/page.jsx"));
+check("V11 storefront: header facts, 'Threads by this Seller' and 'Most popular threads' sections using ProductCard", /Threads by this Seller/.test(sp) && /Most popular threads/.test(sp) && /getMostPopularListingIds/.test(sp) && /getSellerPublicProfile/.test(sp) && /<ProductCard/.test(sp) && /Joined/.test(sp) && /Verified seller/.test(sp));
+check("V12 storefront shows only live listings and a not-found page for a bad id", /status === "live"/.test(sp) && /Seller not found/.test(sp) && /UUID_RE/.test(sp));
+const mig = nc(read("supabase/migrations/20261031100000_media_and_listing_updates.sql")).toLowerCase();
+console.log(`A70: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);

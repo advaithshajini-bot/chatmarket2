@@ -99,7 +99,7 @@ await inTxn(async () => {
   await setup();
   // listing gate
   await flag(true);
-  const ins = (s) => as("authenticated", s, `insert into public.listings (title, model, category, price, seller_name, seller_id, description, zip_contents, status) values (repeat('t',10),'Claude','Design',50,'s',$1,repeat('d',500),repeat('z',250),'pending_review')`, [s]);
+  const ins = (s) => as("authenticated", s, `insert into public.listings (title, model, category, price, seller_name, seller_id, description, zip_contents, screenshots, preview_video_url, preview_video_duration, status) values (repeat('t',10),'Claude','Design',50,'s',$1,repeat('d',500),repeat('z',250),'["a","b","c","d"]'::jsonb,'v.mp4',8,'pending_review')`, [s]);
   const blocked = await ins(U.s1);
   check("C01 Route ON: a seller without an activated account cannot list (CM079 route_account_required)", blocked.err?.code === "CM079" && blocked.err.message === "route_account_required", blocked.err?.message);
   await svc("route_save_linked_account", U.s1, ACC, "needs_clarification");

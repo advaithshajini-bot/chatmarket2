@@ -24,7 +24,7 @@ async function as(role, uid, claims, sql, params) {
 const save = (uid, num = "0012345678901", ifsc = "hdfc0001234", name = "  Asha   Rao ", type = "savings") =>
   as("authenticated", uid, null, `select public.set_my_bank_payout($1,$2,$3,$4) as v`, [num, ifsc, name, type]);
 const row = async (uid) => (await q(`select * from public.seller_payout_accounts where user_id=$1`, [uid])).rows[0];
-const listing = (uid) => as("authenticated", uid, null, `insert into public.listings (title, model, category, price, seller_name, seller_id, description, zip_contents) values (repeat('t',10),'Claude','Design',50,'s',$1,repeat('d',500),repeat('z',250)) returning id`, [uid]);
+const listing = (uid) => as("authenticated", uid, null, `insert into public.listings (title, model, category, price, seller_name, seller_id, description, zip_contents, screenshots, preview_video_url, preview_video_duration) values (repeat('t',10),'Claude','Design',50,'s',$1,repeat('d',500),repeat('z',250),'["a","b","c","d"]'::jsonb,'v.mp4',8) returning id`, [uid]);
 
 await inTxn(async () => {
   await mkUsers();
