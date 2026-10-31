@@ -9,6 +9,7 @@ const check = (n, ok, x) => { if (ok) { pass++; console.log("PASS:", n); } else 
 const vc = nc(read("components/ListingVideoCard.jsx"));
 check("V01 the video card plays muted from the start on hover and pauses + rewinds on leave", /muted/.test(vc) && /onMouseEnter/.test(vc) && /onMouseLeave/.test(vc) && /currentTime = 0/.test(vc) && /\.play\(\)/.test(vc) && /\.pause\(\)/.test(vc));
 check("V02 touch devices / playback failure fall back to the first screenshot (poster)", /hover: hover/.test(vc) && /poster/.test(vc) && /catch|onError/.test(vc));
+check("V02b the idle state is the video first frame (no poster attribute on the video, #t= seek), not the screenshot", !/<video[^>]*poster=/.test(vc) && /#t=/.test(vc) && /const showVideo = !!videoUrl && !failed;/.test(vc));
 check("V03 shows a duration badge and a play icon while idle, rounded, 16:9 or 4:3, with a controls mode for the primary player", /formatDuration/.test(vc) && /Play/.test(vc) && /rounded/.test(vc) && /16 ?\/ ?9|16:9/.test(vc) && /aspect/.test(vc) && /controls/.test(vc));
 const pc = nc(read("components/ProductCard.jsx"));
 check("V04 the shared ProductCard (Home + Browse) uses the video card for playbooks", /ListingVideoCard/.test(pc) && /previewVideo/.test(pc));
