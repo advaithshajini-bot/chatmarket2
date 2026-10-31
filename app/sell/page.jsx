@@ -26,7 +26,8 @@ import { CATEGORIES, MODELS } from "@/lib/categories";
 import { getMyDirectSellerStatus } from "@/lib/domain/direct-upi";
 import { getMyRouteStatus, describeRouteStatus } from "@/lib/domain/route";
 import { getMyBankPayout } from "@/lib/domain/bank-payout";
-import { LISTING_RULES, validateListingText, validateListingPrice, explainListingRuleError } from "@/lib/domain/listing-rules";
+import { LISTING_RULES, validateListingText, validateListingPrice, validatePlaybookListing, explainListingRuleError } from "@/lib/domain/listing-rules";
+import { ScreenshotUploader, VideoUploader } from "@/components/ListingMediaUploader";
 import { GENERATION_TYPES, GENERATION_TYPE_OTHER_MAX, resolveGenerationType, generationTypeLabel } from "@/lib/generation-types";
 import { parseThreadExport } from "@/lib/parse-thread-export";
 import { redactListing } from "@/lib/redact-pii";
@@ -106,15 +107,15 @@ function MiniStepper({ step }) {
   );
 }
 
-// "123 / 500 characters": red until the minimum is met, then green.
-function MinCount({ value, min, error }) {
+// "123 / 2000": green while the length is inside min..max, red otherwise.
+function MinCount({ value, min, max, error }) {
   const count = (value || "").trim().length;
-  const ok = count >= min;
+  const ok = count >= min && count <= max;
   return (
     <div className="flex justify-between items-start gap-3 mt-1.5">
-      <span className="text-[11px]" style={{ color: "#B33A2E" }} role={error ? "alert" : undefined}>{error ? `Needs at least ${min} characters.` : ""}</span>
+      <span className="text-[11px]" style={{ color: "#B33A2E" }} role={error ? "alert" : undefined}>{error ? `Needs ${min} to ${max} characters.` : ""}</span>
       <span className="text-[11px] px-2 py-0.5 rounded" style={{ fontFamily: "'IBM Plex Mono', monospace", color: ok ? "#2F6F62" : "#B33A2E", background: ok ? "#EEF6F3" : "#FBEDEA" }}>
-        {count} / {min} characters
+        {count} / {max}
       </span>
     </div>
   );
@@ -181,108 +182,6 @@ function BuyerPreviewCard({ form }) {
 // client-side before the listing row itself exists — see SellPage). RLS on
 // the bucket checks that path prefix against auth.uid(), independent of the
 // listings table, since there's no listing row to check ownership against yet.
-function ScreenshotUploader({ form, setForm }) {
-  const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState("");
-  const fileInputRef = useRef(null);
-  const MAX_SHOTS = 4;
-
-  const handleFiles = async (fileList) => {
-    const files = Array.from(fileList || []).slice(0, MAX_SHOTS - form.screenshots.length);
-    if (!files.length) return;
-
-    setError("");
-    const supabase = createClient();
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) {
-      setError("Log in to attach screenshots — you can still continue without them.");
-      return;
-    }
-
-    setUploading(true);
-    const uploaded = [];
-    for (const file of files) {
-      if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
-        setError(`${file.name} isn't a supported image type (PNG, JPEG, or WebP).`);
-        continue;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        setError(`${file.name} is over the 5MB limit.`);
-        continue;
-      }
-      const path = `${userData.user.id}/${form.listingId}/${crypto.randomUUID()}-${file.name}`;
-      const { error: uploadError } = await supabase.storage.from("listing-screenshots").upload(path, file);
-      if (uploadError) {
-        setError(uploadError.message);
-        continue;
-      }
-      const { data: publicUrlData } = supabase.storage.from("listing-screenshots").getPublicUrl(path);
-      uploaded.push({ path, url: publicUrlData.publicUrl, name: file.name });
-    }
-
-    if (uploaded.length) {
-      setForm((f) => ({ ...f, screenshots: [...f.screenshots, ...uploaded] }));
-    }
-    setUploading(false);
-  };
-
-  const handleRemove = async (path) => {
-    const supabase = createClient();
-    setForm((f) => ({ ...f, screenshots: f.screenshots.filter((s) => s.path !== path) }));
-    await supabase.storage.from("listing-screenshots").remove([path]);
-  };
-
-  return (
-    <div>
-      <label className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
-        Output screenshots (optional, up to {MAX_SHOTS})
-      </label>
-
-      {form.screenshots.length > 0 && (
-        <div className="grid grid-cols-4 gap-2 mb-2">
-          {form.screenshots.map((s) => (
-            <div key={s.path} className="relative rounded overflow-hidden" style={{ border: "1px solid #D8D5C9", aspectRatio: "1" }}>
-              <img src={s.url} alt={s.name} className="w-full h-full object-cover" />
-              <button
-                onClick={() => handleRemove(s.path)}
-                className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs"
-                style={{ background: "rgba(20,33,61,0.75)", color: "#FFFFFF" }}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {form.screenshots.length < MAX_SHOTS && (
-        <div
-          className="rounded-md p-4 flex items-center justify-center gap-2 cursor-pointer text-center"
-          style={{ border: "1.5px dashed #D8D5C9", background: "#F7F7F4" }}
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            multiple
-            className="hidden"
-            onChange={(e) => handleFiles(e.target.files)}
-          />
-          <ImageIcon size={16} color="#6B6F76" />
-          <p className="text-xs" style={{ color: "#6B6F76" }}>
-            {uploading ? "Uploading…" : "Drop screenshots, or browse — appear in the gallery buyers swipe through"}
-          </p>
-        </div>
-      )}
-
-      {error && <p className="text-xs mt-1.5" style={{ color: "#B33A2E" }}>{error}</p>}
-    </div>
-  );
-}
-
 function UploadSubStep({ form, setForm, onContinue }) {
   const [parsing, setParsing] = useState(false);
   const [parseError, setParseError] = useState("");
@@ -386,7 +285,9 @@ function UploadSubStep({ form, setForm, onContinue }) {
   // matches "don't let a bad or unparseable file continue" exactly.
   const canContinue =
     form.parsedMessages && form.parsedMessages.length > 0 && form.zipPath && form.model &&
-    (form.model !== "Other" || form.modelOther.trim());
+    (form.model !== "Other" || form.modelOther.trim()) &&
+    form.screenshots.length >= LISTING_RULES.screenshotsMin && form.screenshots.length <= LISTING_RULES.screenshotsMax &&
+    !!form.video && form.video.duration >= LISTING_RULES.videoMinDurationSeconds && form.video.duration <= LISTING_RULES.videoMaxDurationSeconds;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -440,6 +341,7 @@ function UploadSubStep({ form, setForm, onContinue }) {
         )}
 
         <ScreenshotUploader form={form} setForm={setForm} />
+        <VideoUploader form={form} setForm={setForm} />
 
         <div>
           <label className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Source model</label>
@@ -493,14 +395,14 @@ function DetailsSubStep({ form, setForm, onContinue, onBack }) {
           <label className="text-xs uppercase tracking-wide mb-1.5 block" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>Title</label>
           <input
             value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value.slice(0, 200) })}
-            maxLength={200}
+            onChange={(e) => setForm({ ...form, title: e.target.value.slice(0, LISTING_RULES.titleMax) })}
+            maxLength={LISTING_RULES.titleMax}
             placeholder="e.g. Next.js SaaS billing flow with Stripe"
             aria-invalid={bad("title") ? "true" : "false"}
             className="w-full px-3 py-2.5 rounded text-sm outline-none"
             style={{ border: `1px solid ${bad("title") ? "#B33A2E" : "#D8D5C9"}`, fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
           />
-          <MinCount value={form.title} min={LISTING_RULES.titleMin} error={bad("title")} />
+          <MinCount value={form.title} min={LISTING_RULES.titleMin} max={LISTING_RULES.titleMax} error={bad("title")} />
         </div>
 
         <div>
@@ -515,7 +417,7 @@ function DetailsSubStep({ form, setForm, onContinue, onBack }) {
             className="w-full px-3 py-2.5 rounded text-sm outline-none resize-none"
             style={{ border: `1px solid ${bad("description") ? "#B33A2E" : "#D8D5C9"}`, fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
           />
-          <MinCount value={form.description} min={LISTING_RULES.descriptionMin} error={bad("description")} />
+          <MinCount value={form.description} min={LISTING_RULES.descriptionMin} max={LISTING_RULES.descriptionMax} error={bad("description")} />
         </div>
 
         <div>
@@ -530,7 +432,7 @@ function DetailsSubStep({ form, setForm, onContinue, onBack }) {
             className="w-full px-3 py-2.5 rounded text-sm outline-none resize-none"
             style={{ border: `1px solid ${bad("zipContents") ? "#B33A2E" : "#D8D5C9"}`, fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
           />
-          <MinCount value={form.zipContents} min={LISTING_RULES.zipContentsMin} error={bad("zipContents")} />
+          <MinCount value={form.zipContents} min={LISTING_RULES.zipContentsMin} max={LISTING_RULES.zipContentsMax} error={bad("zipContents")} />
         </div>
 
         <div>
@@ -1186,6 +1088,7 @@ export default function SellPage() {
     zipPath: "",
     otherFiles: [],
     screenshots: [],
+    video: null,
   });
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -1254,9 +1157,9 @@ export default function SellPage() {
 
   const handleFinalSubmit = async () => {
     setSubmitError("");
-    const textCheck = validateListingText(form), priceCheck = validateListingPrice(form.price);
-    if (!textCheck.ok || !priceCheck.ok) {
-      setSubmitError(Object.values(textCheck.errors)[0] || priceCheck.error);
+    const rules = validatePlaybookListing({ ...form, screenshotCount: form.screenshots.length });
+    if (!rules.ok) {
+      setSubmitError(Object.values(rules.errors)[0]);
       return;
     }
     setSubmitting(true);
@@ -1308,6 +1211,8 @@ export default function SellPage() {
       preview: redacted.messages.slice(0, 2),
       thread: redacted.messages,
       screenshots: form.screenshots.map((s) => s.url),
+      preview_video_url: form.video?.url ?? null,
+      preview_video_duration: form.video ? Math.round(form.video.duration * 10) / 10 : null,
       output_zip_path: form.zipPath,
       screening_findings: redacted.findings,
       // Anything the scanner actually caught gets routed into the same
@@ -1377,6 +1282,8 @@ export default function SellPage() {
       zipPath: "",
       otherFiles: [],
       screenshots: [],
+      video: null,
+    video: null,
     });
     setSubmitError("");
     setWizardStep(1);

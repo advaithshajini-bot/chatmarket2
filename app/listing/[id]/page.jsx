@@ -8,6 +8,9 @@ import ScreenshotGallery from "@/components/ScreenshotGallery";
 import ReviewsSection from "@/components/ReviewsSection";
 import ListingReviewForm from "@/components/ListingReviewForm";
 import WorkflowAgentDetail from "@/components/WorkflowAgentDetail";
+import ListingVideoCard from "@/components/ListingVideoCard";
+import SellerCard from "@/components/SellerCard";
+import { getSellerPublicProfile } from "@/lib/domain/sellers";
 import { createClient } from "@/lib/supabase/server";
 import { getProduct } from "@/lib/domain/products";
 import { listProductTools } from "@/lib/domain/productTools";
@@ -72,6 +75,7 @@ export default async function ListingDetailPage({ params }) {
     reviewerName: reviewerNames[r.user_id] || "Anonymous buyer",
   }));
 
+  const sellerProfile = await getSellerPublicProfile(supabase, product.sellerId);
   const { data: userData } = await supabase.auth.getUser();
   const existingReview = userData.user ? reviews.find((r) => r.user_id === userData.user.id) : null;
 
@@ -182,6 +186,9 @@ export default async function ListingDetailPage({ params }) {
           </div>
 
           <div className="order-3 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-2">
+            {product.previewVideo ? (
+              <ListingVideoCard videoUrl={product.previewVideo.url} duration={product.previewVideo.duration} poster={listing.screenshots?.[0]} title={listing.title} controls />
+            ) : (
             <div className="rounded-md p-5 relative overflow-hidden" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
               <div className="space-y-3">
                 {preview.map((m, i) => (
@@ -220,10 +227,12 @@ export default async function ListingDetailPage({ params }) {
                 </div>
               </div>
             </div>
+            )}
           </div>
 
           <div className="order-4 sm:order-none lg:col-start-3 lg:row-start-1 lg:row-span-5">
             <ListingCheckout listing={listing} />
+            <SellerCard sellerId={listing.seller_id} profile={sellerProfile} fallbackName={listing.seller_name} listingTitle={listing.title} />
           </div>
 
           <div className="order-5 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-3">
