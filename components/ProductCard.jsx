@@ -19,6 +19,7 @@ import Link from "next/link";
 import { Star } from "lucide-react";
 import ModelTag from "@/components/ModelTag";
 import ProductTypeBadge from "@/components/ProductTypeBadge";
+import ListingVideoCard from "@/components/ListingVideoCard";
 
 export default function ProductCard({ product }) {
   const isPlaybook = product.isPlaybook;
@@ -56,7 +57,14 @@ export default function ProductCard({ product }) {
           {product.category}
         </p>
 
-        {isPlaybook ? (
+        {isPlaybook && (product.previewVideo || product.legacyPlaybookFields?.screenshots?.length > 0) ? (
+          <ListingVideoCard
+            videoUrl={product.previewVideo?.url}
+            duration={product.previewVideo?.duration}
+            poster={product.legacyPlaybookFields?.screenshots?.[0]}
+            title={product.title}
+          />
+        ) : isPlaybook ? (
           <div className="space-y-1.5">
             {(product.legacyPlaybookFields?.preview || []).slice(0, 2).map((m, i) => (
               <div
