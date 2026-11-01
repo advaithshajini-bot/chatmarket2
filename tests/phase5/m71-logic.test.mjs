@@ -13,7 +13,7 @@ check("W03 candidates are tried in order", N.publicSellerName("Legal Name", "Dis
 check("W04 first name for the greeting", N.firstName("Asha Rao") === "Asha" && N.firstName("john.doe@x.com") === "john" && N.firstName("") === null);
 
 const lp = nc(read("app/listing/[id]/page.jsx"));
-check("S01 the right column is sticky on desktop and holds both the checkout box and the seller card", /<div className="lg:sticky lg:top-\d+ space-y-4">\s*<ListingCheckout listing=\{listing\} \/>\s*<SellerCard/.test(lp));
+check("S01 the right column is sticky on desktop and holds both the checkout box and the seller card", /<div className="lg:sticky lg:top-\d+[^"]*space-y-4">\s*<ListingCheckout listing=\{listing\} \/>\s*<SellerCard/.test(lp));
 check("S02 no ancestor of the sidebar clips with overflow-hidden (it would break position: sticky)", !/<main[^>]*overflow/.test(lp) && !/grid grid-cols-1 lg:grid-cols-3[^>]*overflow/.test(lp));
 check("S03 the seller name is resolved from the public profile (legal name), falls back to a sanitized stored name, and feeds header, checkout and seller card", /const resolvedSellerLegalName = publicSellerName\(sellerProfile\?\.display_name, product\.sellerName\)/.test(lp) && /seller_name: resolvedSellerLegalName/.test(lp) && /fallbackName=\{resolvedSellerLegalName\}/.test(lp) && /\{resolvedSellerLegalName\}<\/span>/.test(lp));
 const co = nc(read("components/ListingCheckout.jsx"));
@@ -27,7 +27,7 @@ check("S08 the seller card never prints an email (no email field, name from the 
 
 const g = nc(read("components/ScreenshotGallery.jsx"));
 check("G01 swipe: touch start/move/end handlers with a 45px threshold, left = next, right = previous (wrapping)", /onTouchStart/.test(g) && /onTouchMove/.test(g) && /onTouchEnd/.test(g) && /SWIPE_PX = 45/.test(g) && /startX - endX > SWIPE_PX\) setActive\(\(a\) => \(a \+ 1\) % n\)/.test(g) && /endX - startX > SWIPE_PX\) setActive\(\(a\) => \(a - 1 \+ n\) % n\)/.test(g));
-check("G02 a tap still opens the lightbox (but not after a swipe); dots, thumbnails and 'X of Y' remain; fade transition", /if \(!touch\.current\.moved\) setOpen\(true\)/.test(g) && /Show screenshot \$\{i \+ 1\}/.test(g) && /\{active \+ 1\} of \{n\}/.test(g) && /shotFade/.test(g));
+check("G02 a tap still opens the lightbox (but not after a swipe); dots, thumbnails and 'X of Y' remain; fade transition", /if \(!touch\.current\.moved\) setOpen\(true\)/.test(g) && /Show screenshot \$\{i \+ 1\}/.test(g) && /\{active \+ 1\} of \{n\}\s*</.test(g) && !/swipe or tap/i.test(g) && /shotFade/.test(g));
 check("G03 the lightbox can be swiped too", /role="dialog".*onTouchStart=\{onTouchStart\}/.test(g));
 
 const am = nc(read("components/AccountMenu.jsx"));
@@ -40,6 +40,10 @@ check("A05 TopNav uses AccountMenu instead of the plain name + Log out", /<Accou
 const au = nc(read("lib/supabase/use-auth-user.js"));
 check("A06 the signed-in name is the legal / display name, never the raw email", /select\("is_admin, display_name, legal_name"\)/.test(au) && /safePublicName\(profile\?\.legal_name\)/.test(au) && !/name: data\.user\.user_metadata\?\.display_name \|\| data\.user\.email/.test(au) && /id: data\.user\.id/.test(au));
 
+const land = nc(read("components/LandingClient.jsx"));
+check("H01 the home page nav shows the 'Hello, sign in' / 'Accounts & Lists' menu, not separate Log in / Sign up / Log out", /<AccountMenu user=\{user\}/.test(land) && !/>Log in</.test(land) && !/>Sign up</.test(land) && !/>Log out</.test(land));
+check("Z01 the listing page shows a 'What's in the zip' box fed by the zip_contents note (only when present)", /What's in the zip/.test(lp) && /listing\.zip_contents\?\.trim\(\) &&/.test(lp) && /\{listing\.zip_contents\}/.test(lp));
+check("S09 the sidebar column is the only sticky element (the checkout box is not sticky itself), and it scrolls internally if taller than the screen", !/sticky/.test(co) && /lg:sticky lg:top-28 lg:max-h-\[calc\(100vh-8rem\)\] lg:overflow-y-auto/.test(lp));
 const mig = nc(read("supabase/migrations/20261101100000_profile_and_seller_name_updates.sql")).toLowerCase();
 check("M01 migration: legal_name column, trigger on auth.users re-pointed to a SECURITY DEFINER function with empty search_path, backfill, RPC replaced; nothing dropped but the trigger", /add column if not exists legal_name/.test(mig) && /create trigger on_auth_user_created\s+after insert on auth\.users/.test(mig) && /execute function public\.handle_new_user_profile\(\)/.test(mig) && /set search_path = ''/.test(mig) && /on conflict \(id\) do nothing/.test(mig) && /not exists \(select 1 from public\.profiles/.test(mig) && !/drop (table|column|function)/.test(mig) && /bank_beneficiary_name/.test(mig) && /'verified creator'/.test(mig));
 console.log(`A71: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
