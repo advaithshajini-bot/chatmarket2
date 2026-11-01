@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import DirectUpiCheckout from "@/components/DirectUpiCheckout";
 import { isDirectCheckoutEnabled } from "@/lib/domain/direct-upi";
 import { isRouteCheckoutEnabled } from "@/lib/domain/route";
+import { publicSellerName } from "@/lib/domain/public-name";
 
 const PAYMENT_METHODS = [
   { id: "upi", label: "UPI", icon: Smartphone, hint: "Pay via any UPI app", razorpayMethod: "upi" },
@@ -33,7 +34,7 @@ function loadRazorpayScript() {
 
 export default function ListingCheckout({ listing }) {
   const router = useRouter();
-  const sellerName = (typeof listing.seller_name === "string" && listing.seller_name.trim()) || "the seller";
+  const sellerName = publicSellerName(listing.seller_name);
   const [payment, setPayment] = useState("upi");
   const [paid, setPaid] = useState(false);
   const [loading, setLoading] = useState(false);

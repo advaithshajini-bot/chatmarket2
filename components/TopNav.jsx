@@ -1,21 +1,12 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 import { useAuthUser } from "@/lib/supabase/use-auth-user";
 import SocialBar from "@/components/SocialBar";
+import AccountMenu from "@/components/AccountMenu";
 
 export default function TopNav({ hideAuthLinks = false }) {
-  const router = useRouter();
   const user = useAuthUser();
-
-  const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/");
-    router.refresh();
-  };
 
   return (
     <div className="sticky top-0 z-50" style={{ background: "rgba(237,238,234,0.9)", backdropFilter: "blur(8px)" }}>
@@ -52,35 +43,14 @@ export default function TopNav({ hideAuthLinks = false }) {
         </div>
 
         <div className="flex items-center gap-3">
-          {hideAuthLinks ? null : user === undefined ? null : user ? (
+          {hideAuthLinks ? null : user === undefined ? null : (
             <>
-              <span className="text-sm hidden sm:inline" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-                {user.name}
-              </span>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 rounded text-sm"
-                style={{ border: "1px solid #14213D", color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif" }}
-              >
-                Log out
-              </button>
-            </>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                className="px-4 py-2 rounded text-sm"
-                style={{ border: "1px solid #14213D", color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif" }}
-              >
-                Log in
-              </Link>
-              <Link
-                href="/sell"
-                className="px-4 py-2 rounded text-sm"
-                style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Sans', sans-serif" }}
-              >
-                Sell on chatmarket
-              </Link>
+              <AccountMenu user={user} />
+              {!user && (
+                <Link href="/sell" className="px-4 py-2 rounded text-sm hidden sm:inline-block" style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+                  Sell on chatmarket
+                </Link>
+              )}
             </>
           )}
         </div>

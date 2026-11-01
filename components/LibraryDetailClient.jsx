@@ -6,6 +6,7 @@ import ModelTag from "@/components/ModelTag";
 import StarRating from "@/components/StarRating";
 import BlueprintDownloadCard from "@/components/BlueprintDownloadCard";
 import { createClient } from "@/lib/supabase/client";
+import { publicSellerName } from "@/lib/domain/public-name";
 
 const LIBRARY_DISPLAY_LIMIT = 6;
 
@@ -82,7 +83,7 @@ export default function LibraryDetailClient({ listing, purchase, existingReview 
           {listing.title}
         </h1>
         <p className="text-sm mb-6" style={{ color: "#6B6F76" }}>
-          Bought from {listing.seller_name} · {formatDate(purchase.purchased_at)}
+          Bought from {publicSellerName(listing.seller_name)} · {formatDate(purchase.purchased_at)}
         </p>
 
         {purchase.status === "refunded" && (

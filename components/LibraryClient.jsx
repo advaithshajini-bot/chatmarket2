@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Search, Unlock, Star, Inbox } from "lucide-react";
 import ModelTag from "@/components/ModelTag";
+import { publicSellerName } from "@/lib/domain/public-name";
 
 function timeAgo(dateString) {
   const diffMs = Date.now() - new Date(dateString).getTime();
@@ -38,7 +39,7 @@ function LibraryCard({ item }) {
           {listing.title}
         </h3>
         <p className="text-xs mb-3" style={{ color: "#6B6F76" }}>
-          by {listing.seller_name} · purchased {timeAgo(purchasedAt)}
+          by {publicSellerName(listing.seller_name)} · purchased {timeAgo(purchasedAt)}
         </p>
         <div
           className="flex items-center justify-end text-xs pt-3"

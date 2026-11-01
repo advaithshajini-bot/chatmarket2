@@ -13,7 +13,7 @@ export default function SellerCard({ sellerId, profile, fallbackName, listingTit
   const name = profile?.display_name || fallbackName || "the seller";
   const mail = `mailto:${BUSINESS.email}?subject=${encodeURIComponent(`Question about "${listingTitle ?? "a listing"}"`)}`;
   return (
-    <aside aria-label="About the seller" className="rounded-md p-4 mt-4" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
+    <aside aria-label="About the seller" className="rounded-md p-4" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
       <div className="flex items-center gap-3 mb-3">
         <span className="w-10 h-10 rounded-full flex items-center justify-center text-base shrink-0" style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'Fraunces', serif", fontWeight: 600 }} aria-hidden="true">{sellerInitial(name)}</span>
         <div className="min-w-0">

@@ -1,12 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+const SWIPE_PX = 45;
 
 // Output screenshots: one large image with thumbnails; clicking the large image opens a full-screen lightbox (Esc, arrows and the buttons navigate).
 export default function ScreenshotGallery({ screenshots }) {
   const [active, setActive] = useState(0);
   const [open, setOpen] = useState(false);
   const n = screenshots?.length ?? 0;
+  const touch = useRef({ startX: null, endX: null, moved: false });
+
+  // Swipe: finger moves left by more than 45px -> next; right -> previous. A plain tap (no movement) still opens the lightbox.
+  const onTouchStart = (e) => { const x = e.touches?.[0]?.clientX ?? null; touch.current = { startX: x, endX: x, moved: false }; };
+  const onTouchMove = (e) => { const t = touch.current; t.endX = e.touches?.[0]?.clientX ?? t.endX; if (t.startX !== null && Math.abs(t.startX - t.endX) > 10) t.moved = true; };
+  const onTouchEnd = () => {
+    const { startX, endX } = touch.current;
+    if (startX === null || n < 2) return;
+    if (startX - endX > SWIPE_PX) setActive((a) => (a + 1) % n);
+    else if (endX - startX > SWIPE_PX) setActive((a) => (a - 1 + n) % n);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -23,12 +36,13 @@ export default function ScreenshotGallery({ screenshots }) {
 
   return (
     <div className="mb-6">
-      <button type="button" onClick={() => setOpen(true)} aria-label="Open screenshot full screen" className="block w-full rounded-md overflow-hidden mb-2 cursor-zoom-in" style={{ border: "1px solid #D8D5C9", background: "#F7F7F4" }}>
-        <img src={screenshots[active]} alt={`Output screenshot ${active + 1}`} className="w-full object-cover" style={{ maxHeight: 340 }} />
+      <style>{`@keyframes shotFade { from { opacity: 0.2 } to { opacity: 1 } }`}</style>
+      <button type="button" onClick={() => { if (!touch.current.moved) setOpen(true); }} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} aria-label="Open screenshot full screen" className="block w-full rounded-md overflow-hidden mb-2 cursor-zoom-in" style={{ border: "1px solid #D8D5C9", background: "#F7F7F4", touchAction: "pan-y" }}>
+        <img key={active} src={screenshots[active]} alt={`Output screenshot ${active + 1}`} className="w-full object-cover" style={{ maxHeight: 340, animation: "shotFade 220ms ease" }} draggable={false} />
       </button>
       <div className="flex items-center justify-between">
         <span className="text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
-          {active + 1} of {n} — click to enlarge
+          {active + 1} of {n} — swipe or tap to enlarge
         </span>
         <div className="flex items-center gap-1.5">
           {screenshots.map((_, i) => (
@@ -47,7 +61,7 @@ export default function ScreenshotGallery({ screenshots }) {
       )}
 
       {open && (
-        <div role="dialog" aria-modal="true" aria-label="Screenshot viewer" className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(10,16,30,0.92)" }} onClick={() => setOpen(false)}>
+        <div role="dialog" aria-modal="true" aria-label="Screenshot viewer" className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(10,16,30,0.92)", touchAction: "pan-y" }} onClick={() => setOpen(false)} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
           <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="absolute top-4 right-4 text-2xl" style={{ color: "#FFFFFF" }}>×</button>
           {n > 1 && <button type="button" onClick={(e) => { e.stopPropagation(); setActive((a) => (a - 1 + n) % n); }} aria-label="Previous screenshot" className="absolute left-3 text-3xl px-2" style={{ color: "#FFFFFF" }}>‹</button>}
           <img src={screenshots[active]} alt={`Output screenshot ${active + 1} of ${n}`} className="max-w-full max-h-full object-contain" onClick={(e) => e.stopPropagation()} />
