@@ -78,6 +78,8 @@ suite("M69  listing rules trigger, Pause / Resume payout toggle (live DB, real s
 suite("M69  listing rules (client + server), settlement CSV button, Pause / Resume (no DB)", "m69-logic.test.mjs");
 suite("M70  media rules: columns, storefront RPCs, listing-media bucket (live DB, real schema)", "m70-db.test.mjs");
 suite("M70  video card, listing page player + lightbox, seller card, storefront (no DB)", "m70-logic.test.mjs");
+suite("M71  profile provisioning + legal-name resolution (live DB, real schema)", "m71-db.test.mjs");
+suite("M71  sticky sidebar, legal names, swipe gallery, account menu (no DB)", "m71-logic.test.mjs");
 suite("M68  manual bank payouts: form validation, CSV columns, bank-only payout page (no DB)", "m68-logic.test.mjs");
 suite("M58  Tier 1 clean-up: payout code retired, nothing reaches it (no DB)", "m58-tier1.test.mjs");
 suite("M59  Tier 2 clean-up: Route transfers + sweep retired, refunds and disputes kept (no DB)", "m59-tier2.test.mjs");

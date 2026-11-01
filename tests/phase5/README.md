@@ -59,3 +59,5 @@ and the deployed route -- see `supabase/manual/phase5_review_golive.md`.
 | `m69-logic.test.mjs` | nothing | the shared listing rules, sell-page counters and gating, API route enforcement, CSV columns/remarks, desk Pause/Resume + Download Settlement CSV |
 | `m70-db.test.mjs` | Postgres with ALL real migrations | media columns and duration check, `seller_public_profile` / `most_popular_listings` RPCs (no private fields, paid-only counts), `listing-media` bucket and policies |
 | `m70-logic.test.mjs` | nothing | hover video card, ProductCard on Home/Browse, listing-page player, lightbox gallery, seller card, `/sellers/[id]` storefront |
+| `m71-db.test.mjs` | Postgres with ALL real migrations | auto-provisioned profiles on sign-up, legal-name priority (bank beneficiary > legal name > display name), no email in the public RPC |
+| `m71-logic.test.mjs` | nothing | sticky listing sidebar, sanitized seller names everywhere, swipe gallery, Amazon-style account menu, migration guardrails |

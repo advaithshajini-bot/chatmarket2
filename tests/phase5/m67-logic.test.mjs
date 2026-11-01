@@ -60,12 +60,12 @@ check("S43 the writer is service_role only and pins search_path", /revoke all on
 
 // ---- seller transparency (payer-payee audit)
 const co = read("components/ListingCheckout.jsx"), lp = read("app/listing/[id]/page.jsx"), ph = read("components/PurchaseHistoryClient.jsx"), pp = read("app/purchases/page.jsx");
-check("T01 the listing page shows 'Sold & Fulfilled by: <seller>' next to the title, before the rating row", /Sold &amp; Fulfilled by:/.test(lp) && /listing\.seller_name/.test(lp) && lp.indexOf("Sold &amp; Fulfilled by:") > lp.indexOf("{listing.title}") && lp.indexOf("Sold &amp; Fulfilled by:") < lp.indexOf("reviews.length > 0"));
+check("T01 the listing page shows 'Sold & Fulfilled by: <seller>' next to the title, before the rating row", /Sold &amp; Fulfilled by:/.test(lp) && /resolvedSellerLegalName/.test(lp) && lp.indexOf("Sold &amp; Fulfilled by:") > lp.indexOf("{listing.title}") && lp.indexOf("Sold &amp; Fulfilled by:") < lp.indexOf("reviews.length > 0"));
 check("T02 the checkout card repeats it next to the price", /data-testid="sold-by"/.test(co) && /Sold &amp; Fulfilled by:/.test(co) && /sellerName/.test(co));
 check("T03 above the Pay button: 'Payment settled directly to <seller> via authorized settlement rails. Access is delivered instantly upon confirmation.'", /Payment settled directly to \{sellerName\} via authorized settlement rails\. Access is delivered instantly upon confirmation\./.test(co) && co.indexOf("settlement-note") < co.indexOf("onClick={handlePay}"));
 check("T04 that settlement sentence is shown ONLY when the Route flag is ON (it would be untrue otherwise)", /\{route && \(\s*<p[^>]*data-testid="settlement-note"/.test(co));
 check("T05 the old 'Funds held for 48 hrs' line is gone and replaced with the all-sales-final line", !/Funds held for 48/.test(co) && /All sales are final/.test(co));
-check("T06 the seller name falls back to 'the seller' instead of printing 'null'", /\|\| "the seller"/.test(co) && /\|\| "the seller"/.test(lp));
+check("T06 the seller name never prints 'null' or an email: it falls back to 'Verified Creator'", /publicSellerName\(listing\.seller_name\)/.test(co) && /publicSellerName\(sellerProfile\?\.display_name, product\.sellerName\)/.test(lp));
 check("T07 the purchase receipt shows the seller in the row and an Order reference in the details, from the purchase's own order id", /Sold &amp; fulfilled by \{order\.seller\}/.test(ph) && /Order reference/.test(ph) && /order\.orderRef/.test(ph) && /razorpay_order_id/.test(pp) && /orderRef: p\.razorpay_order_id \|\| p\.id/.test(pp));
 
 console.log(`\n${pass} passed, ${fail} failed`);
