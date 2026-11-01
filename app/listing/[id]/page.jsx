@@ -234,7 +234,7 @@ export default async function ListingDetailPage({ params }) {
           </div>
 
           <div className="order-4 sm:order-none lg:col-start-3 lg:row-start-1 lg:row-span-5">
-            <div className="lg:sticky lg:top-28 space-y-4">
+            <div className="lg:sticky lg:top-28 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto space-y-4">
               <ListingCheckout listing={listing} />
               <SellerCard sellerId={listing.seller_id} profile={sellerProfile} fallbackName={resolvedSellerLegalName} listingTitle={listing.title} />
             </div>
@@ -245,6 +245,14 @@ export default async function ListingDetailPage({ params }) {
             <div className="rounded-md p-4" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
               <p className="text-sm" style={{ color: "#3A3D42" }}>{listing.description}</p>
             </div>
+            {listing.zip_contents?.trim() && (
+              <section aria-label="What's in the zip" className="mt-4">
+                <h2 className="text-lg mb-2" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>What's in the zip</h2>
+                <div className="rounded-md p-4" style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}>
+                  <p className="text-sm" style={{ color: "#3A3D42", whiteSpace: "pre-line" }}>{listing.zip_contents}</p>
+                </div>
+              </section>
+            )}
           </div>
 
           <div className="order-6 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-5">
