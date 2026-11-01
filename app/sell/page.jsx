@@ -26,6 +26,7 @@ import { CATEGORIES, MODELS } from "@/lib/categories";
 import { getMyDirectSellerStatus } from "@/lib/domain/direct-upi";
 import { getMyRouteStatus, describeRouteStatus } from "@/lib/domain/route";
 import { getMyBankPayout } from "@/lib/domain/bank-payout";
+import { publicSellerName } from "@/lib/domain/public-name";
 import { LISTING_RULES, validateListingText, validateListingPrice, validatePlaybookListing, explainListingRuleError } from "@/lib/domain/listing-rules";
 import { ScreenshotUploader, VideoUploader } from "@/components/ListingMediaUploader";
 import { GENERATION_TYPES, GENERATION_TYPE_OTHER_MAX, resolveGenerationType, generationTypeLabel } from "@/lib/generation-types";
@@ -1172,7 +1173,7 @@ export default function SellPage() {
       return;
     }
 
-    const sellerName = userData.user.user_metadata?.display_name || userData.user.email;
+    const sellerName = publicSellerName(userData.user.user_metadata?.display_name, userData.user.user_metadata?.full_name, userData.user.email);
     const category = form.category === "Other" ? form.categoryOther.trim() : form.category;
     const model = form.model === "Other" ? form.modelOther.trim() : form.model;
     const gen = resolveGenerationType(form.generationType, form.generationTypeOther);

@@ -4,6 +4,7 @@ import TopNav from "@/components/TopNav";
 import PurchaseHistoryClient from "@/components/PurchaseHistoryClient";
 import { createClient } from "@/lib/supabase/server";
 import { getVerifiedUser } from "@/lib/supabase/get-verified-user";
+import { publicSellerName } from "@/lib/domain/public-name";
 
 export const dynamic = "force-dynamic";
 
@@ -41,7 +42,7 @@ export default async function PurchaseHistoryPage() {
     id: p.id,
     listingId: p.listing_id,
     listingTitle: p.listings?.title || "(listing no longer available)",
-    seller: p.listings?.seller_name || "unknown",
+    seller: publicSellerName(p.listings?.seller_name),
     orderRef: p.razorpay_order_id || p.id,
     date: p.purchased_at,
     amount: Number(p.amount),

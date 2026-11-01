@@ -11,6 +11,7 @@ import WorkflowAgentDetail from "@/components/WorkflowAgentDetail";
 import ListingVideoCard from "@/components/ListingVideoCard";
 import SellerCard from "@/components/SellerCard";
 import { getSellerPublicProfile } from "@/lib/domain/sellers";
+import { publicSellerName } from "@/lib/domain/public-name";
 import { createClient } from "@/lib/supabase/server";
 import { getProduct } from "@/lib/domain/products";
 import { listProductTools } from "@/lib/domain/productTools";
@@ -76,6 +77,8 @@ export default async function ListingDetailPage({ params }) {
   }));
 
   const sellerProfile = await getSellerPublicProfile(supabase, product.sellerId);
+  // Legal name (bank beneficiary / legal name / display name) from the public profile; the stored listing seller_name is only a fallback and is never an email.
+  const resolvedSellerLegalName = publicSellerName(sellerProfile?.display_name, product.sellerName);
   const { data: userData } = await supabase.auth.getUser();
   const existingReview = userData.user ? reviews.find((r) => r.user_id === userData.user.id) : null;
 
@@ -118,7 +121,7 @@ export default async function ListingDetailPage({ params }) {
     rating: product.rating !== null && product.rating !== undefined ? Number(product.rating) : null,
     reviews: product.reviewCount,
     seller_id: product.sellerId,
-    seller_name: product.sellerName,
+    seller_name: resolvedSellerLegalName,
     thread: product.legacyPlaybookFields.thread,
     preview: product.legacyPlaybookFields.preview,
     screenshots: product.legacyPlaybookFields.screenshots,
@@ -165,7 +168,7 @@ export default async function ListingDetailPage({ params }) {
               {listing.title}
             </h1>
             <p className="text-sm mb-2" style={{ color: "#3A3D42", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-              Sold &amp; Fulfilled by: <span style={{ fontWeight: 600, color: "#14213D" }}>{listing.seller_name || "the seller"}</span>
+              Sold &amp; Fulfilled by: <span style={{ fontWeight: 600, color: "#14213D" }}>{resolvedSellerLegalName}</span>
             </p>
             <div className="flex items-center gap-3 mb-6 text-sm" style={{ color: "#6B6F76" }}>
               <span className="flex items-center gap-1">
@@ -231,8 +234,10 @@ export default async function ListingDetailPage({ params }) {
           </div>
 
           <div className="order-4 sm:order-none lg:col-start-3 lg:row-start-1 lg:row-span-5">
-            <ListingCheckout listing={listing} />
-            <SellerCard sellerId={listing.seller_id} profile={sellerProfile} fallbackName={listing.seller_name} listingTitle={listing.title} />
+            <div className="lg:sticky lg:top-28 space-y-4">
+              <ListingCheckout listing={listing} />
+              <SellerCard sellerId={listing.seller_id} profile={sellerProfile} fallbackName={resolvedSellerLegalName} listingTitle={listing.title} />
+            </div>
           </div>
 
           <div className="order-5 sm:order-none lg:col-start-1 lg:col-span-2 lg:row-start-3">

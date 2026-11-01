@@ -1,3 +1,4 @@
+import { publicSellerName } from "@/lib/domain/public-name";
 import { LISTING_RULES, validateProductListing, explainListingRuleError } from "@/lib/domain/listing-rules";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -79,7 +80,7 @@ export async function POST(request) {
     );
   }
 
-  const sellerName = user.user_metadata?.display_name || user.email;
+  const sellerName = publicSellerName(user.user_metadata?.display_name, user.user_metadata?.full_name, user.email);
 
   const { data: inserted, error: insertError } = await supabase
     .from("listings")
