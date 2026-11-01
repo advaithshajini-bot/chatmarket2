@@ -42,7 +42,7 @@ export default function ScreenshotGallery({ screenshots }) {
       </button>
       <div className="flex items-center justify-between">
         <span className="text-xs" style={{ fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}>
-          {active + 1} of {n} — swipe or tap to enlarge
+          {active + 1} of {n}
         </span>
         <div className="flex items-center gap-1.5">
           {screenshots.map((_, i) => (

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Search } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { useAuthUser } from "@/lib/supabase/use-auth-user";
+import AccountMenu from "@/components/AccountMenu";
 import SocialBar from "@/components/SocialBar";
 import ProductCard from "@/components/ProductCard";
 import { PRODUCT_TYPE_ORDER, productTypeMeta } from "@/lib/product-types";
@@ -119,21 +120,7 @@ const LANDING_STYLES = `
 export default function LandingClient({ categoryCounts, featuredProducts = [], popularProducts = [], newProducts = [] }) {
   const rootRef = useRef(null);
   const router = useRouter();
-  const [user, setUser] = useState(undefined); // undefined = loading, null = logged out
-
-  useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data }) => setUser(data.user || null));
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user || null));
-    return () => listener.subscription.unsubscribe();
-  }, []);
-
-  const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    setUser(null);
-    router.refresh();
-  };
+  const user = useAuthUser();
 
   useEffect(() => {
     const revealEls = rootRef.current.querySelectorAll(".lreveal");
@@ -179,14 +166,7 @@ export default function LandingClient({ categoryCounts, featuredProducts = [], p
           <Link href="/for-sellers">Sell</Link>
         </div>
         <div className="lnav-auth">
-          {user === undefined ? null : user ? (
-            <button onClick={handleLogout} className="lnav-login" style={{ cursor: "pointer" }}>Log out</button>
-          ) : (
-            <>
-              <Link href="/login" className="lnav-login">Log in</Link>
-              <Link href="/signup" className="lnav-cta">Sign up</Link>
-            </>
-          )}
+          {user === undefined ? null : <AccountMenu user={user} />}
         </div>
       </nav>
 

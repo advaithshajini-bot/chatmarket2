@@ -165,7 +165,7 @@ export default function ListingCheckout({ listing }) {
   };
 
   return (
-    <div className="rounded-md p-5 sticky top-20" style={{ background: "#FFFFFF", border: "1px solid #D8D5C9" }}>
+    <div className="rounded-md p-5" style={{ background: "#FFFFFF", border: "1px solid #D8D5C9" }}>
       <div className="flex items-baseline justify-between mb-1">
         <span className="text-3xl" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
           ₹{listing.price}
