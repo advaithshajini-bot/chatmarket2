@@ -33,12 +33,12 @@ check("G03 the lightbox can be swiped too", /role="dialog".*onTouchStart=\{onTou
 const am = nc(read("components/AccountMenu.jsx"));
 check("A01 two lines: 'Hello, <first name>' / 'Hello, sign in' above 'Accounts & Lists' with a chevron", /Hello, \$\{firstName\(user\.name\)/.test(am) && /Hello, sign in/.test(am) && /Accounts &amp; Lists/.test(am) && /ChevronDown/.test(am));
 check("A02 opens on hover (150ms leave delay), on keyboard focus, on tap; closes on Escape / outside", /LEAVE_DELAY_MS = 150/.test(am) && /onMouseEnter=\{show\}/.test(am) && /onFocus=\{show\}/.test(am) && /onClick=\{\(\) => setOpen/.test(am) && /Escape/.test(am));
-check("A03 links: Public Profile, My Library, My Products & Listings, Creator Dashboard, Settings", /\/sellers\/\$\{user\.id\}/.test(am) && /href="\/library"/.test(am) && /href="\/sell\/earnings"/.test(am) && /href="\/sell"/.test(am) && /href="\/sell\/payout"/.test(am));
+check("A03 links: Public Profile, My Library, My Products & Listings, Creator Dashboard, Settings", /\/sellers\/\$\{user\.id\}/.test(am) && /href="\/library"/.test(am) && /href="\/sell\/earnings"/.test(am) && /href="\/sell"/.test(am) && /href="\/settings"/.test(am));
 check("A04 logged out: Sign In button + 'New customer? Start here' -> /signup; logged in: Sign Out calls supabase.auth.signOut()", /href="\/login"[^>]*>Sign In/.test(am) && /New customer\?/.test(am) && /href="\/signup"/.test(am) && /auth\.signOut\(\)/.test(am) && />Sign Out</.test(am));
 const tn = nc(read("components/TopNav.jsx"));
 check("A05 TopNav uses AccountMenu instead of the plain name + Log out", /<AccountMenu user=\{user\}/.test(tn) && !/Log out/.test(tn) && !/\{user\.name\}/.test(tn));
 const au = nc(read("lib/supabase/use-auth-user.js"));
-check("A06 the signed-in name is the legal / display name, never the raw email", /select\("is_admin, display_name, legal_name"\)/.test(au) && /safePublicName\(profile\?\.legal_name\)/.test(au) && !/name: data\.user\.user_metadata\?\.display_name \|\| data\.user\.email/.test(au) && /id: data\.user\.id/.test(au));
+check("A06 the signed-in name is the legal / display name, never the raw email", /select\("is_admin, display_name, legal_name"\)/.test(au) && /safePublicName\(profile\?\.display_name\) \|\| safePublicName\(profile\?\.legal_name\)/.test(au) && !/name: data\.user\.user_metadata\?\.display_name \|\| data\.user\.email/.test(au) && /id: data\.user\.id/.test(au));
 
 const land = nc(read("components/LandingClient.jsx"));
 check("H01 the home page nav shows the 'Hello, sign in' / 'Accounts & Lists' menu, not separate Log in / Sign up / Log out", /<AccountMenu user=\{user\}/.test(land) && !/>Log in</.test(land) && !/>Sign up</.test(land) && !/>Log out</.test(land));

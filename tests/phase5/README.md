@@ -61,3 +61,5 @@ and the deployed route -- see `supabase/manual/phase5_review_golive.md`.
 | `m70-logic.test.mjs` | nothing | hover video card, ProductCard on Home/Browse, listing-page player, lightbox gallery, seller card, `/sellers/[id]` storefront |
 | `m71-db.test.mjs` | Postgres with ALL real migrations | auto-provisioned profiles on sign-up, legal-name priority (bank beneficiary > legal name > display name), no email in the public RPC |
 | `m71-logic.test.mjs` | nothing | sticky listing sidebar, sanitized seller names everywhere, swipe gallery, Amazon-style account menu, migration guardrails |
+| `m72-db.test.mjs` | Postgres with ALL real migrations | `delete_my_account`: anonymises profile, removes bank/identity data, delists listings, keeps purchases and settlements, refuses admins / unsettled earnings / open disputes |
+| `m72-logic.test.mjs` | nothing | username rules, settings page, 3-screen delete flow (Keep account / Next / type DELETE / Account deleted / OK -> login), API route, migration guardrails |

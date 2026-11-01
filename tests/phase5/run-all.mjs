@@ -80,6 +80,8 @@ suite("M70  media rules: columns, storefront RPCs, listing-media bucket (live DB
 suite("M70  video card, listing page player + lightbox, seller card, storefront (no DB)", "m70-logic.test.mjs");
 suite("M71  profile provisioning + legal-name resolution (live DB, real schema)", "m71-db.test.mjs");
 suite("M71  sticky sidebar, legal names, swipe gallery, account menu (no DB)", "m71-logic.test.mjs");
+suite("M72  delete my account: anonymise, keep records, refusals (live DB, real schema)", "m72-db.test.mjs");
+suite("M72  settings page, username rules, delete-account flow (no DB)", "m72-logic.test.mjs");
 suite("M68  manual bank payouts: form validation, CSV columns, bank-only payout page (no DB)", "m68-logic.test.mjs");
 suite("M58  Tier 1 clean-up: payout code retired, nothing reaches it (no DB)", "m58-tier1.test.mjs");
 suite("M59  Tier 2 clean-up: Route transfers + sweep retired, refunds and disputes kept (no DB)", "m59-tier2.test.mjs");
