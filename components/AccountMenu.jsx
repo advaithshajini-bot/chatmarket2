@@ -60,7 +60,7 @@ export default function AccountMenu({ user }) {
             <Link role="menuitem" href="/library" onClick={close} className={item}>My Library</Link>
             <Link role="menuitem" href="/sell/earnings" onClick={close} className={item}>My Products &amp; Listings</Link>
             <Link role="menuitem" href="/sell" onClick={close} className={item}>Creator Dashboard</Link>
-            <Link role="menuitem" href="/sell/payout" onClick={close} className={item}>Settings</Link>
+            <Link role="menuitem" href="/settings" onClick={close} className={item}>Settings</Link>
             {user?.isAdmin && <Link role="menuitem" href="/admin" onClick={close} className={item}>Admin</Link>}
             {user && (
               <button type="button" role="menuitem" onClick={signOut} className="mt-2 w-full py-2 rounded text-sm" style={{ border: "1px solid #14213D", color: "#14213D", fontWeight: 600 }}>Sign Out</button>
