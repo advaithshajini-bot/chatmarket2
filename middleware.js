@@ -80,5 +80,5 @@ export const config = {
   // middleware in front of them too was redundant: every checkout request
   // paid for two auth round-trips instead of one, and any slowness on
   // Supabase's side hit checkout twice as hard.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/|videos/).*)"],
 };

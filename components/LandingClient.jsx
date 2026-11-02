@@ -205,24 +205,23 @@ export default function LandingClient({ categoryCounts, featuredProducts = [], p
           </div>
         </div>
 
-        <div className="lthread-card">
-          <span className="lthread-tag mono">Workflow · Sales</span>
-          <div className="lbubble user b1">Input: New WhatsApp lead arrives</div>
-          <div className="lbubble ai b2">Step: Qualify intent &amp; score fit</div>
-          <div className="lbubble user b3">Output: Hot leads routed to sales</div>
-
-          <div className="lperforated">
-            <div className="lline"></div>
-            <div className="llock-badge">🔒</div>
-            <div className="lline"></div>
-          </div>
-          <div className="llocked-row l1"></div>
-          <div className="llocked-row l2"></div>
-          <div className="llocked-row l3"></div>
-
-          <div className="lprice-tab" style={{ justifyContent: "flex-end" }}>
-            <span className="lamt">₹499</span>
-          </div>
+        {/* Autoplaying, looping, muted preview. muted + playsInline + autoPlay are all required for iOS Safari / Android Chrome to start it
+            without a tap or forcing fullscreen. The wrapper reserves the 1280:544 box so nothing jumps while the file loads. */}
+        <div className="lhero-video" style={{ aspectRatio: "1280 / 544", width: "100%", borderRadius: 6, overflow: "hidden", background: "#EDEEEA", border: "1px solid #D8D5C9", boxShadow: "0 10px 30px rgba(20, 33, 61, 0.08)" }}>
+          <video
+            src="/videos/hero-workflow-preview.mp4"
+            poster="/videos/hero-workflow-preview-poster.jpg"
+            autoPlay
+            loop
+            muted
+            playsInline
+            preload="auto"
+            width={1280}
+            height={544}
+            aria-label="Workflow automation preview"
+            className="w-full h-auto object-cover rounded-md"
+            style={{ display: "block", width: "100%", height: "100%" }}
+          />
         </div>
       </section>
 
