@@ -1,0 +1,19 @@
+// A73 -- homepage hero shows the autoplaying workflow video instead of the static mock card (static; no DB, no network).
+import fs from "node:fs"; import path from "node:path"; import { fileURLToPath } from "node:url";
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
+let pass = 0, fail = 0;
+const check = (n, ok, x) => { if (ok) { pass++; console.log("PASS:", n); } else { fail++; console.log("FAIL:", n, x === undefined ? "" : `-- ${JSON.stringify(x)}`); } };
+const hero = read("components/LandingClient.jsx");
+const tag = (hero.match(/<video[\s\S]*?\/>/) || [""])[0];
+check("H01 the static mock card (WORKFLOW · SALES, WhatsApp lead steps, ₹499 box) is gone from the hero", !/Workflow · Sales/i.test(hero) && !/Input: New WhatsApp lead arrives/.test(hero) && !/lthread-card"/.test(hero) && !/class(Name)?="lamt"/.test(hero));
+check("H02 the hero video has every attribute mobile browsers need: autoPlay, loop, muted, playsInline, preload=auto", /src="\/videos\/hero-workflow-preview\.mp4"/.test(tag) && /\bautoPlay\b/.test(tag) && /\bloop\b/.test(tag) && /\bmuted\b/.test(tag) && /\bplaysInline\b/.test(tag) && /preload="auto"/.test(tag) && /aria-label="Workflow automation preview"/.test(tag));
+check("H03 no layout shift: a poster, intrinsic width/height and a wrapper with a fixed aspect ratio", /poster="\/videos\/hero-workflow-preview-poster\.jpg"/.test(tag) && /width=\{1280\}/.test(tag) && /height=\{544\}/.test(tag) && /aspectRatio: "1280 \/ 544"/.test(hero));
+check("H04 card styling: 1px #D8D5C9 border, soft navy shadow, rounded corners", /border: "1px solid #D8D5C9"/.test(hero) && /boxShadow: "0 10px 30px rgba\(20, 33, 61, 0\.08\)"/.test(hero) && /rounded-md/.test(tag));
+const mp4 = fs.readFileSync(path.join(root, "public/videos/hero-workflow-preview.mp4"));
+check("H05 the video is served from public/videos, is an MP4 (ftyp box) and the metadata is at the front (faststart) so it starts streaming at once", mp4.length > 10000 && mp4.subarray(4, 8).toString() === "ftyp" && mp4.indexOf(Buffer.from("moov")) > -1 && mp4.indexOf(Buffer.from("moov")) < mp4.indexOf(Buffer.from("mdat")));
+const jpg = fs.readFileSync(path.join(root, "public/videos/hero-workflow-preview-poster.jpg"));
+check("H06 the poster is a real JPEG", jpg[0] === 0xff && jpg[1] === 0xd8 && jpg.length > 1000);
+check("H07 the video has no audio track (smaller file; it is muted anyway)", !mp4.includes(Buffer.from("soun")));
+check("H08 the middleware (auth round-trip per request) skips /videos/ so video range requests are served straight from public/", /matcher: \["\/\(\(\?!_next\/static\|_next\/image\|favicon\.ico\|api\/\|videos\/\)\.\*\)"\]/.test(read("middleware.js")));
+console.log(`A73: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
