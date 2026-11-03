@@ -7,7 +7,7 @@
 // listings were already fetched (no extra query), same pattern as the
 // existing category-pill filter.
 
-import { PRODUCT_TYPE_ORDER, productTypeMeta } from "@/lib/product-types";
+import { PRODUCT_TYPE_ORDER, productTypeMeta, isComingSoon } from "@/lib/product-types";
 
 export default function ProductTypeTabs({ value, onChange, counts }) {
   const tabs = ["all", ...PRODUCT_TYPE_ORDER];
@@ -20,22 +20,26 @@ export default function ProductTypeTabs({ value, onChange, counts }) {
         const label = isAll ? "All" : meta.label + "s";
         const active = value === tab;
         const count = counts?.[tab];
+        const soon = !isAll && isComingSoon(tab);
 
         return (
           <button
             key={tab}
             role="tab"
             aria-selected={active}
-            onClick={() => onChange(tab)}
+            aria-disabled={soon}
+            disabled={soon}
+            onClick={() => { if (!soon) onChange(tab); }}
             className="pb-3 -mb-px text-sm font-medium transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
             style={{
               fontFamily: "'IBM Plex Sans', sans-serif",
-              color: active ? "#14213D" : "#6B6F76",
+              color: active ? "#14213D" : "#6B6F76", opacity: soon ? 0.7 : 1, cursor: soon ? "not-allowed" : "pointer",
               borderBottom: active ? "2px solid #14213D" : "2px solid transparent",
             }}
           >
             {label}
-            {typeof count === "number" && (
+            {soon && <span className="text-[10px] px-1.5 py-0.5 rounded-full uppercase tracking-wide" style={{ background: "#E8E7E2", color: "#6B6F76", fontFamily: "'IBM Plex Mono', monospace" }}>Coming soon</span>}
+            {!soon && typeof count === "number" && (
               <span className="text-xs font-mono" style={{ color: active ? "#14213D" : "#9A9DA3" }}>
                 {count}
               </span>

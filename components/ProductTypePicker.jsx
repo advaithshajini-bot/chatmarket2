@@ -7,7 +7,7 @@
 // unchanged 3-step wizard; Workflow/Agent selection renders the new,
 // deliberately minimal WorkflowAgentListingForm instead.
 
-import { PRODUCT_TYPE_ORDER, productTypeMeta } from "@/lib/product-types";
+import { PRODUCT_TYPE_ORDER, productTypeMeta, isComingSoon } from "@/lib/product-types";
 
 export default function ProductTypePicker({ onSelect }) {
   return (
@@ -23,12 +23,16 @@ export default function ProductTypePicker({ onSelect }) {
         {PRODUCT_TYPE_ORDER.map((type) => {
           const meta = productTypeMeta(type);
           const Icon = meta.icon;
+          const soon = isComingSoon(type);
           return (
             <button
               key={type}
-              onClick={() => onSelect(type)}
-              className="text-left rounded-md p-5 transition-transform hover:-translate-y-0.5"
-              style={{ background: "#F7F7F4", border: "1px solid #D8D5C9" }}
+              type="button"
+              disabled={soon}
+              aria-disabled={soon}
+              onClick={() => { if (!soon) onSelect(type); }}
+              className={`text-left rounded-md p-5 transition-transform ${soon ? "cursor-not-allowed" : "hover:-translate-y-0.5"}`}
+              style={{ background: "#F7F7F4", border: "1px solid #D8D5C9", opacity: soon ? 0.6 : 1 }}
             >
               <div
                 className="flex items-center justify-center w-10 h-10 rounded-lg mb-4"
@@ -38,6 +42,7 @@ export default function ProductTypePicker({ onSelect }) {
               </div>
               <h3 className="text-base mb-1" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>
                 {meta.label}
+                {soon && <span className="ml-2 align-middle text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide" style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Mono', monospace" }}>Coming soon</span>}
               </h3>
               <p className="text-xs" style={{ color: "#6B6F76" }}>{meta.description}</p>
             </button>

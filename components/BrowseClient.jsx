@@ -4,7 +4,7 @@ import { useState, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import { CATEGORIES } from "@/lib/categories";
 import { scoreListing, rankListings } from "@/lib/search-relevance";
-import { PRODUCT_TYPE_ORDER } from "@/lib/product-types";
+import { PRODUCT_TYPE_ORDER, isComingSoon } from "@/lib/product-types";
 import SearchBar from "@/components/SearchBar";
 import CategoryChip from "@/components/CategoryChip";
 import ProductTypeTabs from "@/components/ProductTypeTabs";
@@ -21,7 +21,7 @@ export default function BrowseClient({ products }) {
     categoryFromUrl && CATEGORIES.includes(categoryFromUrl) ? categoryFromUrl : (categoryFromUrl || "All")
   );
   const [activeType, setActiveType] = useState(
-    typeFromUrl && PRODUCT_TYPE_ORDER.includes(typeFromUrl) ? typeFromUrl : "all"
+    typeFromUrl && PRODUCT_TYPE_ORDER.includes(typeFromUrl) && !isComingSoon(typeFromUrl) ? typeFromUrl : "all"
   );
   const [sort, setSort] = useState("relevance");
   const [query, setQuery] = useState(searchParams.get("q") || "");

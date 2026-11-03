@@ -8,7 +8,7 @@ import { useAuthUser } from "@/lib/supabase/use-auth-user";
 import AccountMenu from "@/components/AccountMenu";
 import SocialBar from "@/components/SocialBar";
 import ProductCard from "@/components/ProductCard";
-import { PRODUCT_TYPE_ORDER, productTypeMeta } from "@/lib/product-types";
+import { PRODUCT_TYPE_ORDER, productTypeMeta, isComingSoon } from "@/lib/product-types";
 
 const EXAMPLE_PROMPTS = [
   "Qualify my WhatsApp leads",
@@ -291,9 +291,15 @@ export default function LandingClient({ categoryCounts, featuredProducts = [], p
                 <span className="lverb" style={{ color: `var(${meta.colorVar})` }}>{meta.verb}</span>
                 <h3>{meta.label}</h3>
                 <p>{meta.description}</p>
-                <Link href={`/browse?type=${type}`} className="llink" style={{ color: "#14213D" }}>
-                  Browse {meta.label.toLowerCase()}s →
-                </Link>
+                {isComingSoon(type) ? (
+                  <span className="llink" style={{ color: "#6B6F76" }}>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full uppercase tracking-wide" style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Mono', monospace" }}>Coming soon</span>
+                  </span>
+                ) : (
+                  <Link href={`/browse?type=${type}`} className="llink" style={{ color: "#14213D" }}>
+                    Browse {meta.label.toLowerCase()}s →
+                  </Link>
+                )}
               </div>
             );
           })}
@@ -338,18 +344,18 @@ export default function LandingClient({ categoryCounts, featuredProducts = [], p
         <div className="lsteps lreveal">
           <div className="lstep">
             <div className="lnum">01</div>
-            <h3>Pick a product type</h3>
-            <p>A Playbook (an exported conversation and whatever it produced), a Workflow, or an Agent — each has its own quick setup, but they all start from the same "List a product" button.</p>
+            <h3>Upload your Playbook</h3>
+            <p>Attach your prompt thread, 4–10 output screenshots, and a 5–15 second demo video. Fill in the title, description and price (₹50–₹999); we review it briefly, then it goes live.</p>
           </div>
           <div className="lstep">
             <div className="lnum">02</div>
-            <h3>Verify your identity — once</h3>
-            <p>Before you can list anything, you'll complete a one-time identity check: your name, PAN, and address, so we know who to pay. An admin reviews it, usually quickly. You can't publish until this is approved — it's what makes payouts possible in the first place.</p>
+            <h3>Save your bank details</h3>
+            <p>Add your bank account number and IFSC once under Sell → Payout, so we know where to send your funds.</p>
           </div>
           <div className="lstep">
             <div className="lnum">03</div>
-            <h3>List it, get approved, get paid</h3>
-            <p>Fill in the details, pick a category and price, and tell buyers what it covers. An admin briefly reviews the listing too, then it goes live. When someone buys it, that payment is held for 48 hours (in case of a dispute), then released to your account.</p>
+            <h3>Get paid monthly</h3>
+            <p>Buyers purchase through our payment gateway. chatmarket deducts an 18% platform fee, and your net earnings are transferred directly to your bank account by IMPS/NEFT around the 1st of every month. All sales are final.</p>
           </div>
         </div>
       </section>

@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   formatPaise, getSettlementPending, getSettlementBatches, getSettlementBatch, createSettlementBatch, settleItems, releaseSettlementItem,
-  cancelSettlementBatch, buildSettlementCsv, csvFilename, defaultSettlementPeriod, istDateToIso, isValidReference, BLOCKED_LABELS,
+  cancelSettlementBatch, buildSettlementCsv, csvFilename, settleSingleItem, getSellerBankDetails, buildSellerPayoutCsv, sellerCsvFilename, defaultSettlementPeriod, istDateToIso, isValidReference, BLOCKED_LABELS,
 } from "@/lib/domain/admin-settlement";
+import { publicSellerName } from "@/lib/domain/public-name";
 import { setSellerPayoutStatus } from "@/lib/domain/admin-payments";
 
 const MONO = { fontFamily: "'IBM Plex Mono', monospace" };
@@ -39,6 +40,9 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
   const [reference, setReference] = useState("");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState({ tone: "ok", text: "" });
+  const [payFor, setPayFor] = useState(null);          // the batch line being marked as paid in the dialog
+  const [payRef, setPayRef] = useState("");
+  const [payDate, setPayDate] = useState(period.todayDate);
 
   const openBatch = (batches?.items || []).find((b) => b.status === "open") || null;
   const shownId = openBatch?.batch_id || viewId;
@@ -102,6 +106,34 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
     if (!batch) return;
     downloadCsv(csvFilename(batch), buildSettlementCsv(batch, items, { onlyPending: isOpen }));
   };
+
+  // One seller, one row: the exact file for a single net-banking transfer. Before the batch is frozen the full account number comes from an
+  // admin-only function (the read is audited); inside a batch it is the account number locked in when the batch was created.
+  const downloadPreviewSeller = (p) => guard(async () => {
+    const r = await getSellerBankDetails(supabase, p.seller_id);
+    if (r.error) return say("err", r.error);
+    const d = r.data;
+    downloadCsv(sellerCsvFilename(label, p.seller_name), buildSellerPayoutCsv({
+      label: label.trim(), sellerName: publicSellerName(p.seller_name), beneficiaryName: d.bank_beneficiary_name, accountNumber: d.bank_account_number,
+      ifsc: d.bank_ifsc, accountType: d.bank_account_type, amountPaise: p.amount_paise }));
+  });
+  const downloadBatchSeller = (i) => {
+    if (!i.bank_account_number) return say("err", "This line has no bank account snapshot (an old UPI batch).");
+    downloadCsv(sellerCsvFilename(batch?.label, i.seller_name), buildSellerPayoutCsv({
+      label: batch?.label, sellerName: publicSellerName(i.seller_name), beneficiaryName: i.bank_beneficiary_name, accountNumber: i.bank_account_number,
+      ifsc: i.bank_ifsc, accountType: i.bank_account_type, amountPaise: i.amount_paise }));
+  };
+  const openPayDialog = (i) => { setPayFor(i); setPayRef(""); setPayDate(period.todayDate); };
+  const confirmPayoutMade = () => guard(async () => {
+    const ref = payRef.trim();
+    if (!isValidReference(ref)) return say("err", "Enter the bank transaction reference / UTR (letters, digits, space . _ / -, up to 80 characters).");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(payDate) || payDate > period.todayDate) return say("err", "Pick the payment date (not in the future).");
+    const r = await settleSingleItem(supabase, payFor.item_id, ref, payDate);
+    if (r.error) return say("err", r.error);
+    say("ok", `Recorded: ${formatPaise(r.data.settled_paise)} paid to ${payFor.seller_name || "the seller"}. Their earnings page now shows it as Paid.${r.data.batch_completed ? ` Batch "${batch.label}" is complete.` : ""}`);
+    setPayFor(null);
+    await refresh(); await loadDetail(batch.batch_id);
+  });
 
   const markPaid = (ids) => guard(async () => {
     const ref = reference.trim();
@@ -182,7 +214,10 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
                       <td className="pr-3 text-right">{p.purchase_count}</td>
                       <td className="pr-3 text-right">{formatPaise(p.platform_fee_paise)}</td>
                       <td className="pr-3 text-right" style={{ fontWeight: 600 }}>{formatPaise(p.amount_paise)}</td>
-                      <td><PayoutToggle sellerId={p.seller_id} accountStatus={p.account_status} /></td>
+                      <td className="whitespace-nowrap">
+                        <PayoutToggle sellerId={p.seller_id} accountStatus={p.account_status} />
+                        <button disabled={busy} onClick={() => downloadPreviewSeller(p)} className="text-xs underline ml-3" style={{ color: "#14213D" }} title="Download this seller's bank transfer details (CSV)">Download Details</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -253,6 +288,8 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
                     <td className="whitespace-nowrap">
                       {i.status === "pending" && isOpen && <button disabled={busy} onClick={() => release(i)} className="text-xs underline mr-3" style={{ color: "#14213D" }}>Release</button>}
                       {i.status === "pending" && isOpen && <PayoutToggle sellerId={i.seller_id} accountStatus={i.account_status} />}
+                      {i.status === "pending" && isOpen && i.bank_account_number && <button disabled={busy} onClick={() => downloadBatchSeller(i)} className="text-xs underline ml-3" style={{ color: "#14213D" }} title="Download this seller's bank transfer details (CSV)">Download Details</button>}
+                      {i.status === "pending" && isOpen && <button disabled={busy} onClick={() => openPayDialog(i)} className="text-xs px-3 py-1 rounded-md ml-3" style={{ background: "#2F6F62", color: "#FFFFFF", fontWeight: 600 }}>Payout Made</button>}
                     </td>
                   </tr>
                 ))}
@@ -274,6 +311,25 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
         </section>
       )}
       {shownId && detail && detail.found === false && <p className="text-sm mb-6" style={{ color: "#B33A2E" }}>That batch could not be loaded.</p>}
+
+      {payFor && (
+        <div role="dialog" aria-modal="true" aria-label="Record payout" className="fixed inset-0 z-[60] flex items-center justify-center p-4" style={{ background: "rgba(10,16,30,0.5)" }}>
+          <div className="w-full max-w-sm rounded-lg p-5" style={{ background: "#FFFFFF", border: "1px solid #D8D5C9" }}>
+            <h3 className="text-lg mb-1" style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, color: "#14213D" }}>Payout made</h3>
+            <p className="text-sm mb-3" style={{ color: "#3A3D42" }}>{formatPaise(payFor.amount_paise)} to {payFor.bank_beneficiary_name || payFor.seller_name}. Only record this after the money has actually been sent; a paid item is final.</p>
+            <label className="block text-xs mb-3" style={{ color: "#6B6F76" }}>Bank transaction reference / UTR (required)
+              <input value={payRef} maxLength={80} onChange={(e) => setPayRef(e.target.value)} autoFocus className="block mt-1 w-full text-sm px-3 py-2 rounded-md" style={{ border: "1px solid #D8D5C9", ...MONO }} />
+            </label>
+            <label className="block text-xs mb-4" style={{ color: "#6B6F76" }}>Payment date
+              <input type="date" value={payDate} max={period.todayDate} onChange={(e) => setPayDate(e.target.value)} className="block mt-1 text-sm px-3 py-2 rounded-md" style={{ border: "1px solid #D8D5C9" }} />
+            </label>
+            <div className="flex justify-end gap-3">
+              <button type="button" disabled={busy} onClick={() => setPayFor(null)} className="text-sm px-4 py-2 rounded-md" style={btn(false, false)}>Cancel</button>
+              <button type="button" disabled={busy || !isValidReference(payRef)} onClick={confirmPayoutMade} className="text-sm px-4 py-2 rounded-md" style={{ background: "#2F6F62", color: "#FFFFFF", fontWeight: 600, opacity: busy || !isValidReference(payRef) ? 0.5 : 1 }}>Confirm payout made</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <section aria-label="Past batches">
         <h2 className="text-sm mb-2" style={{ fontWeight: 600, color: "#14213D" }}>Batches</h2>
