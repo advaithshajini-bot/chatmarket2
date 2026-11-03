@@ -25,6 +25,7 @@ const SECTIONS = [
     body: [
       "We never store card numbers, CVVs, UPI PINs or net-banking credentials on our servers. Payments are collected and tokenised by our licensed payment gateway partner, which processes them under PCI-DSS standards.",
       "Sellers save their bank account details (beneficiary name, account number, IFSC and account type) so we can pay out their earnings by bank transfer. We store them in access-restricted storage, show a seller only the last four digits of their own account, and use them only to make payouts and keep payout records. They can be deleted on request, subject to records we must keep by law.",
+      "To comply with Indian tax regulations (including Section 194-O and Section 206AB of the Income Tax Act, 1961, and Section 52 of the CGST Act), we collect and store the Seller's Permanent Account Number (PAN), legal name, and bank account details (beneficiary name, account number, IFSC code, and account type). These details are encrypted at rest in access-restricted storage, visible back to the seller only as masked values, and utilized solely for identity verification, statutory tax withholding/reporting, and disbursing monthly net earnings.",
     ],
   },
   {

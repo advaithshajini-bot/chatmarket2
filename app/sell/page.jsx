@@ -22,6 +22,7 @@ import TopNav from "@/components/TopNav";
 import StatusPill from "@/components/StatusPill";
 import ProductTypePicker from "@/components/ProductTypePicker";
 import WorkflowAgentListingForm from "@/components/WorkflowAgentListingForm";
+import { COMING_SOON_NOTICE, isComingSoon } from "@/lib/product-types";
 import { CATEGORIES, MODELS } from "@/lib/categories";
 import { getMyDirectSellerStatus } from "@/lib/domain/direct-upi";
 import { getMyRouteStatus, describeRouteStatus } from "@/lib/domain/route";
@@ -1068,7 +1069,8 @@ export default function SellPage() {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [wizardStep, setWizardStep] = useState(1);
-  const [productType, setProductType] = useState(null);
+  // Playbooks are the only type sellers can create for now (see COMING_SOON_TYPES), so the flow starts straight in the Playbook wizard.
+  const [productType, setProductType] = useState("playbook");
   const [form, setForm] = useState({
     listingId: "",
     title: "",
@@ -1284,11 +1286,10 @@ export default function SellPage() {
       otherFiles: [],
       screenshots: [],
       video: null,
-    video: null,
     });
     setSubmitError("");
     setWizardStep(1);
-    setProductType(null);
+    setProductType("playbook");
     setStep(1);
   };
 
@@ -1328,8 +1329,11 @@ export default function SellPage() {
           </button>
         )}
         <Stepper step={step} />
-        {step === 1 && !productType && (
-          <ProductTypePicker onSelect={setProductType} />
+        {step === 1 && (
+          <div role="note" className="max-w-2xl mx-auto mb-6 rounded-md px-4 py-3 text-sm flex items-center gap-3" style={{ background: "#FBF1DD", border: "1px solid #E9D7A8", color: "#6B5413" }}>
+            <span className="text-[11px] px-2 py-0.5 rounded-full uppercase tracking-wide shrink-0" style={{ background: "#14213D", color: "#F7F7F4", fontFamily: "'IBM Plex Mono', monospace" }}>Coming soon</span>
+            {COMING_SOON_NOTICE}
+          </div>
         )}
         {step === 1 && productType === "playbook" && (
           <>
@@ -1352,7 +1356,7 @@ export default function SellPage() {
             )}
           </>
         )}
-        {step === 1 && (productType === "workflow" || productType === "agent") && (
+        {step === 1 && (productType === "workflow" || productType === "agent") && !isComingSoon(productType) && (
           <WorkflowAgentListingForm
             type={productType}
             onBack={() => setProductType(null)}

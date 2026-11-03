@@ -1,4 +1,5 @@
 import { publicSellerName } from "@/lib/domain/public-name";
+import { COMING_SOON_NOTICE, isComingSoon } from "@/lib/product-types";
 import { LISTING_RULES, validateProductListing, explainListingRuleError } from "@/lib/domain/listing-rules";
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
@@ -46,6 +47,9 @@ export async function POST(request) {
       { error: `productType must be "workflow" or "agent" (got "${productType}").` },
       { status: 400 }
     );
+  }
+  if (isComingSoon(productType)) {
+    return NextResponse.json({ error: COMING_SOON_NOTICE, code: "coming_soon" }, { status: 403 });
   }
   if (!title || typeof title !== "string" || title.length > 200) {
     return NextResponse.json({ error: "Title must be between 10 and 200 characters." }, { status: 400 });

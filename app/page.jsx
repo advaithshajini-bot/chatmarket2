@@ -1,7 +1,7 @@
 import LandingClient from "@/components/LandingClient";
 import { CATEGORIES } from "@/lib/categories";
 import { createClient } from "@/lib/supabase/server";
-import { listProducts } from "@/lib/domain/products";
+import { listProductsCurated } from "@/lib/domain/products";
 
 // Always hit Supabase fresh — these are the real numbers people land on,
 // not a build-time snapshot.
@@ -35,19 +35,16 @@ export default async function HomePage() {
   // rows (the only kind that exists in production), which is expected and
   // correct — these sections render Workflow/Agent cards the moment any
   // exist, with no code change needed later.
+  // Each section has its own query (see listProductsCurated): Featured = most reviews, Popular = most paid purchases, New = newest.
   const [featured, popular, newest] = await Promise.all([
-    listProducts(supabase, { status: "live", limit: 6 }),
-    listProducts(supabase, { status: "live", limit: 6 }),
-    listProducts(supabase, { status: "live", limit: 6 }),
+    listProductsCurated(supabase, "featured", { limit: 6 }),
+    listProductsCurated(supabase, "popular", { limit: 6 }),
+    listProductsCurated(supabase, "new", { limit: 6 }),
   ]);
 
   const featuredProducts = normalize(featured);
-  const popularProducts = [...normalize(popular)].sort(
-    (a, b) => (b.reviewCount ?? 0) - (a.reviewCount ?? 0) || (b.rating ?? 0) - (a.rating ?? 0)
-  );
-  const newProducts = [...normalize(newest)].sort(
-    (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-  );
+  const popularProducts = normalize(popular);
+  const newProducts = normalize(newest);
 
   return (
     <LandingClient
