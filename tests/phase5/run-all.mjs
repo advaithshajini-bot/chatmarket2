@@ -83,6 +83,8 @@ suite("M71  sticky sidebar, legal names, swipe gallery, account menu (no DB)", "
 suite("M72  delete my account: anonymise, keep records, refusals (live DB, real schema)", "m72-db.test.mjs");
 suite("M72  settings page, username rules, delete-account flow (no DB)", "m72-logic.test.mjs");
 suite("M73  homepage hero autoplay video (no DB)", "m73-logic.test.mjs");
+suite("M74  individual payout made + bank details (live DB, real schema)", "m74-db.test.mjs");
+suite("M74  PAN disclosure, single-seller export, Coming Soon, seller copy, home curation (no DB)", "m74-logic.test.mjs");
 suite("M68  manual bank payouts: form validation, CSV columns, bank-only payout page (no DB)", "m68-logic.test.mjs");
 suite("M58  Tier 1 clean-up: payout code retired, nothing reaches it (no DB)", "m58-tier1.test.mjs");
 suite("M59  Tier 2 clean-up: Route transfers + sweep retired, refunds and disputes kept (no DB)", "m59-tier2.test.mjs");
