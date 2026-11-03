@@ -206,8 +206,8 @@ export default function LandingClient({ categoryCounts, featuredProducts = [], p
         </div>
 
         {/* Autoplaying, looping, muted preview. muted + playsInline + autoPlay are all required for iOS Safari / Android Chrome to start it
-            without a tap or forcing fullscreen. The wrapper reserves the 432:368 box so nothing jumps while the file loads. */}
-        <div className="lhero-video" style={{ aspectRatio: "432 / 368", width: "100%", borderRadius: 6, overflow: "hidden", background: "#EDEEEA", border: "1px solid #D8D5C9", boxShadow: "0 10px 30px rgba(20, 33, 61, 0.08)" }}>
+            without a tap or forcing fullscreen. The wrapper reserves the 1264:1080 box so nothing jumps while the file loads. */}
+        <div className="lhero-video" style={{ aspectRatio: "1264 / 1080", width: "100%", borderRadius: 6, overflow: "hidden", background: "#EDEEEA", border: "1px solid #D8D5C9", boxShadow: "0 10px 30px rgba(20, 33, 61, 0.08)" }}>
           <video
             src="/videos/hero-workflow-preview.mp4"
             poster="/videos/hero-workflow-preview-poster.jpg"
@@ -216,11 +216,13 @@ export default function LandingClient({ categoryCounts, featuredProducts = [], p
             muted
             playsInline
             preload="auto"
-            width={432}
-            height={368}
+            width={1264}
+            height={1080}
             aria-label="Workflow automation preview"
-            className="w-full h-auto object-cover rounded-md"
-            style={{ display: "block", width: "100%", height: "100%" }}
+            disablePictureInPicture
+            disableRemotePlayback
+            className="w-full h-auto rounded-md"
+            style={{ display: "block", width: "100%", height: "100%", objectFit: "contain" }}
           />
         </div>
       </section>
