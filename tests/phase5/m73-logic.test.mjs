@@ -8,7 +8,7 @@ const hero = read("components/LandingClient.jsx");
 const tag = (hero.match(/<video[\s\S]*?\/>/) || [""])[0];
 check("H01 the static mock card (WORKFLOW · SALES, WhatsApp lead steps, ₹499 box) is gone from the hero", !/Workflow · Sales/i.test(hero) && !/Input: New WhatsApp lead arrives/.test(hero) && !/lthread-card"/.test(hero) && !/class(Name)?="lamt"/.test(hero));
 check("H02 the hero video has every attribute mobile browsers need: autoPlay, loop, muted, playsInline, preload=auto", /src="\/videos\/hero-workflow-preview\.mp4"/.test(tag) && /\bautoPlay\b/.test(tag) && /\bloop\b/.test(tag) && /\bmuted\b/.test(tag) && /\bplaysInline\b/.test(tag) && /preload="auto"/.test(tag) && /aria-label="Workflow automation preview"/.test(tag));
-check("H03 no layout shift: a poster, intrinsic width/height and a wrapper with a fixed aspect ratio", /poster="\/videos\/hero-workflow-preview-poster\.jpg"/.test(tag) && /width=\{432\}/.test(tag) && /height=\{368\}/.test(tag) && /aspectRatio: "432 \/ 368"/.test(hero));
+check("H03 no layout shift: a poster, intrinsic width/height and a wrapper with a fixed aspect ratio", /poster="\/videos\/hero-workflow-preview-poster\.jpg"/.test(tag) && /width=\{1264\}/.test(tag) && /height=\{1080\}/.test(tag) && /aspectRatio: "1264 \/ 1080"/.test(hero));
 check("H04 card styling: 1px #D8D5C9 border, soft navy shadow, rounded corners", /border: "1px solid #D8D5C9"/.test(hero) && /boxShadow: "0 10px 30px rgba\(20, 33, 61, 0\.08\)"/.test(hero) && /rounded-md/.test(tag));
 const mp4 = fs.readFileSync(path.join(root, "public/videos/hero-workflow-preview.mp4"));
 check("H05 the video is served from public/videos, is an MP4 (ftyp box) and the metadata is at the front (faststart) so it starts streaming at once", mp4.length > 10000 && mp4.subarray(4, 8).toString() === "ftyp" && mp4.indexOf(Buffer.from("moov")) > -1 && mp4.indexOf(Buffer.from("moov")) < mp4.indexOf(Buffer.from("mdat")));
@@ -16,4 +16,5 @@ const jpg = fs.readFileSync(path.join(root, "public/videos/hero-workflow-preview
 check("H06 the poster is a real JPEG", jpg[0] === 0xff && jpg[1] === 0xd8 && jpg.length > 1000);
 check("H07 the video has no audio track (smaller file; it is muted anyway)", !mp4.includes(Buffer.from("soun")));
 check("H08 the middleware (auth round-trip per request) skips /videos/ so video range requests are served straight from public/", /matcher: \["\/\(\(\?!_next\/static\|_next\/image\|favicon\.ico\|api\/\|videos\/\)\.\*\)"\]/.test(read("middleware.js")));
+check("H09 the whole frame is always shown (object-fit: contain, never cropped) so none of the lettering is cut off; no WebM source (the MP4 is the one served to every device)", /objectFit: "contain"/.test(hero) && !/object-cover/.test(tag) && !/\.webm/.test(tag));
 console.log(`A73: ${pass} passed, ${fail} failed`); process.exit(fail ? 1 : 0);
