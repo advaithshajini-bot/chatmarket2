@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import CookiePreferencesModal from "@/components/CookiePreferencesModal";
-import { BUSINESS as B } from "@/lib/business";
 
 const LINKS = [
   { label: "About us", href: "/about" },
@@ -22,7 +21,7 @@ export default function SiteFooter() {
       <footer className="mt-12 pt-6 pb-10 px-6" style={{ borderTop: "1px solid #D8D5C9" }}>
         <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
           <span className="text-xs" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-            © 2026 chatmarket
+            © 2026 chatmarket. All rights reserved.
           </span>
           {LINKS.map((link) => (
             <Link
@@ -42,9 +41,6 @@ export default function SiteFooter() {
             Manage cookies
           </button>
         </div>
-        <p className="text-xs text-center mt-3" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-          Operated by {B.operator} · {B.address} · {B.email}
-        </p>
       </footer>
 
       <CookiePreferencesModal open={cookiesOpen} onClose={() => setCookiesOpen(false)} />

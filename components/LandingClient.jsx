@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Search, ChevronDown } from "lucide-react";
 import { useAuthUser } from "@/lib/supabase/use-auth-user";
 import AccountMenu from "@/components/AccountMenu";
 import SocialBar from "@/components/SocialBar";
@@ -93,6 +93,14 @@ const LANDING_STYLES = `
 .lstep .lnum{ font-family:'IBM Plex Mono', monospace; color:var(--amber-deep); font-size:13px; margin-bottom:14px; }
 .lstep h3{ font-family:'Fraunces', serif; font-weight:600; font-size:19px; margin-bottom:10px; }
 .lstep p{ color:var(--muted); font-size:14px; line-height:1.6; }
+.lfaq{ max-width:760px; border:1px solid var(--rule); border-radius:10px; overflow:hidden; background:var(--paper-card); }
+.lfaq-item + .lfaq-item{ border-top:1px solid var(--rule); }
+.lfaq-q{ width:100%; display:flex; align-items:center; justify-content:space-between; gap:16px; text-align:left; padding:18px 22px; font-family:'Fraunces', serif; font-weight:600; font-size:17px; color:#14213D; background:transparent; cursor:pointer; }
+.lfaq-q:focus-visible{ outline:2px solid #E2A83E; outline-offset:-2px; }
+.lfaq-chev{ flex-shrink:0; color:var(--muted); transition:transform .25s ease; }
+.lfaq-a{ display:grid; transition:grid-template-rows .25s ease; }
+.lfaq-a > div{ overflow:hidden; }
+.lfaq-a p{ padding:0 22px 20px; color:var(--muted); font-size:15px; line-height:1.65; }
 .ltype-step{ background:var(--paper-card); padding:34px 28px; }
 .ltype-step .ltype-icon{ display:inline-flex; align-items:center; justify-content:center; width:38px; height:38px; border-radius:8px; margin-bottom:16px; }
 .ltype-step h3{ font-family:'Fraunces', serif; font-weight:600; font-size:19px; margin-bottom:6px; }
@@ -117,7 +125,16 @@ const LANDING_STYLES = `
 .lfooter-cta p{ color:#B9BEC9; margin-bottom:30px; font-size:15px; }
 `;
 
+const FAQ_ITEMS = [
+  { q: "How does purchasing and delivery work?", a: "Payments are processed through our licensed gateway partner. Upon successful payment, your digital playbook, prompts, and included project files (.zip) unlock instantly in your Library." },
+  { q: "What is the refund policy?", a: "Because digital assets are delivered immediately with irrevocable access, all sales are final. If an asset is defective or misdescribed, you can report the issue to support for review." },
+  { q: "How do creators get paid?", a: "Creators connect their Indian bank account under Sell → Payout. Net earnings (after an 18% platform fee) are disbursed monthly via direct bank transfer (IMPS/NEFT) on or around the 1st of every month." },
+  { q: "Do I need to provide PAN and tax details to sell?", a: "Yes. In compliance with Indian tax regulations (including Section 194-O TDS and Section 52 GST TCS), sellers must submit their PAN and verified bank details prior to listing." },
+  { q: "Can I use purchased playbooks for commercial client work?", a: "Yes. Purchases include a non-exclusive commercial license to use, adapt, and deploy the prompts, workflows, and output artifacts in your own business or client projects." },
+];
+
 export default function LandingClient({ categoryCounts, featuredProducts = [], popularProducts = [], newProducts = [] }) {
+  const [openFaq, setOpenFaq] = useState(0);
   const rootRef = useRef(null);
   const router = useRouter();
   const user = useAuthUser();
@@ -360,18 +377,28 @@ export default function LandingClient({ categoryCounts, featuredProducts = [], p
         </div>
       </section>
 
-      <section id="pricing" className="lsection">
+      <section id="faq" className="lsection">
         <div className="lreveal">
-          <div className="lsection-eyebrow">Checkout</div>
-          <h2 className="lsection-title">Pay however you already do.</h2>
-          <p className="lsection-sub">Checkout runs on Razorpay, so every unlock supports UPI, netbanking, and cards without you juggling separate integrations.</p>
+          <div className="lsection-eyebrow">FAQ</div>
+          <h2 className="lsection-title">Frequently Asked Questions</h2>
         </div>
-        <div className="lpay-row lreveal">
-          <div className="lpay-chip"><span className="lpay-dot"></span>UPI</div>
-          <div className="lpay-chip"><span className="lpay-dot"></span>Google Pay</div>
-          <div className="lpay-chip"><span className="lpay-dot"></span>Netbanking</div>
-          <div className="lpay-chip"><span className="lpay-dot"></span>Credit / Debit Card</div>
-          <div className="lpay-chip"><span className="lpay-dot"></span>Razorpay Wallet</div>
+        <div className="lfaq lreveal">
+          {FAQ_ITEMS.map((item, i) => {
+            const open = openFaq === i;
+            return (
+              <div key={item.q} className="lfaq-item">
+                <h3>
+                  <button type="button" className="lfaq-q" aria-expanded={open} aria-controls={`faq-panel-${i}`} id={`faq-q-${i}`} onClick={() => setOpenFaq(open ? -1 : i)}>
+                    <span>{item.q}</span>
+                    <ChevronDown size={18} className="lfaq-chev" style={{ transform: open ? "rotate(180deg)" : "none" }} aria-hidden="true" />
+                  </button>
+                </h3>
+                <div id={`faq-panel-${i}`} role="region" aria-labelledby={`faq-q-${i}`} className="lfaq-a" style={{ gridTemplateRows: open ? "1fr" : "0fr" }}>
+                  <div><p>{item.a}</p></div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
 
