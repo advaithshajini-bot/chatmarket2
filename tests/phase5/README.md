@@ -66,3 +66,4 @@ and the deployed route -- see `supabase/manual/phase5_review_golive.md`.
 | `m73-logic.test.mjs` | nothing | homepage hero video: mobile autoplay attributes, no layout shift, poster, assets present, old mock card removed |
 | `m74-db.test.mjs` | Postgres with ALL real migrations | `admin_settle_single_item` (UTR + date, MFA only, batch completion, audit, seller earnings sync) and `admin_seller_bank_details` |
 | `m74-logic.test.mjs` | nothing | single-seller CSV, Download Details / Payout Made UI, Workflow + Agent Coming Soon, seller how-it-works copy, home Featured / Popular / New queries |
+| `m75-logic.test.mjs` | nothing | homepage FAQ accordion, login terms checkbox + password eye toggle, privacy tax wording (no 206AB), footer without operator details |
