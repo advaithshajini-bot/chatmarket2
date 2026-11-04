@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { LogIn, CheckCircle2 } from "lucide-react";
+import { LogIn, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import TopNav from "@/components/TopNav";
 import { createClient } from "@/lib/supabase/client";
 
@@ -18,6 +18,8 @@ function GoogleIcon() {
   );
 }
 
+const TERMS_ERROR = "Please agree to the Terms of Service and Privacy Policy to continue.";
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -29,6 +31,8 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [checkingSession, setCheckingSession] = useState(justVerified);
@@ -61,6 +65,10 @@ function LoginForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    if (!agreedToTerms) {
+      setError(TERMS_ERROR);
+      return;
+    }
     setLoading(true);
 
     const supabase = createClient();
@@ -122,6 +130,10 @@ function LoginForm() {
 
   const handleGoogleSignIn = async () => {
     setError("");
+    if (!agreedToTerms) {
+      setError(TERMS_ERROR);
+      return;
+    }
     setGoogleLoading(true);
     const supabase = createClient();
     const { error: oauthErr } = await supabase.auth.signInWithOAuth({
@@ -260,23 +272,54 @@ function LoginForm() {
                 Forgot password
               </Link>
             </div>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2.5 rounded text-sm outline-none"
-              style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-3 py-2.5 pr-10 rounded text-sm outline-none"
+                style={{ border: "1px solid #D8D5C9", fontFamily: "'IBM Plex Sans', sans-serif", background: "#FFFFFF" }}
+                autoComplete="current-password"
+                required
+              />
+              {password.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 inline-flex items-center justify-center"
+                  style={{ color: "#6B6F76" }}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              )}
+            </div>
           </div>
+
+          <label className="flex items-start gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              className="mt-0.5 shrink-0"
+              style={{ width: 16, height: 16, accentColor: "#14213D" }}
+            />
+            <span className="text-xs" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+              I agree to the{" "}
+              <Link href="/terms" target="_blank" rel="noopener" style={{ color: "#14213D", fontWeight: 500, textDecoration: "underline" }}>Terms of Service</Link>
+              {" "}and{" "}
+              <Link href="/privacy" target="_blank" rel="noopener" style={{ color: "#14213D", fontWeight: 500, textDecoration: "underline" }}>Privacy Policy</Link>
+            </span>
+          </label>
 
           {error && <p className="text-xs" style={{ color: "#B33A2E" }}>{error}</p>}
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || !agreedToTerms}
             className="w-full py-3 rounded text-sm inline-flex items-center justify-center gap-2"
-            style={{ background: "#E2A83E", color: "#14213D", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600 }}
+            style={{ background: !agreedToTerms ? "#D8D5C9" : "#E2A83E", color: "#14213D", cursor: !agreedToTerms ? "not-allowed" : "pointer", fontFamily: "'IBM Plex Sans', sans-serif", fontWeight: 600 }}
           >
             <LogIn size={15} /> {loading ? "Logging in..." : "Log in"}
           </button>
