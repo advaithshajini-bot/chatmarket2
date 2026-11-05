@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Search, Unlock, Star, Inbox } from "lucide-react";
+import { Search, Unlock, Star, Inbox, FileArchive } from "lucide-react";
 import ModelTag from "@/components/ModelTag";
+import ListingVideoCard from "@/components/ListingVideoCard";
 import { publicSellerName } from "@/lib/domain/public-name";
 
 function timeAgo(dateString) {
@@ -41,6 +42,21 @@ function LibraryCard({ item }) {
         <p className="text-xs mb-3" style={{ color: "#6B6F76" }}>
           by {publicSellerName(listing.seller_name)} · purchased {timeAgo(purchasedAt)}
         </p>
+        {(listing.preview_video_url || listing.screenshots?.length > 0) && (
+          <div className="mb-3">
+            <ListingVideoCard
+              videoUrl={listing.preview_video_url}
+              duration={listing.preview_video_duration == null ? null : Number(listing.preview_video_duration)}
+              poster={listing.screenshots?.[0]}
+              title={listing.title}
+            />
+          </div>
+        )}
+        {listing.output_zip_path && status !== "refunded" && (
+          <p className="flex items-center gap-1 text-xs mb-3" style={{ color: "#2F6F62", fontFamily: "'IBM Plex Mono', monospace" }}>
+            <FileArchive size={11} /> files ready to download
+          </p>
+        )}
         <div
           className="flex items-center justify-end text-xs pt-3"
           style={{ borderTop: "1px dashed #D8D5C9", fontFamily: "'IBM Plex Mono', monospace", color: "#6B6F76" }}

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   formatPaise, getSettlementPending, getSettlementBatches, getSettlementBatch, createSettlementBatch, settleItems, releaseSettlementItem,
-  cancelSettlementBatch, buildSettlementCsv, csvFilename, settleSingleItem, getSellerBankDetails, buildSellerPayoutCsv, sellerCsvFilename, defaultSettlementPeriod, istDateToIso, isValidReference, BLOCKED_LABELS,
+  cancelSettlementBatch, buildSettlementCsv, csvFilename, settleSingleItem, completeSellerPayout, getSellerBankDetails, buildSellerPayoutCsv, sellerCsvFilename, defaultSettlementPeriod, istDateToIso, isValidReference, BLOCKED_LABELS,
 } from "@/lib/domain/admin-settlement";
 import { publicSellerName } from "@/lib/domain/public-name";
 import { setSellerPayoutStatus } from "@/lib/domain/admin-payments";
@@ -123,11 +123,22 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
       label: batch?.label, sellerName: publicSellerName(i.seller_name), beneficiaryName: i.bank_beneficiary_name, accountNumber: i.bank_account_number,
       ifsc: i.bank_ifsc, accountType: i.bank_account_type, amountPaise: i.amount_paise }));
   };
-  const openPayDialog = (i) => { setPayFor(i); setPayRef(""); setPayDate(period.todayDate); };
+  const openPayDialog = (i) => { setPayFor({ ...i, kind: "item" }); setPayRef(""); setPayDate(period.todayDate); };
+  const openPreviewPayDialog = (p) => { setPayFor({ ...p, kind: "preview" }); setPayRef(""); setPayDate(period.todayDate); };
   const confirmPayoutMade = () => guard(async () => {
     const ref = payRef.trim();
     if (!isValidReference(ref)) return say("err", "Enter the bank transaction reference / UTR (letters, digits, space . _ / -, up to 80 characters).");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(payDate) || payDate > period.todayDate) return say("err", "Pick the payment date (not in the future).");
+    if (payFor.kind === "preview") {
+      const iso = istDateToIso(cutoff);
+      if (!iso) return say("err", "Pick a valid cut-off date.");
+      const r = await completeSellerPayout(supabase, payFor.seller_id, iso, ref, payDate);
+      if (r.error) return say("err", r.error);
+      say("ok", `Recorded: ${formatPaise(r.data.settled_paise)} paid to ${payFor.seller_name || "the seller"} for ${r.data.purchase_count} sale(s). Their earnings page now shows it as Paid.`);
+      setPayFor(null);
+      await refresh(iso); if (detail?.batch?.batch_id) await loadDetail(detail.batch.batch_id);
+      return;
+    }
     const r = await settleSingleItem(supabase, payFor.item_id, ref, payDate);
     if (r.error) return say("err", r.error);
     say("ok", `Recorded: ${formatPaise(r.data.settled_paise)} paid to ${payFor.seller_name || "the seller"}. Their earnings page now shows it as Paid.${r.data.batch_completed ? ` Batch "${batch.label}" is complete.` : ""}`);
@@ -217,6 +228,7 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
                       <td className="whitespace-nowrap">
                         <PayoutToggle sellerId={p.seller_id} accountStatus={p.account_status} />
                         <button disabled={busy} onClick={() => downloadPreviewSeller(p)} className="text-xs underline ml-3" style={{ color: "#14213D" }} title="Download this seller's bank transfer details (CSV)">Download Details</button>
+                        <button disabled={busy} onClick={() => openPreviewPayDialog(p)} className="text-xs px-2.5 py-1 rounded ml-3" style={{ background: "#2F6F62", color: "#FFFFFF", opacity: busy ? 0.6 : 1 }} title="Record that you have paid this seller by bank transfer">Payout Completed</button>
                       </td>
                     </tr>
                   ))}
@@ -237,7 +249,10 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
                       <td className="pr-3"><Pill tone="amber">{BLOCKED_LABELS[b.reason] || b.reason}</Pill>{b.reason === "bank_in_cooldown" && b.bank_unlocks_at && <span className="block text-xs mt-1" style={{ color: "#6B6F76" }}>new account matures {when(b.bank_unlocks_at)}</span>}</td>
                       <td className="pr-3 text-right">{b.purchase_count} sale(s)</td>
                       <td className="pr-3 text-right">{formatPaise(b.amount_paise)}</td>
-                      <td>{(b.reason === "account_suspended" || b.account_status === "suspended") && <PayoutToggle sellerId={b.seller_id} accountStatus="suspended" />}</td>
+                      <td className="whitespace-nowrap">
+                        {(b.reason === "account_suspended" || b.account_status === "suspended") && <PayoutToggle sellerId={b.seller_id} accountStatus="suspended" />}
+                        <button disabled={busy} onClick={() => downloadPreviewSeller(b)} className="text-xs underline ml-3" style={{ color: "#14213D" }} title="Always available, even below the minimum payout or rolled over: download this seller's bank transfer details (CSV)">Download Details</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -289,7 +304,7 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
                       {i.status === "pending" && isOpen && <button disabled={busy} onClick={() => release(i)} className="text-xs underline mr-3" style={{ color: "#14213D" }}>Release</button>}
                       {i.status === "pending" && isOpen && <PayoutToggle sellerId={i.seller_id} accountStatus={i.account_status} />}
                       {i.status === "pending" && isOpen && i.bank_account_number && <button disabled={busy} onClick={() => downloadBatchSeller(i)} className="text-xs underline ml-3" style={{ color: "#14213D" }} title="Download this seller's bank transfer details (CSV)">Download Details</button>}
-                      {i.status === "pending" && isOpen && <button disabled={busy} onClick={() => openPayDialog(i)} className="text-xs px-3 py-1 rounded-md ml-3" style={{ background: "#2F6F62", color: "#FFFFFF", fontWeight: 600 }}>Payout Made</button>}
+                      {i.status === "pending" && isOpen && <button disabled={busy} onClick={() => openPayDialog(i)} className="text-xs px-3 py-1 rounded-md ml-3" style={{ background: "#2F6F62", color: "#FFFFFF", fontWeight: 600 }}>Payout Completed</button>}
                     </td>
                   </tr>
                 ))}
@@ -325,7 +340,7 @@ export default function AdminSettlementTab({ supabase, initialPending, initialBa
             </label>
             <div className="flex justify-end gap-3">
               <button type="button" disabled={busy} onClick={() => setPayFor(null)} className="text-sm px-4 py-2 rounded-md" style={btn(false, false)}>Cancel</button>
-              <button type="button" disabled={busy || !isValidReference(payRef)} onClick={confirmPayoutMade} className="text-sm px-4 py-2 rounded-md" style={{ background: "#2F6F62", color: "#FFFFFF", fontWeight: 600, opacity: busy || !isValidReference(payRef) ? 0.5 : 1 }}>Confirm payout made</button>
+              <button type="button" disabled={busy || !isValidReference(payRef)} onClick={confirmPayoutMade} className="text-sm px-4 py-2 rounded-md" style={{ background: "#2F6F62", color: "#FFFFFF", fontWeight: 600, opacity: busy || !isValidReference(payRef) ? 0.5 : 1 }}>Confirm payout completed</button>
             </div>
           </div>
         </div>
