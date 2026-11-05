@@ -71,14 +71,25 @@ function LoginForm() {
     }
     setLoading(true);
 
-    const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    // Sign-in goes through the server route so it can be rate limited (per IP and per account); the route sets the session cookies.
+    let signInError = null;
+    try {
+      const res = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
+      if (!res.ok) {
+        const out = await res.json().catch(() => ({}));
+        signInError = { message: out?.error || "Couldn't sign you in. Please try again." };
+      }
+    } catch {
+      signInError = { message: "Couldn't reach the server. Check your connection and try again." };
+    }
 
     if (signInError) {
       setError(signInError.message);
       setLoading(false);
       return;
     }
+
+    const supabase = createClient();
 
     // Password alone only gets an aal1 session. If this account has an
     // MFA factor enrolled (only admins, via /admin/security), the session

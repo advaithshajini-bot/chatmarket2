@@ -72,11 +72,13 @@ export default function SellerProfilePage() {
     if (!v.ok || saving) return;
     setSaving(true); setMessage(null);
     const x = v.values;
-    const { error } = await supabase.rpc("set_seller_identity_details", {
-      p_first: x.first, p_last: x.last, p_email: x.email, p_phone: x.phone, p_address: x.address, p_country: x.country, p_pan: x.pan, p_id_type: x.idType, p_id_number: x.idNumber,
-    });
+    let res, out = {};
+    try {
+      res = await fetch("/api/sell/identity", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(x) });
+      out = await res.json().catch(() => ({}));
+    } catch { res = null; }
     setSaving(false);
-    if (error) { setMessage({ tone: "err", text: explainDirectError(error) }); return; }
+    if (!res || !res.ok) { setMessage({ tone: "err", text: out?.error || "We couldn't save that just now. Please try again in a moment." }); return; }
     router.push("/sell/payout");
   }
 
