@@ -67,3 +67,5 @@ and the deployed route -- see `supabase/manual/phase5_review_golive.md`.
 | `m74-db.test.mjs` | Postgres with ALL real migrations | `admin_settle_single_item` (UTR + date, MFA only, batch completion, audit, seller earnings sync) and `admin_seller_bank_details` |
 | `m74-logic.test.mjs` | nothing | single-seller CSV, Download Details / Payout Made UI, Workflow + Agent Coming Soon, seller how-it-works copy, home Featured / Popular / New queries |
 | `m75-logic.test.mjs` | nothing | homepage FAQ accordion, login terms checkbox + password eye toggle, privacy tax wording (no 206AB), footer without operator details |
+| `m76-db.test.mjs` | Postgres with ALL real migrations | `admin_complete_seller_payout` (one-seller completion, earnings sync) and the rate limiter (window, privileges, seller-write triggers) |
+| `m76-logic.test.mjs` | nothing | Library cards, Payout Completed + unrestricted Download Details UI, limiter helpers, login / identity / bank routes |

@@ -86,6 +86,8 @@ suite("M73  homepage hero autoplay video (no DB)", "m73-logic.test.mjs");
 suite("M74  individual payout made + bank details (live DB, real schema)", "m74-db.test.mjs");
 suite("M74  PAN disclosure, single-seller export, Coming Soon, seller copy, home curation (no DB)", "m74-logic.test.mjs");
 suite("M75  homepage FAQ, login terms + password toggle, tax wording, clean footer (no DB)", "m75-logic.test.mjs");
+suite("M76  payout completed + rate limits (live DB, real schema)", "m76-db.test.mjs");
+suite("M76  library cards, payout completed UI, rate limiting of login / PAN / bank (no DB)", "m76-logic.test.mjs");
 suite("M68  manual bank payouts: form validation, CSV columns, bank-only payout page (no DB)", "m68-logic.test.mjs");
 suite("M58  Tier 1 clean-up: payout code retired, nothing reaches it (no DB)", "m58-tier1.test.mjs");
 suite("M59  Tier 2 clean-up: Route transfers + sweep retired, refunds and disputes kept (no DB)", "m59-tier2.test.mjs");
