@@ -21,8 +21,9 @@ export default function TopNav({ hideAuthLinks = false }) {
         style={{ borderBottom: "1px solid #D8D5C9" }}
       >
         <div className="flex items-center gap-8">
-          <Link href="/" style={{ fontFamily: "'Fraunces', serif", fontStyle: "italic", fontSize: 20, color: "#14213D" }}>
-            chatmarket.
+          <Link href="/" aria-label="ChatMarket home" className="flex items-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/logo.svg" alt="ChatMarket" width={646} height={146} className="h-8 sm:h-9 w-auto" style={{ display: "block" }} />
           </Link>
           <div className="hidden sm:flex items-center gap-6 text-sm" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
             <Link href="/browse" style={{ color: "#14213D" }}>Explore</Link>

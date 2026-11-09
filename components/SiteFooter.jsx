@@ -19,9 +19,13 @@ export default function SiteFooter() {
   return (
     <>
       <footer className="mt-12 pt-6 pb-10 px-6" style={{ borderTop: "1px solid #D8D5C9" }}>
+        <div className="flex justify-center mb-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo.svg" alt="ChatMarket" width={646} height={146} className="h-7 w-auto" style={{ display: "block" }} />
+        </div>
         <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
           <span className="text-xs" style={{ color: "#6B6F76", fontFamily: "'IBM Plex Sans', sans-serif" }}>
-            © 2026 chatmarket. All rights reserved.
+            © 2026 ChatMarket. All rights reserved.
           </span>
           {LINKS.map((link) => (
             <Link

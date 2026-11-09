@@ -8,6 +8,7 @@ import { useAuthUser } from "@/lib/supabase/use-auth-user";
 import AccountMenu from "@/components/AccountMenu";
 import SocialBar from "@/components/SocialBar";
 import ProductCard from "@/components/ProductCard";
+import WaitlistForm from "@/components/WaitlistForm";
 import { PRODUCT_TYPE_ORDER, productTypeMeta, isComingSoon } from "@/lib/product-types";
 
 const EXAMPLE_PROMPTS = [
@@ -24,7 +25,9 @@ const LANDING_STYLES = `
 .serif{ font-family:'Fraunces', serif; }
 
 .lnav{ position:sticky; top:0; z-index:50; display:flex; align-items:center; justify-content:space-between; padding:20px 6%; background:rgba(237,238,234,0.85); backdrop-filter:blur(8px); border-bottom:1px solid var(--rule); }
-.llogo{ font-family:'Fraunces', serif; font-style:italic; font-size:22px; }
+.llogo{ display:flex; align-items:center; }
+.llogo img{ display:block; height:34px; width:auto; }
+@media(max-width:600px){ .llogo img{ height:28px; } }
 .lnav-links{ display:flex; gap:32px; font-size:14px; align-items:center; }
 .lnav-cat{ position:relative; cursor:default; }
 .lnav-cat-dropdown{
@@ -93,7 +96,12 @@ const LANDING_STYLES = `
 .lstep .lnum{ font-family:'IBM Plex Mono', monospace; color:var(--amber-deep); font-size:13px; margin-bottom:14px; }
 .lstep h3{ font-family:'Fraunces', serif; font-weight:600; font-size:19px; margin-bottom:10px; }
 .lstep p{ color:var(--muted); font-size:14px; line-height:1.6; }
-.lfaq{ max-width:760px; border:1px solid var(--rule); border-radius:10px; overflow:hidden; background:var(--paper-card); }
+.lsection-center{ text-align:center; }
+.lsection-center .lsection-title{ margin-left:auto; margin-right:auto; }
+.lsection-sub{ color:var(--muted); font-size:15px; line-height:1.6; max-width:520px; margin:0 auto 34px; }
+.lwaitlist{ max-width:520px; margin:0 auto; border:1px solid var(--rule); border-radius:10px; background:var(--paper-card); padding:34px 30px; text-align:left; }
+@media(max-width:600px){ .lwaitlist{ padding:26px 20px; } }
+.lfaq{ max-width:768px; margin:0 auto; text-align:left; border:1px solid var(--rule); border-radius:10px; overflow:hidden; background:var(--paper-card); }
 .lfaq-item + .lfaq-item{ border-top:1px solid var(--rule); }
 .lfaq-q{ width:100%; display:flex; align-items:center; justify-content:space-between; gap:16px; text-align:left; padding:18px 22px; font-family:'Fraunces', serif; font-weight:600; font-size:17px; color:#14213D; background:transparent; cursor:pointer; }
 .lfaq-q:focus-visible{ outline:2px solid #E2A83E; outline-offset:-2px; }
@@ -165,7 +173,10 @@ export default function LandingClient({ categoryCounts, featuredProducts = [], p
       </div>
 
       <nav className="lnav">
-        <span className="llogo">chatmarket.</span>
+        <Link href="/" className="llogo" aria-label="ChatMarket home">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/logo.svg" alt="ChatMarket" width={646} height={146} />
+        </Link>
         <div className="lnav-links">
           <Link href="/browse">Explore</Link>
           <div className="lnav-cat" tabIndex={0}>
@@ -241,6 +252,17 @@ export default function LandingClient({ categoryCounts, featuredProducts = [], p
             className="w-full h-auto rounded-md"
             style={{ display: "block", width: "100%", height: "100%", objectFit: "contain" }}
           />
+        </div>
+      </section>
+
+      <section id="waitlist" className="lsection lsection-center" style={{ paddingTop: 40, paddingBottom: 40 }}>
+        <div className="lreveal">
+          <div className="lsection-eyebrow">Opening January 2027</div>
+          <h2 className="lsection-title">Be first in when ChatMarket opens.</h2>
+          <p className="lsection-sub">Join the waitlist as a buyer, a creator, or both. We'll email you once, when the doors open.</p>
+        </div>
+        <div className="lwaitlist lreveal">
+          <WaitlistForm source="landing" />
         </div>
       </section>
 
@@ -377,10 +399,11 @@ export default function LandingClient({ categoryCounts, featuredProducts = [], p
         </div>
       </section>
 
-      <section id="faq" className="lsection">
+      <section id="faq" className="lsection lsection-center">
         <div className="lreveal">
           <div className="lsection-eyebrow">FAQ</div>
           <h2 className="lsection-title">Frequently Asked Questions</h2>
+          <p className="lsection-sub">Quick answers about buying, selling and getting paid.</p>
         </div>
         <div className="lfaq lreveal">
           {FAQ_ITEMS.map((item, i) => {
