@@ -1,19 +1,14 @@
-# ChatMarket: logo, waitlist, centred FAQ (additive update)
+# Pre-launch guard + waitlist page fixes
 
-Tested on a copy of your Milestone 5.10 codebase: `next build` passes (37 pages), pages render at 1280px and 390px, and the API returns 400 for a bad email, ok for a honeypot hit, and 503 when the service key is missing (expected locally).
-NOT tested against your real Supabase (it is unreachable from my environment): run the migration and submit one real email before sharing the link.
+Files (copy over the repo, then deploy):
+- app/waitlist/page.jsx   -> no TopNav, no page-level footer (layout.jsx already renders SiteFooter); logo-only header
+- components/MobileTabBar.jsx -> returns null on /waitlist (otherwise the mobile bottom bar shows Browse/Sell/Orders)
+- middleware.js           -> pre-launch redirect to /waitlist until 1 Jan 2027 00:00 IST
 
-## Apply
-1. Supabase SQL editor: run `supabase/migrations/20261109100000_waitlist_signups.sql` (new table `waitlist_signups`, RLS on, service_role only).
-2. Copy every file in this zip over the repo at the same path, then deploy.
-3. `SUPABASE_SERVICE_ROLE_KEY` must already be set on Vercel (the payments and rate limiter use it).
-4. Privacy page: add one line: "Waitlist: if you join the waitlist we store your email address and whether you are a buyer, creator or both, only to tell you when ChatMarket launches."
-
-## What changed
-- Logo: `public/brand/logo.svg` (+ `logo.png`, 2x) is the brand-kit horizontal logo on a transparent background with the wordmark in ink for light pages; `logo-on-dark.svg` is the original on ink. Used in `TopNav.jsx`, the landing page's own nav (`LandingClient.jsx`) and `SiteFooter.jsx`. `app/icon.svg` is a favicon from the brand icon (delete it if you already have one you prefer).
-- Waitlist: `components/WaitlistForm.jsx` (email validation, Buyer / Creator / Both, "Join the January 2027 Waitlist", success message), a section on the landing page under the hero, a stand-alone `/waitlist` page for your bio links, and `app/api/waitlist/route.js` (honeypot, 5 sign-ups per IP per hour via your existing `lib/security/rate-limit.js`, duplicate emails answer ok).
-- FAQ: section header, new one-line subtext and accordion are centred; accordion is max 768px (max-w-3xl) and its text stays left-aligned.
-
-Read sign-ups: `select email, role_interest, created_at from public.waitlist_signups order by created_at desc;`
-
-Not changed: the site's navy palette and fonts, and the landing hero copy ("AI workers for real business work", "Playbooks · Workflows · Agents"), which no longer matches a Playbooks-only launch.
+Guard rules
+- Allowed: /waitlist, /api/waitlist, /brand/*, /_next/*, /videos/*, icons, robots/sitemap, plus /privacy, /terms, /refund (footer links; you collect emails, so the privacy page must stay reachable). Remove them from ALLOWED_EXACT if you disagree.
+- API routes are already excluded by the existing matcher, so Razorpay webhooks etc. are unaffected.
+- Admin bypass: open any URL with ?preview=admin_access once -> httpOnly cookie (30 days), you are redirected to the clean URL. ?preview=off clears it.
+- Set env PREVIEW_KEY on Vercel to something unguessable (default is "admin_access", as requested, which is guessable). Optional LAUNCH_AT env (ISO date) overrides the launch moment.
+- The dedicated ADMIN_HOST deployment is not redirected.
+- After launch the guard switches itself off; delete it later at leisure.

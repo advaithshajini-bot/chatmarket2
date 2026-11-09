@@ -19,6 +19,24 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 
+// ---- Pre-launch guard -------------------------------------------------------
+// Until LAUNCH_AT every visitor is redirected to /waitlist. Admin bypass:
+// open any URL once with ?preview=<PREVIEW_KEY> -- that sets an httpOnly
+// cookie and you see the full site. ?preview=off clears it.
+// PREVIEW_KEY defaults to "admin_access" (as requested); set a harder-to-guess
+// PREVIEW_KEY env var on Vercel before going public. LAUNCH_AT can also be
+// overridden by env (ISO string) to open the site without a code change.
+const LAUNCH_AT = new Date(process.env.LAUNCH_AT || "2027-01-01T00:00:00+05:30").getTime();
+const PREVIEW_KEY = process.env.PREVIEW_KEY || "admin_access";
+const PREVIEW_COOKIE = "cm_preview";
+
+const ALLOWED_PREFIXES = ["/waitlist", "/api/waitlist", "/brand/", "/_next/", "/videos/"];
+const ALLOWED_EXACT = ["/icon.svg", "/favicon.ico", "/apple-icon.png", "/icon.png", "/robots.txt", "/sitemap.xml", "/manifest.webmanifest", "/privacy", "/terms", "/refund"];
+
+function isAllowedPath(pathname) {
+  return ALLOWED_EXACT.includes(pathname) || ALLOWED_PREFIXES.some((p) => pathname === p.replace(/\/$/, "") || pathname.startsWith(p));
+}
+
 export async function middleware(request) {
   const adminHost = process.env.ADMIN_HOST;
   const host = request.headers.get("host") || "";
@@ -41,6 +59,35 @@ export async function middleware(request) {
     // to /admin rather than exposing the rest of the app there too.
     if (isAdminHost && !isAdminPath && pathname !== "/login") {
       return NextResponse.redirect(new URL("/admin", request.url));
+    }
+  }
+
+  // Pre-launch guard (skipped on the dedicated admin deployment).
+  const isAdminDeployment = adminHost && host === adminHost;
+  if (!isAdminDeployment && Date.now() < LAUNCH_AT) {
+    const param = request.nextUrl.searchParams.get("preview");
+    if (param === PREVIEW_KEY || param === "off") {
+      const clean = request.nextUrl.clone();
+      clean.searchParams.delete("preview");
+      const res = NextResponse.redirect(clean);
+      if (param === "off") {
+        res.cookies.set({ name: PREVIEW_COOKIE, value: "", maxAge: 0, path: "/" });
+      } else {
+        res.cookies.set({
+          name: PREVIEW_COOKIE,
+          value: PREVIEW_KEY,
+          httpOnly: true,
+          sameSite: "lax",
+          secure: process.env.NODE_ENV === "production",
+          path: "/",
+          maxAge: 60 * 60 * 24 * 30,
+        });
+      }
+      return res;
+    }
+    const hasBypass = request.cookies.get(PREVIEW_COOKIE)?.value === PREVIEW_KEY;
+    if (!hasBypass && !isAllowedPath(pathname)) {
+      return NextResponse.redirect(new URL("/waitlist", request.url), 307);
     }
   }
 
