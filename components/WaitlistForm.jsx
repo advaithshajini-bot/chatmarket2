@@ -86,7 +86,11 @@ export default function WaitlistForm({ source = "site" }) {
         <label>Leave this empty<input tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} /></label>
       </div>
 
-      <button type="submit" disabled={state.status === "loading"} className="lbtn-primary" style={{ justifyContent: "center", border: 0, cursor: "pointer", opacity: state.status === "loading" ? 0.7 : 1, width: "100%" }}>
+      <button type="submit" disabled={state.status === "loading"} style={{
+        display: "flex", alignItems: "center", justifyContent: "center", width: "100%", border: 0, cursor: "pointer",
+        background: "#E2A83E", color: "#14213D", padding: "14px 26px", borderRadius: 6, fontFamily: FONT, fontWeight: 600, fontSize: 15,
+        boxShadow: "0 1px 2px rgba(20,33,61,.1)", opacity: state.status === "loading" ? 0.7 : 1,
+      }}>
         {state.status === "loading" ? "Joining…" : "Join the January 2027 Waitlist"}
       </button>
       {state.status === "error" && <p id="wl-error" role="alert" style={{ color: "#B3261E", fontSize: 13.5 }}>{state.message}</p>}
