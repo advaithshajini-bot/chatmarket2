@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import CookiePreferencesModal from "@/components/CookiePreferencesModal";
 
 const LINKS = [
@@ -15,6 +16,10 @@ const LINKS = [
 
 export default function SiteFooter() {
   const [cookiesOpen, setCookiesOpen] = useState(false);
+  const pathname = usePathname();
+
+  // The pre-launch waitlist page is intentionally bare: no footer.
+  if (pathname === "/waitlist") return null;
 
   return (
     <>

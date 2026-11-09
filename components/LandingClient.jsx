@@ -59,6 +59,8 @@ const LANDING_STYLES = `
 .lh1 em{ font-style:italic; color:var(--amber-deep); }
 .lhero p.lsub{ font-size:17px; line-height:1.55; color:var(--muted); max-width:460px; margin-bottom:32px; }
 .lhero-ctas{ display:flex; gap:14px; flex-wrap:wrap; }
+.lhero-waitlist{ margin-top:14px; max-width:360px; }
+.lhero-waitlist a{ width:100%; }
 .lbtn-primary{ background:var(--amber); color:var(--ink); padding:14px 26px; border-radius:6px; font-weight:600; font-size:15px; display:inline-flex; align-items:center; gap:8px; transition:transform .2s ease, box-shadow .2s ease; box-shadow:0 1px 2px rgba(20,33,61,.1); }
 .lbtn-primary:hover{ transform:translateY(-2px); box-shadow:0 6px 16px rgba(226,168,62,.35); }
 .lbtn-outline{ border:1.5px solid var(--ink); padding:13px 24px; border-radius:6px; font-weight:500; font-size:15px; transition:background .2s ease; }
@@ -230,6 +232,9 @@ export default function LandingClient({ categoryCounts, featuredProducts = [], p
           <div className="lhero-ctas">
             <Link href="/browse" className="lbtn-primary">Browse products →</Link>
             <Link href="/sell" className="lbtn-outline">Become a creator</Link>
+          </div>
+          <div className="lhero-waitlist">
+            <a href="#waitlist" className="lbtn-primary" style={{ justifyContent: "center" }}>Join the waitlist</a>
           </div>
         </div>
 
