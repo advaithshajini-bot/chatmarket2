@@ -54,6 +54,9 @@ export default function MobileTabBar() {
   // TopNav's logged-in state, rather than a full profile page.
   const isYouSectionActive = ["/library", "/purchases"].some((p) => pathname?.startsWith(p));
 
+  // Pre-launch: the waitlist page must not offer links to unreleased routes.
+  if (pathname === "/waitlist") return null;
+
   return (
     <>
       {youOpen && user && (
