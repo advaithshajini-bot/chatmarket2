@@ -1,17 +1,15 @@
 import { Linkedin, Facebook, Instagram, Youtube } from "lucide-react";
 
-// Placeholder hrefs ("#") for LinkedIn/Facebook/Instagram/YouTube until the
-// actual social pages exist — swap these in as soon as they're live. The
-// WhatsApp number is real and already wired up (wa.me links work with just
-// a phone number, no separate "page" needed).
+// Official ChatMarket pages. Each icon opens in a new tab. The WhatsApp number is
+// wired too (wa.me links work with just a phone number).
 const WHATSAPP_NUMBER = "919150427083"; // +91 9150427083, no leading zeros/symbols for the wa.me link
 const WHATSAPP_DISPLAY = "+91 9150427083";
 
 const SOCIAL_LINKS = [
-  { label: "LinkedIn", href: "#", Icon: Linkedin },
-  { label: "Facebook", href: "#", Icon: Facebook },
-  { label: "Instagram", href: "#", Icon: Instagram },
-  { label: "YouTube", href: "#", Icon: Youtube },
+  { label: "LinkedIn", href: "https://www.linkedin.com/company/chatmarket2/", Icon: Linkedin },
+  { label: "Facebook", href: "https://www.facebook.com/share/1GUbXK79Js/", Icon: Facebook },
+  { label: "Instagram", href: "https://www.instagram.com/chatmarket2.in?fqnt=MTRvc2QzZmFxbXpmdw==", Icon: Instagram },
+  { label: "YouTube", href: "https://www.youtube.com/@chatmarket2", Icon: Youtube },
 ];
 
 function WhatsAppIcon({ size = 16 }) {
@@ -34,7 +32,7 @@ export default function SocialBar() {
           key={label}
           href={href}
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
           aria-label={label}
           style={{ color: "#14213D" }}
           className="hover:opacity-70 transition-opacity"
@@ -45,7 +43,7 @@ export default function SocialBar() {
       <a
         href={`https://wa.me/${WHATSAPP_NUMBER}`}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         aria-label="WhatsApp"
         style={{ color: "#14213D" }}
         className="flex items-center gap-1.5 hover:opacity-70 transition-opacity"
